@@ -1,3 +1,4 @@
+//y
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
 const ELEMENTUSERPROPS					= ['path', 'type', 'head', 'hint', 'data', 'flag', 'accl'];
