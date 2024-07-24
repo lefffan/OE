@@ -1,0 +1,16 @@
+{
+  "name": "tabels",
+  "version": "1.0.0",
+  "description": "tabels",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Lephan",
+  "license": "ISC",
+  "dependencies": {
+    "ws": "^8.14.2",
+    "wss": "^0.0.2"
+  }
+}
