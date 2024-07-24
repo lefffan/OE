@@ -88,46 +88,45 @@ const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'CHANGE', 'P
 
 const testdata = {
 		  10: { type: 'title', path: 'Database|+', data: 'New Database Configuration' },
-		  11: { type: 'text', path: 'Database', head: 'Database name', hint: DBCONFDIALOGHINTDBNAME, data: '', flag: '*+Enter new database name' },
-		  12: { type: 'select', path: 'Database', head: 'Default handler profile for elements', hint: `Specified handler profile will be used for any database element (see 'Element pad' pad) for all defined client events as a default one (in case of no any other hanlder exist)`, data: 'None/Content editable/Chat' },
+		  11: { type: 'text', path: 'Database', head: 'Database name', hint: DBCONFDIALOGHINTDBNAME, data: '', flag: '+Enter new database name' },
+		  12: { type: 'select', path: 'Database', head: 'Default event profile for all database elements', hint: `Specified handler profile will be used for any database element (see 'Element pad' pad) for all defined client events as a default one (in case of no any other hanlder exist)`, data: 'None/Content editable/Chat', flag: '*' },
 
-		  13: { type: 'text', path: 'Database/|+-|Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: `` },
-		  14: { type: 'textarea', path: 'Database/', head: 'Macros value', flag: '' },
-		  15: { type: 'textarea', path: 'Database/', head: 'Macros hint', flag: '*' },
+		  13: { type: 'text', path: 'Database/New macros|+-|Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: `` },
+		  14: { type: 'textarea', path: 'Database/New macros', head: 'Macros value', flag: '' },
+		  15: { type: 'textarea', path: 'Database/New macros', head: 'Macros hint', flag: '*' },
 
-		  16: { type: 'text', path: 'Database/|+-!|Path list', head: 'Database configuration pad/profile path', hint: DBCONFDIALOGHINTPATHLIST },
-		  17: { type: 'radio', path: 'Database/|!', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '' },
-		  18: { type: 'textarea', path: 'Database/|!', head: 'User/group list', hint: DBCONFDIALOGHINTUSERLIST, flag: '' },
+		  16: { type: 'text', path: 'Database/New path|+-!|Path list', head: 'Database configuration pad/profile path', hint: DBCONFDIALOGHINTPATHLIST, data: '' },
+		  17: { type: 'radio', path: 'Database/New path|!', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '' },
+		  18: { type: 'textarea', path: 'Database/New path|!', head: 'User/group list', hint: DBCONFDIALOGHINTUSERLIST, data: '' },
 
-		  20: { type: 'text', path: 'Element/id1|+|Element section', head: 'Name', hint: DBCONFDIALOGHINTELEMENTNAME, data: '', flag: '+Enter element name' },
+		  20: { type: 'textarea', path: 'Element/id1|+|Element profile', head: 'Name', hint: DBCONFDIALOGHINTELEMENTNAME, data: '', flag: '+Enter element name' },
 		  21: { type: 'textarea', path: 'Element/id1', head: 'Description', hint: DBCONFDIALOGHINTELEMENTDESCRIPTION, data: '', flag: '*' },
-		  22: { type: 'checkbox', path: 'Element/id1', head: 'Element type', hint: DBCONFDIALOGHINTELEMENTUNIQ, data: 'unique', flag: '' },
-		  23: { type: 'select', path: 'Element/id1', head: 'Element default handler profile', hint: `Specified handler profile will be used for all defined client events as a default one (in case of no custom hanlder exist)`, data: 'None/Content editable/Chat', flag: '*' },
+		  22: { type: 'checkbox', path: 'Element/id1', head: 'Element type', hint: DBCONFDIALOGHINTELEMENTUNIQ, data: 'unique', flag: '*' },
+		  23: { type: 'select', path: 'Element/id1', head: 'Element default handler profile', hint: `Specified handler profile will be used for all defined client events as a default one (in case of no custom hanlder exist)`, data: 'None/Content editable/Chat', flag: '' },
 		  24: { type: 'select', path: 'Element/id1', head: 'Element current handler profile', hint: `Specified handler profile will be used for all defined client events as a default one (in case of no custom hanlder exist)`, data: 'None/Test/Chat', flag: '*' },
 
-		  24: { type: 'select', path: 'Event/New event profile|+-|Event profile list', head: 'Client event', hint: DBCONFDIALOGHINTELEMENTHANDLEREVENT, data: CLIENTEVENTS.join('/') },
-		  25: { type: 'checkbox', path: 'Event/New event profile', head: 'Modifier keys', data: 'Ctrl/Alt/Shift/Meta' },
+		  30: { type: 'select', path: 'Event/New event profile|+-|Event profile list', head: 'Client event', hint: DBCONFDIALOGHINTELEMENTHANDLEREVENT, data: CLIENTEVENTS.join('/') },
+		  31: { type: 'checkbox', path: 'Event/New event profile', head: 'Modifier keys', data: 'Ctrl/Alt/Shift/Meta' },
+		  32: { type: 'select', path: 'Event/New event profile', head: 'Select event hanlder', hint: DBCONFDIALOGHINTELEMENTHANDLERCMD, data: 'Custom command line/Custom JSON/Predefined handler - Curl/System handler - SNMP', flag: '' },
+		  33: { type: 'textarea', path: 'Event/New event profile', data: '', flag: '*' },
 
-		  26: { type: 'textarea', path: 'Event/New event profile/Custom command line||Element handler section', head: 'Enter command line text here', hint: DBCONFDIALOGHINTELEMENTHANDLERCMD, data: '', flag: '*' },
-		  27: { type: 'textarea', path: 'Event/New event profile/Custom JSON', data: '', flag: '*', head: 'Enter JSON text here', hint: 'hui' },
-		  27: { type: 'select', path: 'Event/New event profile/Predefined handler', data: 'Handler1/Handler2/Curl', flag: '*' },
-		  28: { type: 'select', path: 'Event/New event profile/System handler', data: 'SNMP', flag: '-*' },	  // DBCONFDIALOGHINTELEMENTHANDLERMODE
+		  34: { type: 'radio', path: 'Event/New event profile', head: 'Handler stderr output', data: 'Wrap/Debug/!Ignore' },
+		  35: { type: 'checkbox', path: 'Event/New event profile', data: 'Log' },
+		  36: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output with (incorrect JSON)', data: 'Wrap/Debug/!Ignore' },
+		  37: { type: 'checkbox', path: 'Event/New event profile', data: 'Log' },
+		  38: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output (correct JSON)', data: '!Apply/Debug/Ignore' },
+		  39: { type: 'checkbox', path: 'Event/New event profile', data: 'Log', flag: '*' },
 
-
-		  2900: { type: 'radio', path: 'Element/id1/New event profile', head: 'Handler stderr output', data: 'Wrap/Debug/!Ignore' },
-		  2901: { type: 'checkbox', path: 'Element/id1/New event profile', data: 'Log' },
-		  2910: { type: 'radio', path: 'Element/id1/New event profile', head: 'Handler stdout output with (incorrect JSON)', data: 'Wrap/Debug/!Ignore' },
-		  2911: { type: 'checkbox', path: 'Element/id1/New event profile', data: 'Log' },
-		  2920: { type: 'radio', path: 'Element/id1/New event profile', head: 'Handler stdout output (correct JSON)', data: '!Apply/Debug/Ignore' },
-		  2921: { type: 'checkbox', path: 'Element/id1/New event profile', data: 'Log', flag: '*' },
-
-		  c1: { type: 'text', path: 'View', head: 'Name', hint: DBCONFDIALOGHINTVIEWNAME, data: '', flag: '+Enter view name' },
-		  c2: { type: 'textarea', path: 'View', head: 'Description', hint: DBCONFDIALOGHINTVIEWDESCRIPTION, data: '', flag: '_' },
-		  c3: { type: 'radio', path: 'View', head: 'Template', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: '//Table/Tree/Map', flag: '_' },
-		  c4: { type: 'textarea', path: 'View', head: 'Object selection\nSQL query', hint: '', data: '' },
-		  c5: { type: 'text', path: 'View', head: 'Link name', hint: '', data: '', },
-		  c6: { type: 'textarea', path: 'View', head: 'Options dialog', hint: '', data: '', flag: '_' },
-		  btn: {type: 'button', data: 'CREATE'}
+		  40: { type: 'text', path: 'View/id1', head: 'Name', hint: DBCONFDIALOGHINTVIEWNAME, data: '', flag: '+Enter view name' },
+		  41: { type: 'textarea', path: 'View/id1', head: 'Description', hint: DBCONFDIALOGHINTVIEWDESCRIPTION, data: '', flag: '*' },
+		  42: { type: 'textarea', path: 'View/id1', head: 'Object selection query', hint: '', data: '' },
+		  43: { type: 'text', path: 'View/id1', head: 'Object selection prop name', hint: '', data: 'value', },
+		  44: { type: 'text', path: 'View/id1', head: 'Object selection prop limit', hint: '', data: 'value', },
+		  45: { type: 'text', path: 'View/id1', head: 'Object selection link', hint: '', data: '', },
+		  46: { type: 'textarea', path: 'View/id1', head: 'Object selection input args', hint: '', data: '', flag: '*' },
+		  47: { type: 'radio', path: 'View/id1', head: 'Template', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: 'Table/Tree/Map' },
+		  48: { type: 'textarea', path: 'View/id1', head: 'Layout', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: '', flag: '*' },
+		  50: {type: 'button', path: 'Database', data: 'CREATE'}
 		 };
 
 // View pad:

@@ -23,20 +23,21 @@ const EMPTYOPTIONTEXT					= ' ';
 // Todo0 - Make new todo.txt that was done during EOS work
 // Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
 // Todo0 - Figure out another way instead of app.eventcounter for dropdown list
+// Todo0 - Make code overview for all other sources, do it like dialogbox.js done
 
 // Todo0 in july (dialogbox.js):
-// Todo0 - Git
-// Todo0 - Clone/remove icons are pushable?
-// Todo0 - Handler of left btn, handler of right btn
-// Todo0 - Get element content with classify of text elements (while defing 'readonly')
 // Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line
-// Todo1 - make grey btns via html visual effects
-// Todo1 - selection bar incorrect appearance for scrolled up content wrapper block
-// Todo0 - Make pad/profiles +- btns 
+	// Todo2 - make grey btns via html visual effects
+	// Todo2 - Multuiple flag * creates rounded area arount GUI element
+	// Todo2 - macros for interface elements margins/fonts to scale/form dialog box.
+	// Todo2 - Bold font for headders?
+	// Todo1 - selection bar incorrect appearance for scrolled up content wrapper block
+	// Todo0 - Make pad/profiles +- btns; and make them pushable
 // Todo0 - make interface element accl work
 // Todo0 - arrows up/down selects prev/next option at focused 'select' element?
 // Todo0 - Interface elements with type and path prop only - are correct and used to fix profile flag and head/hint
 // Todo0 - Save flag '!' for last active profile
+// Todo0 - split dialog box and drop down list class to different files
 
 function CheckSyntax(e, prop)
 {
@@ -197,14 +198,15 @@ function ShiftElementOption(options, shift, loop)
  if (!Array.isArray(options)) return;										// Return for options non array type
  if (typeof shift !== 'number') shift = 1;									// Next one for default
 
- for (const i in options) if (options[i][1])								// Search checked option
+ for (let i in options) if (options[i][1])									// Search checked option
 	 {
+	  i = +i;																// Convert to number
 	  shift = i + shift;													// Apply offset
 	  if (shift < 0) shift = loop ? options.length - 1 : 0;					// Out of range 'shift' is adjusted to the start/end or to the end/start depending on 'loop'
 	  if (shift > options.length - 1) shift = loop ? 0: options.length - 1;	// Out of range 'shift' is adjusted to the start/end or to the end/start depending on 'loop'
 	  options[i][1] = false;												// Uncheck 'old' option
 	  options[shift][1] = true;												// Check 'new' option
-	  return shift === i;													// Return whether option has been changed or not (true/false)
+	  return shift !== i;													// Return whether option has been changed or not (true/false)
 	 }
 }
 
@@ -449,25 +451,31 @@ class DialogBox extends Interface
  // Get interface element content inner html
  GetElementContentHTML(e)
  {
-  if (!e) return '';																				// Return empty for undefined interface element
-  const uniqeid = `${this.id + '_' + e.id}`;														// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
-  const attribute = `data-element="${uniqeid}"`;													// Set html attribute to access this uniq id
-  let content = '';																					// Element some content var
-  let readonly = /\-/.test(e.flag) ? ' readonly' : '';												// Read-only attribute for text elements
-  let disabled = readonly ? ' disabled' : '';														// Read-only attribute for input elements
-  let placeholder = (e.flag.indexOf('+') === -1 || ELEMENTTEXTTYPES.indexOf(e.type) === -1) ? '' : ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('+') + 1), TAGATTRIBUTEENCODEMAP)}"`;	// Placholder attribute for text elements
-  let add = '', activeoption;
+  if (!e) return '';																																// Return empty for undefined interface element
+  const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
+  const attribute = `data-element="${uniqeid}"`;																									// Set html attribute to access this uniq id
+  let content = '';																																	// Element some content var
+  let add = '';																																		// Active option additional items
+  let placeholder = '';																																// Placeholder attribute for text elements
+  let activeoption;																																	// Active option link
+  let readonly = /\-/.test(e.flag) ? ' readonly' : '';																								// Read-only attribute for text elements
+  let disabled = readonly ? ' disabled' : '';																										// Read-only attribute for input elements
+
+  if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
+	 {
+	  if (e.flag.indexOf('+') !== -1) placeholder = ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('+') + 1), TAGATTRIBUTEENCODEMAP)}"`;// Placholder attribute for text elements
+	 }
   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1)
 	 {
-	  if (!e.options.length) return '';																							// No options for selectable element? Return empty
-	  for (const option of e.options) if (option[1] && ((activeoption = option) || true)) break;								// Search for element active option
-	  if (e.selectionid !== undefined)			// Profile selection detected
+	  if (!e.options.length) return '';																												// No options for selectable element? Return empty
+	  for (const option of e.options) if (option[1] && ((activeoption = option) || true)) break;													// Search for element active option
+	  if (e.selectionid !== undefined)																												// Profile selection detected
 		 {
-		  if (e.options.length === 1 && !e.head && !e.hint) return '';															// One single profile and no head/hint? Profile selection is hidden
-	  	  if (activeoption[4].indexOf('+') !== -1) add += '<div class="itemadd">&nbsp&nbsp&nbsp&nbsp</div>';					// Define 'clone' icon for the active profile
-	  	  if (activeoption[4].indexOf('-') !== -1) add += '<div class="itemremove">&nbsp&nbsp&nbsp&nbsp</div>';					// Define 'remove' icon for the active profile
+		  if (e.options.length === 1 && !e.head && !e.hint) return '';																				// One single profile and no head/hint? Profile selection is hidden
+	  	  if (activeoption[4].indexOf('+') !== -1) add += '<div class="itemadd">&nbsp&nbsp&nbsp&nbsp</div>';										// Define 'clone' icon for the active profile
+	  	  if (activeoption[4].indexOf('-') !== -1) add += '<div class="itemremove">&nbsp&nbsp&nbsp&nbsp</div>';										// Define 'remove' icon for the active profile
 		 }
-	  SortSelectableElementData(e.options, e.flag);	// Sort element option for selectable types
+	  SortSelectableElementData(e.options, e.flag);																									// Sort element option for selectable types
 	}
 
   switch (e.type)
@@ -490,7 +498,7 @@ class DialogBox extends Interface
 		  case 'checkbox':
 		  case 'radio':
 			   for (const i in e.options)																																						// For checkbox/readio element types collect input and label tags
-				   content += `<input type="${e.type}" class="${e.type}" ${e.options[i][1] ? ' checked' : ''}${disabled} name="${uniqeid}" id="${uniqeid + '_' + i}"><label for="${uniqeid + '_' + i}">${AdjustString(e.options[i][0], HTMLINNERENCODEMAP)}</label>`;
+				   content += `<input type="${e.type}" class="${e.type}" ${e.options[i][1] ? ' checked' : ''}${disabled} name="${uniqeid}" id="${uniqeid + '_' + i}" value="${e.options[i][2]}"><label for="${uniqeid + '_' + i}" value="${e.options[i][2]}">${AdjustString(e.options[i][0], HTMLINNERENCODEMAP)}</label>`;
 			   return `<div ${attribute}>${content}</div>`;
 		  case 'textarea':
 			   return `<textarea type="textarea" class="textarea" ${attribute}${readonly}${placeholder}>${AdjustString(e.data, HTMLINNERENCODEMAP)}</textarea>`;								// For textarea element type return textarea tag
@@ -555,7 +563,7 @@ class DialogBox extends Interface
 	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);											// Execute button timer in one second
 	  this.autoapplybuttonid = e.id;																						// Store this btn id to exclude all other auto apply btns if exist
     }
-  if (this.autoapplybuttonid !== undefined && this.currentbuttonids.indexOf(this.autoapplybuttonid) === -1)			// Auto apply button doesn't exist in current btns array? Add it
+  if (this.autoapplybuttonid !== undefined && this.currentbuttonids.indexOf(this.autoapplybuttonid) === -1)					// Auto apply button doesn't exist in current btns array? Add it
 	 this.currentbuttonids.push(this.autoapplybuttonid);
   let footer = '<div class="footer">';																						// Fill dialog box footer with current btns html content wraped in div tag
   for (const id of this.currentbuttonids) footer += this.GetElementContentHTML(this.allelements[id]);
@@ -645,13 +653,13 @@ class DialogBox extends Interface
   return element ? [element, target] : [];															// Return result array with onterface element and its target (wrapped DOM element)
  }
 
-// Legacy function that is called on mouse/keyboard events on dialog box
+ // Inheritance function that is called on mouse/keyboard events on dialog box
  Handler(event)
  {
   let e, target;
   switch (event.type)
          {
-	  	  case 'keyup': // left/right arrow key with Alt and Ctrl hold for pad selection
+	  	  case 'keyup':																									// left/right arrow key with Alt and Ctrl hold for pad selection
 	       	   if (event.keyCode === 37 || event.keyCode === 39)
 		  		  {
 				   if (!event.altKey || !event.shiftKey) break;															// No Alt/Ctrl hold? Break
@@ -660,7 +668,7 @@ class DialogBox extends Interface
 				   this.ShowDialogBox();
 		       	  }
 			   break;
-	  	  case 'mousedown': // Mouse any button down on element
+	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
 			   [e, target] = this.GetEventTargetInterfaceElement(event.target);											// Define the clicked element 'e' and its wrapped target
 			   if (!e) break;																							// Break for undefined element 'e'
 			   if (event.which === 3)																					// Process right btn down event first, all code out of this 'if' case is left-btn event related
@@ -668,25 +676,30 @@ class DialogBox extends Interface
 				   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1) this.ChangeElementSortOrder(e, target);			// Right btn down changes sort order
 				   break;
 				  }
-		       if (e.type === 'select')
-			      {
-				   if (this.IsProfileCloneRemoveEvent(event.target)) break;												// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
-				   if (e === this.allelements[0])
-					  {
-					   if (!ChangeElementOptionById(e.options, event.target.attributes?.value?.value)) break;				// Set clicked pad and break in case of no change
-					   this.SaveDialogCurrentProfile();																	// Save dialog and refresh otherwise
-					   this.ShowDialogBox();
-					   break;
+		       switch (e.type)
+				  	  {
+					   case 'radio':
+							if (ChangeElementOptionById(e.options, event.target.attributes?.value?.value)) {};			// Change element data and restart 'accl' expr
+				   			break;
+					   case 'checkbox':
+							if (ToggleElementOptionById(e.options, event.target.attributes?.value?.value)) {};			// Change element data and restart 'accl' expr
+							break;
+					   case 'multiple':
+							if (!ToggleElementOptionById(e.options, event.target.attributes?.value?.value)) break;		// Toggle clicked option and break in case of no change
+							event.target.classList.toggle("selected");													// Refresh 'multiple' element via option class toggle
+							break;
+					   case 'select':
+							if (this.IsProfileCloneRemoveEvent(event.target)) break;									// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
+							if (e === this.allelements[0])
+						   	   {
+								if (!ChangeElementOptionById(e.options, event.target.attributes?.value?.value)) break;	// Set clicked pad and break in case of no change
+								this.SaveDialogCurrentProfile();														// Save dialog and refresh otherwise
+								this.ShowDialogBox();
+								break;
+						   	   }
+							if (e.eventcounter !== app.eventcounter) new DropDownList(e, this, event.target);			// Drop-down option list hide/occur. Any event occur increases global applcication class 'app' counter, so drop-down list (expand select class) 'hide event' refreshes its parent select element counter, so its value mismatch of app counter means hidden drop-down list. Create and display new list in case
+							break;
 					  }
-				   if (e.eventcounter !== app.eventcounter) new DropDownList(e, this, event.target);					// Drop-down option list hide/occur. Any event occur increases global applcication class 'app' counter, so drop-down list (expand select class) 'hide event' refreshes its parent select element counter, so its value mismatch of app counter means hidden drop-down list. Create and display new list in case
-			       break;
-				  }
-			   if (e.type === 'multiple')
-				  {
-				   if (!ToggleElementOptionById(e.options, event.target.attributes?.value?.value), true) break;			// Toggle clicked option and break in case of no change
-			       event.target.classList.toggle("selected");															// Refresh 'multiple' element via option class toggle
-			       break;
-				  }
 			   break;
 		  case 'mouseup':
 			   [e, target] = this.GetEventTargetInterfaceElement(event.target);											// Define the clicked element 'e' and its wrapped target
@@ -723,29 +736,22 @@ class DialogBox extends Interface
  SaveDialogCurrentProfile()
  {
   let e;
-  const radioids = new Set();																																		// Create new set collection to store radio/checkbox ids to detect appropriate DOM element 1st appearance
-  const elements = this.contentwrapper.querySelectorAll('input, textarea, .select');																				// Get contnet wrapper all textable/selectable elements
-  for (const element of elements) if (e = this.GetEventTargetInterfaceElement(element)[0])																			// Pass through all DOM elements converted to their interface ones
-  	  {
-   	   switch (element.attributes?.type?.value)
-	  		  {
-	   		   case 'checkbox':
-	   		   case 'radio':
-					if (!radioids.has(e.id)) e.data = '';																											// Input checkbox/radio element first appearance? Clear its data once
-					e.data += `${radioids.has(e.id) ? SELECTABLEOPTIONSDIVIDER : ''}${element.checked ? CHECKEDOPTIONPREFIX : ''}${element.nextSibling.innerHTML}`;	// Collect it from DOM element directly for every option apart 
-					radioids.add(e.id)																																// Add checkbox/radio element id
-            		break;
-	   		   case 'text':
-	   		   case 'textarea':
-	   		   case 'password':
-            		e.data = element.value;																															// Get text element data from its DOM element value
-             		break;
-	   		   default:
-			 		if (e.type !== 'select' || e.selectionid !== undefined) break;																					// Exclude non 'select' elements and profile selections
-			 		e.data = '';																																	// Init element data
-             		for (const i in e.options) e.data += `${i ? SELECTABLEOPTIONSDIVIDER : ''}${e.options[i][1] ? CHECKEDOPTIONPREFIX : ''}${e.options[i][0]}`;		// Collect element data from from DOM element directly
-	  		  }
-  	  }
+  const radioids = new Set();																														// Create new set collection to store radio/checkbox ids to detect appropriate DOM element 1st appearance
+  const elements = this.contentwrapper.querySelectorAll('input, textarea, .select');																// Get contnet wrapper all textable/selectable elements
+  for (const element of elements)																													// Pass through all DOM elements of dialog box content (html element 'contentwrapper')
+	  {
+	   if (!(e = this.GetEventTargetInterfaceElement(element)[0])) continue;																		// Retrieve GUI element object
+	   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
+		  {
+		   e.data = element.value;																													// Get text element data from its DOM element value
+           continue;
+		  }
+	   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1 || e.selectionid !== undefined) continue;													// Exclude non 'select' elements or profile selections (for user defined 'select' only)
+	   if (radioids.has(e.id)) continue;																												// Element repeat appearance? Break
+	   radioids.add(e.id);																															// Add element id
+	   e.data = '';																																	// Init element data
+	   for (const i in e.options) e.data += `${i ? SELECTABLEOPTIONSDIVIDER : ''}${e.options[i][1] ? CHECKEDOPTIONPREFIX : ''}${e.options[i][0]}`;	// Collect element data from from DOM element directly
+	  }
  }
 
  ButtonApply(eid)
