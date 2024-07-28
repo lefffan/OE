@@ -4,6 +4,7 @@ const ELEMENTUSERPROPS					= ['path', 'type', 'head', 'hint', 'data', 'flag', 'a
 const ELEMENTSERVICEPROPS				= ['id', 'options', 'selectionid', 'timer', 'timerstart', 'eventcounter'];
 const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
 const ELEMENTTEXTTYPES					= ['textarea', 'text', 'password'];
+const ELEMENTOTHERTYPES					= ['title', 'table', 'button'];
 const SELECTABLEOPTIONSDIVIDER			= '/';
 const PROFILEFIELDSDIVIDER				= '|';
 const CHECKEDOPTIONPREFIX				= '!';
@@ -22,8 +23,9 @@ const EMPTYOPTIONTEXT					= ' ';
 // Todo0 in august (other src code):
 // Todo0 - Make new todo.txt that was done during EOS work
 // Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
-// Todo0 - Figure out another way instead of app.eventcounter for dropdown list
-// Todo0 - Make code overview for all other sources, do it like dialogbox.js done
+// Todo0 - split dialog box and drop down list class to different files
+// Todo0 - Figure out another way instead of app.eventcounter for dropdown list. How to release up/down arrow keys navigating for last focused (based on app.eventcounter?) select element?
+// Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
 
 // Todo0 in july (dialogbox.js):
 // Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line
@@ -31,15 +33,11 @@ const EMPTYOPTIONTEXT					= ' ';
 	// Todo2 - Multuiple flag * creates rounded area arount GUI element
 	// Todo2 - macros for interface elements margins/fonts to scale/form dialog box.
 	// Todo2 - Bold font for headders?
-	// Todo1 - selection bar incorrect appearance for scrolled up content wrapper block
-	// Todo0 - Make pad/profiles +- btns; and make them pushable
+	// Todo2 - Make pad/profiles +- btns; and make them pushable
 // Todo0 - make interface element accl work
-// Todo0 - arrows up/down selects prev/next option at focused 'select' element?
-// Todo0 - Interface elements with type and path prop only - are correct and used to fix profile flag and head/hint
-// Todo0 - Save flag '!' for last active profile
-// Todo0 - split dialog box and drop down list class to different files
 
-function CheckSyntax(e, prop)
+// Todo0 - Use this function in a future to complete 'dialog' help section
+function CheckSyntaxForHelp(e, prop)
 {
  if (!e || typeof e !== 'object') return;		// Return for non-object element
  if (prop.indexOf(' ') !== -1) return;			// Check element prop name syntax for space chars and return if exist
@@ -119,6 +117,22 @@ function CheckSyntax(e, prop)
 			  	 if (e.flag.indexOf('!') === -1 || prop[0] === '_') return true;	// Button is non interactive or controller-call? Return correct syntax
 			break;
 		}
+}
+
+// Check GUI element syntax via its object props
+function CheckSyntax(e, prop)
+{
+ if (!e || typeof e !== 'object') return;																											// Return for non-object element
+ if (prop.indexOf(' ') !== -1) return;																												// Check element prop name syntax for space chars and return if exist
+ if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1 && ELEMENTTEXTTYPES.indexOf(e.type) === -1 && ELEMENTOTHERTYPES.indexOf(e.type) !== -1) return;	// Check for existing element types. Absen
+ if (typeof e.accl !== 'string') delete e.accl;																										// Delete non string prop 'accl'
+ if (typeof e.head !== 'string') delete e.head;																										// Delete non string prop 'head'
+ if (typeof e.hint !== 'string') delete e.hint;																										// Delete non string prop 'hint'
+ if (typeof e.data !== 'string' && e.type !== 'table') delete e.data;																				// Delete non string prop 'data' for all types except 'table'
+ if (e.type === 'table' && (!e.data || typeof e.data !== 'object')) delete e.data;																	// Delete non object prop 'data' for 'table' type
+ if (typeof e.flag !== 'string') e.flag = '';																										// Flag string is mandatory
+ if (typeof e.path !== 'string') e.path = '';																										// Path string is mandatory
+ return true;
 }
 
 // Function builds array by splitting (divided via '/') input arg data string to separate options and returns eponymous array. Element type 'type' defines checked options number: 'select' (single checked option only), 'radio' (none or single)
@@ -355,15 +369,22 @@ class DialogBox extends Interface
   // No valid dialog structure, so let it be empty
   if (!this.data || typeof this.data !== 'object') this.data = {};
 
-  // Iterate all dialog interface elements one by one in initial dialog data
+  // Iterate all dialog GUI interface elements one by one in initial dialog data
   for (const element in this.data)
 	  {
-	   if (!CheckSyntax(this.data[element], element)) { delete this.data[element]; continue; }								// Check element content syntax, incorrect? Delete prop and continue
-	   for (const prop in this.data[element]) if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete this.data[element][prop];	// Clear interface element from unnecessary props
-	   this.PushInterfaceElement(this.data[element], element);																// Push interface element to the global elements array 'allelements'
+	   if (!CheckSyntax(this.data[element], element))									// Check element content syntax, incorrect? Delete element and continue (go to next element)
+		  {
+		   delete this.data[element];
+		   continue;
+		  }
+	   for (const prop in this.data[element])											// Element is correct, so clear it from unnecessary props
+		   {
+			if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete this.data[element][prop];
+		   }
+	   this.PushInterfaceElement(this.data[element], element);							// Push interface element to the global elements array 'allelements'
 	  }
 
-  // Process all selectable elements, including service ones (profile selections) to correct their checked options number
+  // Correct checked options number of all selectable elements, including service ones (profile selections). Do it here after all elements is pushed (inserted) - PushInterfaceElement function modifies profile selections for every GUI element inserted
   for (const e of this.allelements) if (e.options) CorrectCheckedOptions(e.options, e.type);
 
   // Process all correct dialog interface element 'accl' properties for true/false state
@@ -463,6 +484,7 @@ class DialogBox extends Interface
 
   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
 	 {
+	  if (e.data !== 'string') return '';																											// Text data is undefined (non string)? Return empty
 	  if (e.flag.indexOf('+') !== -1) placeholder = ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('+') + 1), TAGATTRIBUTEENCODEMAP)}"`;// Placholder attribute for text elements
 	 }
   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1)
@@ -553,8 +575,8 @@ class DialogBox extends Interface
   let padbar = this.GetElementContentHTML(this.allelements[0]);
 
   // Define footer inner HTML
-  if (!this.currentbuttonids.length) this.currentbuttonids = this.defaultbuttonids;									// No active profile bundle specific buttons? Use default button list with non specific ones
-  if (this.autoapplybuttonid === undefined) for (const id of this.currentbuttonids)									// No auto apply button ever defined? Parse all current buttons on their auto apply feature (flags +|-)
+  if (!this.currentbuttonids.length) this.currentbuttonids = this.defaultbuttonids;											// No active profile bundle specific buttons? Use default button list with non specific ones
+  if (this.autoapplybuttonid === undefined) for (const id of this.currentbuttonids)											// No auto apply button ever defined? Parse all current buttons on their auto apply feature (flags +|-)
 	 {
 	  const e = this.allelements[id];																						// Fix current button element
 	  if (!(/\+|\-/.test(e.flag))) continue;																				// The button has no auto apply feature? Continue or calculate the timer and execute auto apply otherwise
@@ -607,7 +629,34 @@ class DialogBox extends Interface
   this.AdjustElementDOMSize();
  }
 
+ // Todo2 - Save flag '!' for last active profile
+ ModifyElementPathProfileActiveState(profile, active)
+ {
+  let e;
+  for (const element of profile)						// Browse all profile elements
+	  if (typeof element === 'number')					// Take elements only, not nested profiles
+	  if (e = this.allelements[element])				// Alias current element
+	  if (e.selectionid === undefined)					// Not profile selection
+		 {
+		  let pos = e.path.lastIndexOf(SELECTABLEOPTIONSDIVIDER);	// Calc divider pos in element path
+		  pos = pos === -1 ? 0 : pos + 1;							// And increase pos for any existing divider to set the pos for 1st option char
+		  e.path = e.path.substring(0, pos) + (active ? CHECKEDOPTIONPREFIX : '') + e.path.substring(pos + (e.path[pos] === CHECKEDOPTIONPREFIX ? 1 : 0));	// Join two halfs with checked option prefix
+		 }
+	   else												// Profile selection
+	     {
+	  	 }
+ }
+
  // Get current profile all interface elements outer HTML
+ /*******************************************************************************************************************
+  Functions pushes interface element <e> to the global element list (allelements array) with creating treelike profile structure:
+  profile [
+	   0: <element id number> (user defined element type'title|button|select|multiple|checkbox|radio|textarea|text|password|table')
+	   1: <element id number> (system defined profile selection element type 'select')
+	   2: <profile array>
+	   3: <profile array>
+	  ]
+ *******************************************************************************************************************/
  GetCurrentProfileHTML(profile, recursive)
  {
   if (!Array.isArray(profile)) return '';
@@ -747,7 +796,7 @@ class DialogBox extends Interface
            continue;
 		  }
 	   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1 || e.selectionid !== undefined) continue;													// Exclude non 'select' elements or profile selections (for user defined 'select' only)
-	   if (radioids.has(e.id)) continue;																												// Element repeat appearance? Break
+	   if (radioids.has(e.id)) continue;																											// Element repeat appearance? Continue
 	   radioids.add(e.id);																															// Add element id
 	   e.data = '';																																	// Init element data
 	   for (const i in e.options) e.data += `${i ? SELECTABLEOPTIONSDIVIDER : ''}${e.options[i][1] ? CHECKEDOPTIONPREFIX : ''}${e.options[i][0]}`;	// Collect element data from from DOM element directly
@@ -773,14 +822,21 @@ class DropDownList extends Interface
  constructor(e, dialogbox, target)
  {
   // Create element 'e' drop-down option list
-  super(e, dialogbox.parentchild, {overlay: 'NONSTICKY', effect: 'rise', flags: CLOSEESC}, {class: 'select expanded', style: `left: ${target.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${target.offsetTop + dialogbox.elementDOM.offsetTop + target.offsetHeight}px;`}); // (data, parentchild, props, attributes)
+  super(e, dialogbox.parentchild, {overlay: 'NONSTICKY', effect: 'rise', flags: CLOSEESC}, {class: 'select expanded', style: `left: ${target.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${target.offsetTop + dialogbox.elementDOM.offsetTop + target.offsetHeight - dialogbox.contentwrapper.scrollTop}px;`}); // (data, parentchild, props, attributes)
   this.dialogbox = dialogbox;
+  this.cursor = +(GetElementOptionByChecked(e.options)?.[2]);
 
   // And fill it with element options
-  let content = '';
-  for (const option of e.options) content += `<div value="${option[2]}" class="selectnone${option[1] ? ' selected' : ''}">${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div>`;
-  this.elementDOM.innerHTML = content;
+  this.Show();
   this.resizingElement = this.elementDOM;
+ }
+
+ // Display drop-down list content
+ Show()
+ {
+  let content = '';
+  for (const option of this.data.options) content += `<div value="${option[2]}" class="selectnone${option[1] || (+option[2]) === this.cursor ? ' selected' : ''}">${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div>`;
+  this.elementDOM.innerHTML = content;
  }
 
  // Drop-down option list 'hide event' sets its parent select element prop 'eventcounter' to the current one to indicate whether it's hidden or not
@@ -793,12 +849,29 @@ class DropDownList extends Interface
  // Handle interface events
  Handler(event)
  {
-  if (event.which === 3 || event.type !== 'mouseup') return;								// Handle only one left btn mouse up event
-  if (ChangeElementOptionById(this.data.options, event.target.attributes?.value?.value))	// Drop-down options list click selects another option? Kill myself
-  	 {
-	  this.dialogbox.SaveDialogCurrentProfile()												// Save dialog content data
-	  this.dialogbox.ShowDialogBox();														// and refresh it
-	 }
-  return { type: 'KILLME' };
+  switch (event.type)
+		 {
+		  case 'keydown':
+			   if (this.data.options.length < 2) break;																				// No changes for single option
+			   if ([13, 38, 40].indexOf(event.keyCode) === -1) break;																// up-down-enter keys to select/navigate drop down list options
+			   if (event.keyCode === 13)																							// Enter key
+				  {
+				   if (!ChangeElementOptionById(this.data.options, this.cursor)) return { type: 'KILLME' };							// Option is not changed? Kill myself
+				   this.dialogbox.SaveDialogCurrentProfile()																		// Save dialog content data
+				   this.dialogbox.ShowDialogBox();																					// and refresh it
+				   return { type: 'KILLME' };																						// Kill myself anyway
+				  }
+			   this.cursor += event.keyCode === 38 ? -1 : 1;																		// Change cursor pos up or down from current option appearance id
+			   if (this.cursor < 0) this.cursor = this.data.options.length - 1;														// Out of range is adjusted to last option
+			   if (this.cursor > this.data.options.length - 1) this.cursor = 0;														// Out of range is adjusted to 1st option
+		 	   this.Show();
+			   break;
+		  case 'mouseup':																											// Handle left btn mouse up event
+			   if (event.which !== 1) break;
+			   if (!ChangeElementOptionById(this.data.options, event.target.attributes?.value?.value)) return { type: 'KILLME' };	// Drop-down options list click doesn't change option? Kill myself
+			   this.dialogbox.SaveDialogCurrentProfile()																			// Save dialog content data
+			   this.dialogbox.ShowDialogBox();																						// and refresh it
+			   return { type: 'KILLME' };																							// Kill myself anyway
+		 }
  }
 }
