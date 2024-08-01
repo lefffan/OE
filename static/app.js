@@ -32,10 +32,10 @@ class App extends Interface
 		  if (event.which === 3) new ContextMenu([['New connection'], ['Help'], ['Test', 0]], this, event, this);
 		  break;
 	     case 'dblclick':
-		  new DialogBox(testdata, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', cascade: true}, {class: 'box selectnone', style: `left: ${Math.round(Math.random()*100)}%; top: ${Math.round(Math.random()*100)}%;`});
-		  break;
-	     case 'KILLME':
-		  if (event.data == 'New connection') new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
+		  		break;
+	     case 'New connection':
+		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
+		  //if (event.data == 'New connection') new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true, overlay: 'MODAL'}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
 		  break;
 	    }
     }

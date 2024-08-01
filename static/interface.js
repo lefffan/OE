@@ -1,40 +1,41 @@
-const DOMELEMENTMINWIDTH	= 20;
-const DOMELEMENTMINHEIGHT	= 20;
+const DOMELEMENTMINWIDTH	= 50;
+const DOMELEMENTMINHEIGHT	= 50;
 
+// Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
 {
- if (element === document.body) return element.scrollLeft || document.documentElement.scrollLeft || window.pageXOffset; // Calculate pixels number the element is scrolled from the left
+ if (element === document.body) return element.scrollLeft || document.documentElement.scrollLeft || window.scrollX;
  return element.scrollLeft;
 }
 
+// Function calculates pixels number the element is scrolled from the top
 function ElementScrollY(element)
 {
- if (element === document.body) return element.scrollTop || document.documentElement.scrollTop || window.pageYOffset; // Calculate pixels number the element is scrolled from the top
+ if (element === document.body) return element.scrollTop || document.documentElement.scrollTop || window.scrollY;
  return element.scrollTop;
 }
 
+// Function returns 1st registered (with 'data-child' attr set) child DOM element
 function GetFirstRegisteredChild(element)
 {
- while (element && element.attributes && element.attributes['data-child'] === undefined) element = element.parentNode; // Find 1st registered child DOM element (with 'data-child' attr set)
+ while (element && element.attributes && element.attributes['data-child'] === undefined) element = element.parentNode;
  return element;
 }
 
-function IsModalFocusMismatch(element, blink) // Check specified element modal child focus conflict
+// Check specified element modal child focus conflict
+function IsModalFocusMismatch(element, blink)
 {
  if (typeof element?.attributes?.['data-child']?.value !== 'string') return;
  let layer;
- const ids = element.attributes['data-child'].value.split('i'); // Split attr to get the whole child chain from app child (root child) to the child specified by element
+ const ids = element.attributes['data-child'].value.split('i');													// Split attr to get the whole child chain from app child (root child) to the child specified by element
 
- // Checking upstream trace from the 'element' for any MODAL child focus mismatch
- for (let id = 0; id < ids.length; id ++)
+ for (let id = 0; id < ids.length; id ++)																		// Checking upstream trace from the 'element' for any MODAL child focus mismatch
      {
-      layer = id ? layer.childs[+ids[id]] : app; // Use app (root layer) for current layer, otherwise - previous layer child id is used as a layer
-      if (!layer || !layer.zindexes.at(-1)) break; // Break for undefined layer or parent child click (layer.zindexes.at(-1) === 0)
-      if (layer.childs[layer.zindexes.at(-1)].IsModal() && layer.zindexes.at(-1) !== +ids[id + 1]) // The upper child is modal and its id doesn't match current layer child from the chain
-	 {
-	  if (blink) layer.childs[layer.zindexes.at(-1)].ToggleActiveStatus(); // Blink it if needed
+      layer = id ? layer.childs[+ids[id]] : app; 																// Use app (root layer) for current layer, otherwise - previous layer child id is used as a layer
+      if (!layer || !layer.zindexes.at(-1)) break;																// Break for undefined layer or parent child click (layer.zindexes.at(-1) === 0)
+      if (!layer.childs[layer.zindexes.at(-1)].IsModal() || layer.zindexes.at(-1) === +ids[id + 1])	continue;	// The upper child is not modal or its id does match current layer child from the chain
+	  if (blink) layer.childs[layer.zindexes.at(-1)].ToggleActiveStatus();										// Focus is restricted otherwise. Blink corresponded modal child if needed
 	  return true;
-	 }
      }
 }
 
@@ -126,7 +127,6 @@ class Interface
  constructor(...args) // (data, parentchild, props, attributes)
 	    {
 	     // Data
-	     if (args[0] === undefined) return;
 	     this.data = args[0];
 
 	     // Parent child
@@ -175,7 +175,7 @@ class Interface
 	     if (Array.isArray(this.props.cascade) && this.props.cascade.length) [this.elementDOM.style.left, this.elementDOM.style.top] = [this.props.cascade[(this.id - 1) % this.props.cascade.length][0], this.props.cascade[(this.id - 1) % this.props.cascade.length][1]];
 	    }
 
- AdjustElementDOMSize(width = 100, height = 100)
+ AdjustElementDOMSize(width = DOMELEMENTMINWIDTH, height = DOMELEMENTMINHEIGHT)
  {
   const computed = window.getComputedStyle(this.elementDOM);
   if (parseInt(computed.getPropertyValue('width')) < DOMELEMENTMINWIDTH || parseInt(computed.getPropertyValue('height')) < DOMELEMENTMINHEIGHT) [this.elementDOM.style.width, this.elementDOM.style.height] = [width + 'px', height + 'px'];

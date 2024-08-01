@@ -49,11 +49,12 @@ class Connection extends Interface
 	  case 'mouseup':
 	       if (event.which === 3) new ContextMenu([['New database'], ['Database configuration'], ['Help']], this, event, this);
 	       break;
-	  case 'KILLME':
-	       if (event.data == 'New database') this.CallController();
+	  case 'New database':
+	       this.CallController();
 	       break;
 	  case 'DIALOG':
 	       new DialogBox(event.data, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', cascade: true}, {class: 'dialogbox selectnone', style: `left: ${Math.round(Math.random()*100)}%; top: ${Math.round(Math.random()*100)}%;`});
+            //new DialogBox(undefined, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', cascade: true}, {class: 'dialogbox selectnone', style: `left: ${Math.round(Math.random()*100)}%; top: ${Math.round(Math.random()*100)}%;`});
 	       break;
 	 }
     }

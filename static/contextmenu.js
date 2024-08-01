@@ -18,7 +18,7 @@ class ContextMenu extends Interface
   switch (event.type)
 	 {
 	  case 'mouseup':
-	       return event.target.classList.contains('contextmenuitem') ? { type: 'KILLME', destination: this.destination, data: event.target.innerHTML } : undefined;
+	       return event.target.classList.contains('contextmenuitem') ? { type: 'KILLME', destination: this.destination, subevent: { type: event.target.innerHTML } } : undefined;
 	 }
  }
 

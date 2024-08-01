@@ -91,9 +91,9 @@ const testdata = {
 		  11: { type: 'text', path: 'Database', head: 'Database name', hint: DBCONFDIALOGHINTDBNAME, data: '', flag: '+Enter new database name' },
 		  12: { type: 'select', path: 'Database', head: 'Default event profile for all database elements', hint: `Specified handler profile will be used for any database element (see 'Element pad' pad) for all defined client events as a default one (in case of no any other hanlder exist)`, data: 'None/Content editable/Chat', flag: '*' },
 
-		  13: { type: 'text', path: 'Database/New macros|+-|Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: `` },
-		  14: { type: 'textarea', path: 'Database/New macros', head: 'Macros value', flag: '' },
-		  15: { type: 'textarea', path: 'Database/New macros', head: 'Macros hint', flag: '*' },
+		  13: { type: 'text', path: 'Database/New macros|+-|Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: ``, data: '', expr: '/sdd/14 && /hui/15' },
+		  14: { type: 'textarea', path: 'Database/New macros', data: 'sdd', head: 'Macros value', flag: '' },
+		  15: { type: 'textarea', path: 'Database/New macros', data: 'hui', head: 'Macros hint', flag: '*' },
 
 		  16: { type: 'text', path: 'Database/New path|+-!|Path list', head: 'Database configuration pad/profile path', hint: DBCONFDIALOGHINTPATHLIST, data: '' },
 		  17: { type: 'radio', path: 'Database/New path|!', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '' },
@@ -173,7 +173,7 @@ function lg(...data)
 // Todo1 (deffered todo)
 // Todo2 (questionable todo) - correct server create due to https://ru.stackoverflow.com/questions/1144243/Как-написать-сервер-который-отдаёт-файлы-из-папки
 
-staticdocs = { '/app.js': '/static/app.js', '/connection.js': '/static/connection.js', '/contextmenu.js': '/static/contextmenu.js', '/dialogbox1.js': '/static/dialogbox1.js', '/' : '/static/index.html', '/index.js': '/static/index.js', '/interface.js': '/static/interface.js', '/window.js': '/static/window.js' };
+staticdocs = { '/app.js': '/static/app.js', '/connection.js': '/static/connection.js', '/contextmenu.js': '/static/contextmenu.js', '/dialogbox.js': '/static/dialogbox.js', '/' : '/static/index.html', '/index.js': '/static/index.js', '/interface.js': '/static/interface.js', '/window.js': '/static/window.js' };
 
 http.createServer((req, res) => {
 if (req.method === 'GET' && staticdocs[req.url])

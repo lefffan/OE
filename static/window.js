@@ -1,58 +1,36 @@
-const testdata = { 1:{type: 'title', path: 'SUKA', data: ''},
-                   2:{type: 'textarea', path: 'Test', head: 'hui2', data:'hueta', flag:'_'},
-                   a:{type: 'button',   path: 'Test',      data: 'CANCEL', flag: '_-'},
-                   //3:{type: 'title', path: 'a/b', head: 'hui3'},
-                   //4:{type: 'title', path: 'a//c/', head: 'hui4'}
-                   t:{type: 'title',     path: 'SUKA/prrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrof1', data:''},
-                   ttt:{type: 'title',     path: 'SUKA',      data: 'PIZDA', flag:'!'},
-                   t1:{type: 'checkbox', path: 'SUKA',      data: 'test1/test2/test3', flag:'_', head:'Test checkbos for testing dialog interface clemenets!!', hint: 'hui'},
-                   //t2:{type: 'button',   path: 'SUKA',      data: 'CANCEL', head: 'background-color: RGB(251,105,74);'},
-                   t3:{type: 'radio',    path: 'SUKA',      data: 'test1/test2/test3', flag:'_', head: 'Test'},
-                   t4:{type: 'select',   path: 'SUKA/prrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrof1',data: 'paraga/alena/lesha/ira/zhenya', flag:'_', head: 'Test'},
-                   tt4:{type: 'select',   path: 'SUKA/prrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrof1',data: '1/2/3/7/6//10/fg/g/dfg/e/e/f/e/er/e/s/df/ef/fr/drf/erf/erf/erf/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/f/erf/ef/ef/ef/erf/ef/erf/erf/erf/erf/erf/efr/r/', flag:'_-', head: 'Test'},
-                   tt5:{type: 'multiple',   path: 'SUKA/prrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrof1',data: '2/3/0/опа/1', flag:'', head: 'Test'},
-                   t5:{type: 'multiple', path: 'SUKA/prof2',      data: 'test1/test2/test3', head: 'Test'},
-                   t6:{type: 'text',     path: 'SUKA',      data: 'pizda', flag:'!', head: 'Test'},
-                   t7:{type: 'textarea', path: 'SUKA',      data: {hui1: 'hui2'}, head:'hu1', misc: 'text area', head: 'Test'},
-                   t13:{type: 'radio',   path: 'SUKA',      data: 't1/t2/t3', head: 'Test'},
-                   t8:{type: 'password', path: 'SUKA',      data: '', flag:'_', misc: 'Введите пороль!!', head: 'Test'},
-                   t9:{type: 'table',    path: 'SUKA',      data: {_r1:{_c1:'1',c2:'2'}, r2:{c1:'3',c2:'hui'}}, flag:'_', head: '<>test', hint:'<>ты чо выебываиссе я нипаймуц'},
-                   t10:{type: 'radio',  path: 'SUKA/prof2',data: 't2/a2/v2', head: 'Test'},
-                   t210:{type: 'radio',  path: 'UKA',data: 't2/a2/v2', head: 'Test'},
-                 };
-
-const HTMLINNERENCODEMAP	= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];
-const TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
+const HTMLINNERENCODEMAP		= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode/decode each other
+const TAGATTRIBUTEENCODEMAP		= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
 const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre'];
 
-const EFFECTS			= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
-const EFFECTSHINT		= "effect appearance. Possible values:<br>'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall' and 'rise'.<br>All other values makes no effect.";
+const EFFECTS					= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
+const EFFECTSHINT				= "effect appearance. Possible values:<br>'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall' and 'rise'.<br>All other values makes no effect.";
 
-const CMCLOSE			= 0b1;
-const CMFULLSCREEN		= 0b10;
-const CLOSEESC			= 0b100;
+const CMCLOSE					= 0b1;
+const CMFULLSCREEN				= 0b10;
+const CLOSEESC					= 0b100;
 
-const REFRESHMININTERVAL	= 50;
-const ELEMENTPUSHOFFSET		= 3;
-const ACTIVECHILDSHADOW		= '4px 4px 5px #111';
+const REFRESHMININTERVAL		= 50;
+const ELEMENTPUSHOFFSET			= 3;
+const ACTIVECHILDSHADOW			= '4px 4px 5px #111';
 
 const WIDTHOFAREAFORRESIZING	= 13;
 const HEIGHTOFAREAFORRESIZING	= 13;
-const CLOSEICONAREAWIDTH	= 32;
-const CLOSEICONAREAHEIGHT	= 32;
+const CLOSEICONAREAWIDTH		= 32;
+const CLOSEICONAREAHEIGHT		= 32;
 
-const nicecolors = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
+const nicecolors				= [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
 
 function lg(...data)
 {
  console.log(...data);
 }
 
-function log(...data)
+function dir(...data)
 {
  data.forEach(value => console.dir(value));
 }
 
+// Function creates regexp to match tag names list 'tags'
 function HTMLTagsRegexp(tags)
 {
  let regexp = '';
@@ -60,10 +38,10 @@ function HTMLTagsRegexp(tags)
  return new RegExp(regexp.substring(0, regexp.length - 1), 'g');
 }
 
+// Function encodes strong 
 function AdjustString(string, encodemap, excludehtmltags, trim)
 {
  if (typeof string !== 'string' || !string || !Array.isArray(encodemap) || !Array.isArray(encodemap[0]) || !Array.isArray(encodemap[1])) return '';
- if (typeof excluderegexp != 'function') excluderegexp = null;
  if (trim) string = string.trim();
 
  let result, newstring = '';
@@ -134,7 +112,7 @@ function ProcessChildEvent(child, event) // Process child response
 {
  if (!child || !event) return;
 
- if (event.destination?.Handler) event.destination.Handler(event);
+ if (event.destination?.Handler) event.destination.Handler(event.subevent);
 
  switch (event.type) // { type: , source: , destination: , data: , }
 	{
@@ -169,7 +147,8 @@ function Handler(event)
 	      for (let id = child.length - 1; id >= 0; id--) // Dispatch key event to all childs in the chain from lowest acive to the root app and break in case of any child event
 		  {
 	           if ((target = child[id]?.Handler(event)) && !ProcessChildEvent(child[id], target)) break;
-	           if (HasOwnHandler(child[id]) && (target = Object.getPrototypeOf(Object.getPrototypeOf(child[id])).Handler.call(child[id], event)) && !ProcessChildEvent(child[id], target)) break; // Handle keydown for childs with own handlers only, cause no keydown event default handle
+	           if (HasOwnHandler(child[id]) && (target = Object.getPrototypeOf(Object.getPrototypeOf(child[id])).Handler.call(child[id], event)) && !ProcessChildEvent(child[id], target)) break; 
+			   // Handle keydown for childs with own handlers only, cause no keydown event default handle
 		  }
 	      break;
 

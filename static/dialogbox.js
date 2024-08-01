@@ -1,54 +1,73 @@
-const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 4096;
+const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
+const ELEMENTSERVICEPROPS				= ['id', 'options', 'selectionid', 'timer', 'timerstart', 'eventcounter'];
+const ELEMENTUSERPROPFALLBACKVALUES		= ['', undefined, undefined, undefined, undefined, '', undefined];
+const ELEMENTUSERPROPS					= ['path', 'type', 'head', 'hint', 'data', 'flag', 'expr'];
+const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
+const ELEMENTTEXTTYPES					= ['textarea', 'text', 'password'];
+const ELEMENTALLTYPES					= ['title', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES, 'table', 'button'];
+const SELECTABLEOPTIONSDIVIDER			= '/';
+const PROFILEFIELDSDIVIDER				= '|';
+const CHECKEDOPTIONPREFIX				= '!';
+const EMPTYOPTIONTEXT					= ' ';
+const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
+const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 
-// Todo0 - Make pad/profiles +- btns and make interface element accl work
-// Todo0 - Justify src arch via require/import
-// Todo0 - Comment all sources, order and understand them
-// Todo0 - Make sidebar from the virtual data - look for 16 april in diary book
+// Todo0 in october (OD structure in DB)
+// Todo0 - Cursor scheme default, custom
 // Todo0 - DB SQL handle for OD structure
-// Todo1 - selection bar incorrect appearance for scrolled up content wrapper block
-// Todo1 - Make interface btns and background like in VCSA
-// Todo1 - make grey btns via html visual effects
+// Todo1 - Make interface btns and background like in VCSA and dialog box scale (cause it seems too compact)
 // Todo2 - Somehow use some nice colors: orange RGB(243,131,96), 247,166,138; blue RGB(87,156,210), 50,124,86; bordovij RGB(136,74,87), 116,63,73; salatovij (174,213,129), 150,197,185;
+// Todo0 - macros for interface elements margins/fonts to scale/form dialog box. Also use macroses in user css configuration profile! Make 3-level macro; 1 - global (system user), 2 - OD, 3 - Specific user.
 
-function CheckSyntax(e)
+// Todo0 in september (all for sidebar):
+// Todo0 - Make sidebar from the virtual data - look for 16 april in diary book
+
+// Todo0 in august (other src code):
+// Todo0 - Make new todo.txt that was done during EOS work
+// Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
+// Todo0 - split dialog box and drop down list class to different files
+// Todo0 - Figure out another way instead of app.eventcounter for dropdown list. How to release up/down arrow keys navigating for last focused (based on app.eventcounter?) select element?
+// Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
+// Todo0 - For drop-down list class send only 'option is changed' event to its parenr dialog box, SRP principle
+
+// Todo0 in july (dialogbox.js):
+// Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line
+	// Todo2 - make grey btns via html visual effects
+	// Todo2 - Multuiple flag * creates rounded area arount GUI element
+	// Todo2 - macros for interface elements margins/fonts to scale/form dialog box.
+	// Todo2 - Bold font for headders?
+	// Todo2 - Make pad/profiles +- btns; and make them pushable
+
+// Todo0 - The function is unused for a while. Use it later to complete 'dialog' help section then remove it
+function CheckSyntaxForHelp(e, prop)
 {
  if (!e || typeof e !== 'object') return;		// Return for non-object element
- delete e.listid;								// Delete element listid prop cause it is used for system purpose
+ if (prop.indexOf(' ') !== -1) return;			// Check element prop name syntax for space chars and return if exist
  if (typeof e.flag !== 'string') e.flag = '';	// Flag string is mandatory
- if (typeof e.path !== 'string') e.path = '';	// Path is a nested profiles list divided by '/', so it must be a string and should start from root profile name (pad)
- e.path = e.path.replace(/^\/+/, '');			// Remove slash chars from the start of a path, cause it should start from root profile name (pad)
- e.path = e.path.replace(/\/+$/, '');			// Remove slash chars from the end of a path
- if (!e.path) e.path = ' ';						// Path cannot be empty and must contain at least one root profile (pad) name, using space as root pad for default
+ if (typeof e.path !== 'string') e.path = '';	// Path string is mandatory
 
- // Check every intreface element on next types: 'title|select|multiple|checkbox|radio|textarea|text|password|table|button'
- // Prop 'type' is mandatory for all elements, so 'path' is. Dialog box interface elements are grouped by 'path' prop with next format: pad1[/profile1/../profileN]
- // Path should start with pad name and then with nested profiles (optionally) divided by single or multiple slash chars.
- // Each pad/profile consists of some interface elements and/or other nested profiles in.
- // Pad/profile names shouldn't be empty, so slash chars from both ends of a path are truncated.
- // Empty/undefined path property automatically converted to space char root profile (pad).
- // Profiles (not pads) may be grouped to a separate selections via consecutive slashes, so profile names with one number of slashes before - are in one selection, with other number of slashes - in other selection.
+ // Dialog data is an object of interface elements list. Every element has its one mandatory property 'type': 'title|select|multiple|checkbox|radio|textarea|text|password|table|button'
+ // Props 'path' and 'flag' are mandatory too, but created empty if not exist.
+ // All interface elements are grouped by 'path' prop with next format: <profile1(pad) name>[/<profile2 name>/../<profileN name>]
+ // Each <profile name> consists of its name itself, profile flag, header and hint divided by '|' char: name|flag|header|hint
+ // Single option profile selection bar is hidden until the profile head (or hint) is set. Multiple options - selection bar is always displayed.
+ // Note that root level profiles look like usual pads, others non root - like dropdown list with options to select.
+ // Profile flags are optional and set some behaviour:
+			  	// add-remove (+-): profile is clonable and may be used as a template to add new profiles (+), profile is removable (-)
+			  	// Sort order (a^): + ascending alphabetical order, - descending alphabetical order, +-|-+ descending default, absent value: ascending default sort order (default), 
+			  	// 		Sorting is applied among current nested level the pad/profile is a memeber of. The flag value is collcted from all flag values for specified nested profile nested level
+				// divider (*): any set value - divider is displayed.
+				// selection id (!): profiles (not pads) may be grouped to a separate selections via number of '%' (see below), so profile names with one number of '%' - are in one selection, with other number - in other selection.
+ // Profile header with its hint (for non root level only) are optional too and acts as a header inner html code for the selection bar. Last header/hint text set in any element path is displayed.
+ // For all types except 'button' - at least one prop (head, hint, data or flag) should be defined.
+ // For all types except 'title'/'button' - in case of incorrect/undefined data, interface element is frozen and its purpose is to display head/hint/divider only.
  switch (e.type)
         {
-         case 'profile':
-			  // 1. Clone/remove profile 2. Profile head/hint 3. Active flag 4. Profile selection id
-			  // /Element\+-!!!_\\/eid1 /Element/eid2 /Element/eid3
 		 case 'title':
-			  // head - profile list header inner html
-			  // hint - profile list header text hint
-			  //        In case of a single member in a list (one pad/profile) appropriate pad bar or profile selection is hidden until head (or hint) prop is set.
-			  //        Multiple pads or profiles are always displayed in a pad bar or profile selection.
 			  // data - dialog title inner html. This prop of any path first appearance sets the title as a default one. The title will be displayed until any other title appeared in an active profile bundle.
 			  //        Empty title string (data='') makes whole title element interface invisible. To set emtpy title visible use space char title.
-			  // flag - divider(_)
-			  //        sort order (|+-|+|-): + ascending alphabetical order, - descending alphabetical order, +-|-+ descending default, absent: ascending default sort order (default behaviour), 
-			  //        	Sorting method is applied among current nested level the pad/profile is a memeber of.
-			  //        active(!) Set pad/profile as an active (selected) one
-			  // accl - profile is clonable and may be used as a template to add new profiles (+)
-			  //        profile is removable (-)
-			  // For all types except 'button' - at least one prop (head, hint, data or flag) should be defined.
-			  // For all types except 'title'/'button' - in case of incorrect/undefined data, interface element is frozen and its purpose is to display head/hint/divider only.
-			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'string' || /_|\+|\-|\!/.test(e.flag)) return true;
+			  if (typeof e.data === 'string') return true;
 			  break;
 
 		 case 'textarea':
@@ -57,10 +76,10 @@ function CheckSyntax(e)
 			  // head - interface element header inner html
 			  // hint - interface element header text hint
 			  // data - interface element text content.
-			  // flag - divider(_), readonly(!), placeholder attribute (+)
-			  // accl - `/regexp/prop && || ! ( )` - set of chars allowed for accl expreesion - in case of no readonly flag set and this accl expr true value - the element becomes readonly.
+			  // flag - divider(*), readonly(-), placeholder attribute (+)
+			  // expr - `/regexp/prop && || ! ( )` - set of chars allowed for expr expreesion - in case of no readonly flag set and this expr expr true value - the element becomes readonly.
 			  //		Undefined/incorrect props have negative value.
-			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'string' || /_/.test(e.flag)) return true;
+			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'string' || /\*/.test(e.flag)) return true;
 			  break;
 
 	     case 'select':
@@ -70,10 +89,10 @@ function CheckSyntax(e)
 			  // head - interface element header inner html
 			  // hint - interface element header text hint
 			  // data - interface element content of selectable options divided by '/'.
-			  //        Option with multiple slashes before are considered as a selected/checked one, so empty option cannot be set.
-			  // flag - divider(_), sort order(|+-|+|-), readonly(!).
-			  // accl - See text type description. For checkbox and radio types only.
-			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'string' || /_/.test(e.flag)) return true;
+			  //        Option with char '!' before are considered as a selected/checked one.
+			  // flag - divider(*), sort order(^a), readonly(-).
+			  // expr - See text type description.
+			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'string' || /\*/.test(e.flag)) return true;
 			  break;
 
 		 case 'table':
@@ -81,8 +100,8 @@ function CheckSyntax(e)
 			  // hint - interface element header text hint
 			  // data - interface element 2d dimension object content with properties as a table rows. Each row property is a table cells property list.
 			  //        Each cell property, in turn, is a cell <td> tag inner html.
-			  // flag - divider(_)
-			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'object' || /_/.test(e.flag)) return true;
+			  // flag - divider(*)
+			  if (typeof e.head === 'string' || typeof e.hint === 'string' || typeof e.data === 'object' || /\*/.test(e.flag)) return true;
 			  break;
 
 		 case 'button':
@@ -90,110 +109,164 @@ function CheckSyntax(e)
 			  // hint - Warning message to confirm controller call. Or just info message in case of 'no action' button.
 			  // data - button inner html, undefined/empty/incorrect data makes button invisibe and usually used with auto apply feature (see below), as an example - disappearing info messages
 			  // flag - interactive(!), no hide dialog after button apply which generates two cases:
-			  //		1) Button property name with leading '_' char makes a controller call action with a property name (without '_') as a dialog event initiated the call.
-			  //		2) Btn property name without leading '_' just makes no action, so no call-controller action btns with interactive flag make no sense cause no dialog kill even made.
-			  //        Number of '-' (minutes) and '_' (seconds) chars in any order do set the timer value (max one week) for the button to be applied automatically.
-			  //               Once the auto-apply button appeares in the profile bundle the auto-apply feature is turned on and does exist regardless of button current profile appearance.
-			  //               Example: flag string '-_-' sets 121 second timer.
-			  //        profile-specific(+) flag displays buttons for this profile only and hide all other buttons. Non-specific btns are displayed in case of no any profile-specific ones.
-			  // accl - See text type description. In case of true accl expression the button becomes grey.
-			  if ((typeof e.data === 'string' && e.data) || (/_|\-/.test(e.flag) && e.flag.indexOf('!') === -1)) return true;
-			  break;
+			  //			1) Button property name with leading '_' char makes a controller call action with a property name (without '_') as a dialog event initiated the call.
+			  //			2) Btn property name without leading '_' just makes no action, so no call-controller action btns with interactive flag make no sense cause no dialog kill even made.
+			  //        Number of '+' (minutes) and '-' (seconds) chars in any order do set the timer value (max one week) for the button to be applied automatically.
+			  //			Once the auto-apply button appeares in the profile bundle the auto-apply feature is turned on and does exist regardless of button current profile appearance.
+			  //			Example: flag string '+-+' sets 121 second timer.
+			  //        profile-specific(*) flag displays buttons for this profile only and hide all other buttons. Non-specific btns are displayed in case of no any profile-specific ones.
+			  // expr - See text type description. In case of true expr expression the button becomes grey.
+			  if ((typeof e.data === 'string' && e.data) || /\+|\-/.test(e.flag))	// Button is visible or auto-apply?
+			  	 if (e.flag.indexOf('!') === -1 || prop[0] === '_') return true;	// Button is non interactive or controller-call? Return correct syntax
+			break;
 		}
 }
 
-function SortSelectDataArray(arr, flag)
+// Check GUI element name ('name') and its props ('e[prop]')
+function CheckGUIElement(e, name)
 {
- if (!Array.isArray(arr) || typeof flag !== 'string') return;
+ if (!e || typeof e !== 'object') return;												// Return for non-object element
+ if (name.indexOf(' ') !== -1) return;													// Check element name syntax for space chars and return if exist
+ if (ELEMENTALLTYPES.indexOf(e.type) === -1) return;									// Check for existing element types
 
- if (/\+.*\-|\-.*\+/.test(flag)) return arr.sort((a, b) => b[2] - a[2]);
- if (/\+/.test(flag)) return arr.sort((a, b) => a[0].localeCompare(b[0]));
- if (/\-/.test(flag)) return arr.sort((a, b) => -1 * a[0].localeCompare(b[0]));
- return arr.sort((a, b) => a[2] - b[2]);
+ for (const prop in e)
+	 if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete e[prop];							// Clear element from unnecessary props
+
+ for (const i in ELEMENTUSERPROPS)														// Go through available element props
+	if (typeof e[ELEMENTUSERPROPS[i]] !== 'string')										// Non string type prop? Check fall back value to modify the prop
+	if (ELEMENTUSERPROPFALLBACKVALUES[i] === undefined) delete e[ELEMENTUSERPROPS[i]];	// Fallback value is undefined? Delete the prop
+	 else e[ELEMENTUSERPROPS[i]] = ELEMENTUSERPROPFALLBACKVALUES[i];					// Otherwise set it to that fallback value
+
+ return true;
 }
 
-function PrepareSelectableData(e)
+// Function builds array by splitting (divided via '/') input arg data string to separate options and returns eponymous array. Element type 'type' defines checked options number: 'select' (single checked option only), 'radio' (none or single)
+function ParseSelectableElementData(data)
 {
- // Check if sorted data already exist
- if (e.sortdata) return SortSelectDataArray(e.sortdata, e.flag);
+ // First step - init data
+ if (typeof data !== 'string') return [];	// Element with non string data is considered as element with one header/hint only. With empty data ('') - as element with one empty option. With single divider data='/' - as element with two empty option.
+ const options = [];						// Array of selectable options. Each array element, in turn - is an array of option itself, checked status and order id (to keep default appearance): [option, ischecked, id] plus auto set fourth (profile index) and fifth (profile clonable/removable flag) array elements
 
- // Init data
- e.sortdata = [];
- if (typeof e.data !== 'string' || !e.data) return; // Element with no/empty data is considered as element with one header only
- let ischecked = 0, checkedcount = 0;
-
- // Adjust data
- e.data = e.data.replace(/\/+$/, ''); // Trailing slashes for 'selectable' elements data are unnecessary
- e.data = e.data.replace(/^\//, ''); // Remove leading slash for 'selectable' elements data
-
- // Generate sorted data array
- for (const option of e.data.split('/'))
-  if (option)
+ // Second step - generate sorted data array
+ for (let option of data.split(SELECTABLEOPTIONSDIVIDER))
      {
-      if (e.sortdata.length > DIALOGSELECTABLEELEMENTMAXOPTIONS) break;
-      ischecked = (e.listid === undefined || e.profileids[e.activeprofileid] !== option) ? ischecked : true; // For usual 'select' element checked option is calculated via consecutive slashes (ischecked count > 0), for pad/profile selection (listid prop is not undefined) - via active profile id name in $profileids and $option match
-      e.sortdata.push([option, ischecked, String(e.sortdata.length)]); // Insert new element with 2 values - option and selected/checked flag (non zero flag value - the option is checked)
-      if (ischecked) checkedcount ++;
-      ischecked = 0; // Reset ischecked flag
-     }
-   else
-     {
-      ischecked ++; // The option is selected, so set the flag
+      if (options.length > DIALOGSELECTABLEELEMENTMAXOPTIONS) break;																							// Options number exceeds max allowed? Break
+	  options.push([option[0] === CHECKEDOPTIONPREFIX ? option.substring(1) : option, option[0] === CHECKEDOPTIONPREFIX ? true : false, options.length + '']);	// Push prepare option array data - option name without checked prefix, checked/selected status, apperance order id string 
      }
 
- // Sort data array
- SortSelectDataArray(e.sortdata, e.flag);
-
- // Correct checked options number for 'select' and 'radio' element types
- if (e.type === 'select' || e.type === 'radio')
-    {
-     if (!checkedcount && e.type === 'select') // Element with 'select' type should have at least one option selected, so in case of no one - set 1st option selected
-	{
-         e.sortdata[0][1] = true;
-         checkedcount = 1;
-        }
-     for (let i = e.sortdata.length - 1; i >= 0; i --) // Element with 'select'/'radio' types should have one option selected only, so remove all except one/none
-         {
-          if (checkedcount < 2) break;
-          checkedcount --;
-          e.sortdata[i][1] = 0;
-         }
-    }
+ // Return result array
+ return options;
 }
 
-function SelectElementOption(arr, value, toggle)
+// Correct checked (selected) options number for 'select' element type (1 option) and 'radio' (0 or 1 option).
+function CorrectCheckedOptions(options, type)
 {
- let res;
- if (typeof value == 'number') value += '';
- if (typeof value !== 'string') return;
+ // 'select' element type - should have at least one option selected, 1st option is forced otherwise
+ // 'radio' - may have no options selected
+ // Both types should have no more than one selected option, last selected is used otherwise
+ if (type !== 'select' && type !== 'radio') return;
+ let checkedcount = 0;
+ for (let i = options.length - 1; i >= 0; i--) if (options[i][1]) checkedcount ? options[i][1] = false : checkedcount++;
+ if (!checkedcount && type === 'select') options[0][1] = true;
+}
 
- for (let option of arr)
-     if (option[2] === value)
-	{
-	 if (!toggle && option[1]) return;
-	 res = option[0];
-	 option[1] = toggle ? !option[1] : true;
-	}
-      else
-	{
-	 option[1] = toggle ? option[1] : false;
-	}
- return res;
+// Functions sorts options array based on flag value. 'options' is a parsed array (see above)
+function SortSelectableElementData(options, flag)
+{
+ if (!Array.isArray(options)) return;
+ if (typeof flag !== 'string') flag = '';
+
+ if (flag.indexOf('a') === -1)																			// Default appearance sorting order in case of flag 'a' value, otherwise - alphabetical
+	return options.sort((a, b) => (flag.indexOf('^') === -1 ? 1 : -1) * a[2] - b[2]);					// Default appearance ascending/descending order
+  else 
+    return options.sort((a, b) => (flag.indexOf('^') === -1 ? 1 : -1) * a[0].localeCompare(b[0]));		// Alphabetical ascending/descending order
+}
+
+// Function sets checked status in 'options' array for the specified appearance id 'id' option and unchecks previous checked. 
+function ChangeElementOptionById(options, id)
+{
+ if (typeof id === 'number') id += '';							// Convert id number to string
+ if (typeof id !== 'string' || !Array.isArray(options)) return;	// Return undefined in case of non string id and non array type
+
+ for (let option of options) if (option[2] + '' === id)			// Search option for the given id
+	 {
+	  const oldchecked = GetElementOptionByChecked(options);	// Retrieve current checked option
+	  if (option[1] || oldchecked === option) return;			// If current checked option matches found by 'id' one or found option is already checked - return 
+	  option[1] = true;											// Set found option
+	  oldchecked[1] = false;									// and uncheck old one
+	  return option;											// Return processed option
+	 }
+}
+
+// Function inverts/toggles checked status in 'options' array for the specified appearance id 'id' option. 
+function ToggleElementOptionById(options, id)
+{
+ if (typeof id === 'number') id += '';							// Convert id number to string
+ if (typeof id !== 'string' || !Array.isArray(options)) return;	// Return undefined in case of non string id and non array type
+
+ for (let option of options) if (option[2] + '' === id)			// Search option of the matched value
+	 {
+	  option[1] = !option[1];									// Toggle matched option checked status
+	  return option;											// Return matched option
+	 }
+}
+
+// Function searches fisrt checked option, unchecks it and checks next/previuos option based on shift value. Arrows up/down option navigating.
+function ShiftElementOption(options, shift, loop)
+{
+ if (!Array.isArray(options)) return;										// Return for options non array type
+ if (typeof shift !== 'number') shift = 1;									// Next one for default
+
+ for (let i in options) if (options[i][1])									// Search checked option
+	 {
+	  i = +i;																// Convert to number
+	  shift = i + shift;													// Apply offset
+	  if (shift < 0) shift = loop ? options.length - 1 : 0;					// Out of range 'shift' is adjusted to the start/end or to the end/start depending on 'loop'
+	  if (shift > options.length - 1) shift = loop ? 0: options.length - 1;	// Out of range 'shift' is adjusted to the start/end or to the end/start depending on 'loop'
+	  options[i][1] = false;												// Uncheck 'old' option
+	  options[shift][1] = true;												// Check 'new' option
+	  return shift !== i;													// Return whether option has been changed or not (true/false)
+	 }
+}
+
+// Functions searches in options for the specfified option name and return corresponded option
+function GetElementOptionByName(options, name)
+{
+ if (typeof name !== 'string' || !Array.isArray(options)) return;		// Return undefined in case of non string name or options non array type
+ 
+ for (const option of options) if (option[0] === name) return option;	// Return matched option, undefined is returned otherwise
+}
+
+// Functions searches in options for the checked one and return corresponded option
+function GetElementOptionByChecked(options)
+{
+ if (!Array.isArray(options)) return;									// Return undefined in case of non array type
+
+ for (const option of options) if (option[1]) return option;			// Return matched option, undefined is returned otherwise
+}
+
+// Functions searches in options for the specified appearance id and return corresponded option
+function GetElementOptionById(options, id)
+{
+ if (typeof id === 'number') id += '';									// Convert id number to string
+ if (typeof id !== 'string' || !Array.isArray(options)) return;			// Return undefined in case of non string id and non array type
+
+ for (const option of options) if (option[2] === id) return option;		// Return matched option, undefined is returned otherwise
 }
 
 function GetTimerString(timer)
 {
  if (typeof timer !== 'number') return '';
- timer = Math.round(timer);
+ timer = Math.round(timer/1000);					// Round timer (converted ms to seconds) to the nearest integer.
 
- let hour = '' + Math.trunc(timer/3600) + ':';
- if (hour.length === 2) hour = '0' + hour;
+ let hour = '' + Math.trunc(timer/3600) + ':';		// Get integral part of the hours number plus ':' char.
+ if (hour.length === 2) hour = '0' + hour;			// One digit hour string - add '0' before.
 
- let min = '' + Math.trunc((timer%3600)/60) + ':';
- if (min.length === 2) min = '0' + min;
+ let min = '' + Math.trunc((timer%3600)/60) + ':';	// Get integral part of the minutes number plus ':' char.
+ if (min.length === 2) min = '0' + min;				// One digit minute string - add '0' before.
 
- let sec = '' + Math.trunc((timer%3600)%60);
- if (sec.length === 1) sec = '0' + sec;
+ let sec = '' + Math.trunc((timer%3600)%60);		// Get integral part of the seconds number plus ':' char.
+ if (sec.length === 1) sec = '0' + sec;				// One digit second string - add '0' before.
 
  return ` (${hour}${min}${sec})`;
 }
@@ -201,17 +274,18 @@ function GetTimerString(timer)
 class DialogBox extends Interface
 {
  profile = [];
- elementlinks = [];
+ allelements = [];
+
+ defaulttitleid = undefined;
+ currenttitleid = undefined;
+
+ defaultbuttonids = [];
+ currentbuttonids = [];
+ callbuttonids = [];
+
  autoapplybuttontimeoutid = undefined;
  autoapplybuttonid = undefined;
  autoapplybuttonelement = undefined;
-
- defaulttitleindex = undefined;
- defaultbuttonsindexes = [];
- callbuttonsindexes = [];
-
- currenttitleindex = undefined;
- currentbuttonsindexes = [];
 
  static style = {
 		   // dialog box global css props
@@ -292,450 +366,576 @@ class DialogBox extends Interface
 
  constructor(...args)
  {
-  // Call parent constructor with the given args (data, parentchild, props, attributes)
+  // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
+  args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
+  args[3]['data-element'] = '_-1';
   super(...args);
 
   // No valid dialog structure, so let it be empty
   if (!this.data || typeof this.data !== 'object') this.data = {};
 
-  // Iterate all dialog interface elements one by one and exclude space consisted prop names and elements with incorrect syntax by deleting them from the source dialog data
-  for (const prop in this.data)
-	  {
-	   (prop.indexOf(' ') === -1 && CheckSyntax(this.data[prop])) ? this.PushInterfaceElement(this.data[prop], prop) : delete this.data[prop];
-	  }
-  
-  // Process all correct dialog interface element 'accl' properties for true/false state
-  /*for (const prop in this.data)
-	{
-	 if (prop.indexOf(' ') === -1 && CheckSyntax(this.data[prop])) ? this.PushInterfaceElement(this.data[prop], prop) : delete this.data[prop];
-	}*/
+  // Iterate all dialog GUI interface elements one by one in initial dialog data
+  for (const element in this.data) 
+	  if (CheckGUIElement(this.data[element], element))				// Check element object props and their types
+		 this.PushInterfaceElement(this.data[element], element);	// Push interface element to the global elements array 'allelements' if successful
+	   else
+		 delete this.data[element];									// or delete element otherwise
 
-// Show dialog box:) 
+  // Correct checked options number of all selectable elements, including service ones (profile selections). Do it here after all elements is pushed (inserted) - PushInterfaceElement function modifies profile selections for every GUI element inserted
+  // Todo0 - make interface element expr work: 1. Check expr to allowed chars and convert /expr/prop to regex func //.test(prop) 2.For each prop add dependent eid to element with name 'prop' view new Set 3. After any text/selectable elements change
+  //	/[^&|()!]/.test('(()') - [regex, replacement (non string replacement doesn't change match)]
+  // '/sdd/ /5/'.matchAll(/\/.*?[^\\]\//g)
+  for (const e of this.allelements)
+	  {
+	   if (e.options) CorrectCheckedOptions(e.options, e.type);
+	   this.AdjustExprProp(e);
+	  }
+
+  // Show dialog box:) 
   this.ShowDialogBox();
  }
 
- PushInterfaceElement(e, prop) // Push interface element to global list (elementlinks array)
+ // Function parses expression 'e.expr', checks its syntax and put parsed string back to the 'e.expr'
+ AdjustExprProp(e)
  {
-  let nestedprofileindex, id, listid = 0, current = this.profile;
+  if (e.expr === undefined) return;																					// Return for undefined expression
 
-  // Parse element path first
-  for (const name of e.path.split('/'))
-      {
-       listid ++; // Increment list id (slash count before the name)
-       if (!name) continue; // Do nothing in case of empty path
-       nestedprofileindex = undefined;
+  if (['button', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].indexOf(e.type) === -1) return delete e.expr;		// Return and delete expression for non suitable types
+  const matches = Array.from(e.expr.matchAll(EXPRISREGEXP));														// Search all regexp via pattern EXPRISREGEXP
+  if (!matches.length) return delete e.expr;																		// and return with delete for no match found case
 
-       // Search from current profile items for both path splited name and list id match
-       for (id of current)
-	   {
-	    if (typeof id !== 'number' || this.elementlinks[id].listid !== listid) continue;
-	    if ((nestedprofileindex = SearchPropValue(this.elementlinks[id].profileids, name)) !== undefined) break;
-	    this.elementlinks[id].data += '/' + name;
-	    nestedprofileindex = current.push([]) - 1;
-	    this.elementlinks[id].profileids[nestedprofileindex] = name;
-	    break;
-	   }
+  let currentpos = 0, parsedexpr = '';
+  for (const match of matches)																						// Go through all matches
+   	  {
+	   if (currentpos < match.index)																				// If cursor current position lower than current regexp found
+	   	  if (EXPRPROPDISALLOWEDCHARSREGEXP.test(e.expr.substring(currentpos, match.index))) return delete e.expr;	// then the appropriate substring should consist of these operators ('()&&||!') only, so test the substring
+	   	   else parsedexpr += e.expr.substring(currentpos, match.index);											// Return with delete for no match or collect match string to the parsed expression 'parsedexpr'
 
-       // In case of no match create new nested profile
-       if (nestedprofileindex === undefined)
-	  {
-	   id = this.elementlinks.push({ id: this.elementlinks.length, type: current === this.profile ? 'padbar' : 'select', listid: listid, activeprofileid: current.length + 1, data: name, flag: '', profileids: {[current.length + 1]: name} }) - 1;
-	   nestedprofileindex = current.push(id, []) - 1;
+	   const propendpos = e.expr.indexOf(' ', match.index + match[0].length);
+	   const prop = e.expr.substring(match.index + match[0].length, propendpos === -1 ? e.expr.length : propendpos);
+	   if (this.data[prop] === undefined || this.data[prop]['data'] === undefined) return delete e.expr;
+	   parsedexpr += match[0] + ".test(this.data['" + prop + "']['data'])";
+	   if (propendpos === -1) break;
+	   currentpos = propendpos;
 	  }
 
-       current = current[nestedprofileindex]; // Go to nested profile
-       listid = 0; // Reset list id
+  try	{
+		 eval(parsedexpr) ? e.flag += '-' : e.flag.replaceAll(/-/g, '');
+		 e.expr = parsedexpr;
+		}
+  catch {
+  	 	 delete e.expr;
+		}
+}
+
+  /*******************************************************************************************************************
+  Functions pushes interface element <e> to the global element list (allelements array) with creating treelike profile structure:
+  profile [
+	   0: <element id number> (user defined element type'title|button|select|multiple|checkbox|radio|textarea|text|password|table')
+	   1: <element id number> (system defined profile selection element type 'select')
+	   2: <profile array>
+	   3: <profile array>
+	  ]
+ *******************************************************************************************************************/
+ PushInterfaceElement(e, prop)
+ {
+  let currentprofile = this.profile;
+
+  // Parse element path first. Path' prop has next format: <profile1(pad) name>[/<profile2 name>\<flags>\<profile header>\<profile hint>/../<profileN name>]
+  // Parse element <e> path first. Path' prop has next format: <profile1>[/../<profileN>]. First profile is root profile of selectable pads, other (non root) profiles are optional and present drop-daown list of selectable options.
+  // Each profile consists of its name (with optional CHECKEDOPTIONPREFIX for the currently selected profile), flags, head and hint separated via PROFILEFIELDSDIVIDER. All are optional.
+  for (const name of e.path.split(SELECTABLEOPTIONSDIVIDER))
+      {
+	   // Init some needed vars for splited path name
+	   let nestedprofileindex, option, currente, profilename, profileflag, profilehead, profilehint;
+	   [profilename, profileflag, profilehead, profilehint] = name.split(PROFILEFIELDSDIVIDER, 4);												// Split current profile splited path to its name, flag, head and hint
+	   if (profilehint !== undefined) profilehint = name.substring(profilename.length + profileflag.length + profilehead.length + 3);			// Hint is not undefined? Use the rest of a string as a hint regardless of PROFILEFIELDSDIVIDER char
+       // Search profile selection elements (from current profile) matched its selection id
+       for (const eid of currentprofile)
+	   	   {
+	    	if (Array.isArray(eid)) continue;																									// Item is profile (array)? Continnue. Type 'number' is needed
+			currente = this.allelements[eid];																									// Simplify current profile interface element naming, pointing to the element id <eid> in global element list array
+			if (currente.selectionid === undefined) continue;																					// Element is not profile selection element
+			if (currente.selectionid !== (profileflag || '').split('!').length - 1) continue;													// Profile selection element selection id doesn't match current splited path selection id (number of '!' chars)
+			option = GetElementOptionByName(currente.options, profilename[0] === CHECKEDOPTIONPREFIX ? profilename.substring(1) : profilename);	// Serch for the splited path name in found profile selection element
+			nestedprofileindex = option === undefined ? currentprofile.push([]) - 1 : option[3];												// Calculate nested profile index the splited path points to. Option name is not found in <currente> profile selection? Add new profile or use index value in found option ([3])
+			if (profileflag !== undefined) currente.flag = profileflag;																			// Override profile selection flag if defined
+			if (profilehead !== undefined) currente.head = profilehead;																			// Override profile selection head if defined
+			if (profilehint !== undefined) currente.hint = profilehint;																			// Override profile selection hint if defined
+			if (option !== undefined) break;																									// Option name is found in <currente> profile selection? Break
+			option = ParseSelectableElementData(profilename)[0];																				// Define new selection profile option with profilename as an input data,
+			option[2] = currente.options.length;																								// change its appearance id
+			currente.options.push([...option, nestedprofileindex, currente.flag.replaceAll(/[^\+\-]/g, '')]);									// Then add that new option to profile selection element 'currente' with additional nested profile index and profile specific flags (+|-) if exist
+			break;																																// All job is done, break the cycle
+	 	   }
+
+       // Insert new profile selection element and its empty profile array
+       if (nestedprofileindex === undefined)
+		  {
+		   currente = { id: this.allelements.length, type: 'select', head: profilehead, hint: profilehint, flag: profileflag || '' };			// Define new profile selection element
+		   currente.selectionid = currente.flag.split('!').length - 1;																			// Define its selection id
+		   currente.options = ParseSelectableElementData(profilename);																			// And its parsed <options> array
+		   currente.options[0].push(currentprofile.length + 1, currente.flag.replaceAll(/[^\+\-]/g, ''));										// For the added <profilename> as a last option of profile selection element: add nested profile index and profile specific flags (+|-) if exist
+		   this.allelements.push(currente);																										// Insert new profile selection element to the global element list
+		   nestedprofileindex = currentprofile.push(currente.id, []) - 1;																		// Insert empty profile array the last added option points to, and assign nested profile index to point to that profile array
+		  }
+
+	   // Go to parsed splited path profile
+       currentprofile = currentprofile[nestedprofileindex];
       }
 
-  // Add element interface to the current nested profile, not forgetting of default title and btns. Also title element doesn't only set dialob box title, but profile selection header/hint/divider
-  switch (e.type)
-	 {
-	  case 'title':
-	       // Copy props for profile selection virtual interface element
-	       // In case of no default dialog box title set - element is set as a default one, otherwise new title element is added to the current nested profile
-	       if (typeof e.head === 'string') this.elementlinks[id]['head'] = e.head;
-	       if (typeof e.hint === 'string') this.elementlinks[id]['hint'] = e.hint;
-	       if (typeof e.data === 'string')
-		  {
-		   current.push(e.id = this.elementlinks.push(e) - 1);
-		   if (this.defaulttitleindex === undefined) this.defaulttitleindex = e.id;
-		  }
-	       if (!e.flag) break;
-	       this.elementlinks[id]['flag'] += e.flag; // Collect flag values to the specified pad/profile
-	       if (/\!/.test(e.flag)) this.elementlinks[id]['activeprofileid'] = nestedprofileindex; // Set current profile active in case of flag '!' set
-	       break;
-	  case 'button':
-	       current.push(e.id = this.elementlinks.push(e) - 1);
-	       if (!(/\+/.test(e.flag))) this.defaultbuttonsindexes.push(e.id); // Add btn to default global btn array, in case of flag '+' set - the btn is used for a current pad/profile only with no default btns displayed
-	       if (prop[0] === '_') this.callbuttonsindexes.push(e.id); // Put all callable btns (with leading '_') to appropriate array
-	       break;
-	  default:
-	       current.push(e.id = this.elementlinks.push(e) - 1);
-	 }
+  e.id = this.allelements.length;
+  if (e.type === 'title' && typeof e.data === 'string' && this.defaulttitleid === undefined) this.defaulttitleid = e.id;						// In case of no default dialog box title set - element is set as a default one, otherwise new title element is added to the current nested profile
+  if (e.type === 'button' && !(/\+/.test(e.flag))) this.defaultbuttonids.push(e.id);															// Add btn to default global btn array, in case of flag '+' set - the btn is used for a current pad/profile only with no default btns displayed
+  if (e.type === 'button' && prop[0] === '_') this.callbuttonids.push(e.id);																	// Put all callable btns (with leading '_') to appropriate array
+  if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1) e.options = ParseSelectableElementData(e.data);											// Create parsed options array for selectable elements
+  this.allelements.push(e); 																													// Insert user defined element to the 'allelements' global array
+  currentprofile.push(e.id);																													// Insert user defined element id to the current profile based on calculated path above
  }
 
+ // Get interface element header+hint inner html for non title/button/padbar element types only
  GetElementHeaderHTML(e)
  {
+  if (e.type === 'title' || e.type === 'button' || e === this.allelements[0]) return ''; 
   let header = '';
-
-  if (['title', 'padbar', 'button'].indexOf(e.type) === -1) // For non title/padbar/btn elements only
-	 {
-  	  if (e.head && typeof e.head === 'string') header += AdjustString(e.head, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS);
-  	  if (e.hint && typeof e.hint === 'string') header += ` <span title="${AdjustString(e.hint, TAGATTRIBUTEENCODEMAP)}" class="hint-icon">?</span>&nbsp;`;
-  	  if (header) header = `<div class="element-headers">${header}</div>`;
-	 }
-
-  return header;
+  if (e.head && typeof e.head === 'string') header += AdjustString(e.head, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS);
+  if (e.hint && typeof e.hint === 'string') header += ` <span title="${AdjustString(e.hint, TAGATTRIBUTEENCODEMAP)}" class="hint-icon">?</span>&nbsp;`;
+  return header ? `<div class="element-headers">${header}</div>` : '';
  }
 
+ // Get interface element content inner html
  GetElementContentHTML(e)
  {
-  const uniqeid = `${this.id + '_' + e.id}`;
-  const attribute = `data-element="${uniqeid}"`;
-  let content = '';
-  let readonly = /\!/.test(e.flag) ? ' readonly' : '';
-  let disabled = readonly ? ' disabled' : '';
-  let placeholder = (e.flag.indexOf('+') === -1 || ['textarea', 'text', 'password'].indexOf(e.type) === -1) ? '' : ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('+') + 1), TAGATTRIBUTEENCODEMAP)}"`;
-
-  switch(e.type)
-        {
-         case 'title':
-	    	  if (!e.data) return ''; // Empty title string? Whole title element is invisible
-	    	  return `<div class="title">${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>`;
-
-	 	 case 'padbar':
-	    	  PrepareSelectableData(e);
-	    	  if (!e.sortdata.length) return ''; // No any pad, no pad bar. Actually 'no pad' means no dialog at all.
-	    	  if (e.sortdata.length === 1 && !e.head && !e.hint) return ''; // One single pad and no head/hint? Pad bar is hidden
-	    	  //for (let i in e.sortdata) content += `<div class="${e.sortdata[i][1] ? 'activepad' : 'pad'}" ${attribute} value="${i}">${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>`;
-			  let clss;
-	      	  for (let i in e.sortdata)
-				  {
-					let classes = `${e.sortdata[i][1] ? 'active' : ''}pad${/\+|\-/.test(e.flag) ? ' flexrow' : ''}`;
-					let add = `${/\+/.test(e.accl) && e.sortdata[i][1] ? '<div class="itemadd" ${attribute}>&nbsp&nbsp&nbsp&nbsp</div>' : ''}${/\-/.test(e.flag) && e.sortdata[i][1] ? '<div class="itemremove" ${attribute}>&nbsp&nbsp&nbsp&nbsp</div>' : ''}`;
-					content += `<div class="${classes}" ${attribute} value="${i}">${add ? '<div>' : ''}${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${add ? '</div>' : ''}${add}</div>`;
-				  }
-				  /*if (e.sortdata[i][1])
-					 {
-					  content += `<div class="activepad flexrow" ${attribute} value="${i}"><div>${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div><div class="itemadd" ${attribute}>&nbsp&nbsp&nbsp&nbsp</div><div class="itemremove" ${attribute}>&nbsp&nbsp&nbsp</div></div>`;
-					 }
-				   else
-				   	 {
-					  content += `<div class="pad" ${attribute} value="${i}">${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>`;
-					 }*/
-			  //`<div ${flexstyle} class="${e.sortdata[i][1] ? 'activepad' : 'pad'}" ${attribute} value="${i}"><div>${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>${e.sortdata[i][1] ? '<div class="itemadd">&nbsp&nbsp&nbsp&nbsp</div><div class="itemremove">&nbsp&nbsp&nbsp</div>' : ''}</div>`;
-	    	  return `<div class="padbar flexrow" ${attribute}>${content}</div>`;
-
-		 case 'select':
-			  PrepareSelectableData(e);
-			  if (!e.sortdata.length) return '';
-			  if (e.listid !== undefined && e.sortdata.length === 1 && !e.head && !e.hint) return ''; // One single profile and no head/hint? Profile selection is hidden
-			  for (let i in e.sortdata)
-			  	  if (e.sortdata[i][1]) return `<div class="select arrow${/\+.*\-|\-.*\+/.test(e.flag) ? '1' : /\+/.test(e.flag) ? '2' : /\-/.test(e.flag) ? '3' : '0'}${e.listid === undefined ? '' : ' profileselectionstyle'}" ${attribute}><div ${attribute} value="${e.sortdata[i][2]}">${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP)}</div></div>`;
-			  return '';
-
-		 case 'multiple':
-			PrepareSelectableData(e);
-			if (!e.sortdata.length) return '';
-			for (let i in e.sortdata) content += `<div ${attribute} value="${e.sortdata[i][2]}"${e.sortdata[i][1] ? ' class="selected"' : ''}>${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP)}</div>`;
-			if (content) content = `<div class="select" ${attribute}>${content}</div>`;
-			return content;
-		case 'checkbox':
-		case 'radio':
-			PrepareSelectableData(e);
-			if (!e.sortdata.length) return '';
-			for (let i in e.sortdata)
-			content += `<input type="${e.type}" class="${e.type}" ${attribute}${e.sortdata[i][1] ? ' checked' : ''}${disabled} name="${uniqeid}" id="${uniqeid + '_' + i}"><label for="${uniqeid + '_' + i}">${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP)}</label>`;
-			return content;
-		case 'textarea':
-			return `<textarea type="textarea" class="textarea" ${attribute}${readonly}${placeholder}>${AdjustString(e.data, HTMLINNERENCODEMAP)}</textarea>`;
-		case 'text':
-		case 'password':
-			return `<input type="${e.type}" class="${e.type}" ${attribute}${readonly} value="${AdjustString(e.data, TAGATTRIBUTEENCODEMAP)}"${placeholder}>`;
-			case 'table':
-			if (!e.data || typeof e.data !== 'object') return '';
-			for (const row in e.data)
-			{
-			if (!e.data[row] || typeof e.data[row] !== 'object') continue;
-			content += '<tr>';
-			for (const cell in e.data[row]) content += `<td class="boxtablecell${cell[0] === '_' ? ' cursorpointer" data-id="' + AdjustString(cell, TAGATTRIBUTEENCODEMAP) + '"' : '"'}>${AdjustString(e.data[row][cell], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</td>`;
-			content += '</tr>';
-			}
-			if (content) content = `<table class="boxtable" ${attribute}><tbody>${content}</tbody></table>`;
-			return content;
-	 case 'button':
-	      if (this.autoapplybuttonid === undefined && /_|\-/.test(e.flag))
+  if (!e) return '';																																// Return empty for undefined interface element
+  const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
+  const attribute = `data-element="${uniqeid}"`;																									// Set html attribute to access this uniq id
+  let content = '';																																	// Element some content var
+  let add = '';																																		// Active option additional items
+  let placeholder = '';																																// Placeholder attribute for text elements
+  let activeoption;																																	// Active option link
+  let readonly = /\-/.test(e.flag) ? ' readonly' : '';																								// Read-only attribute for text elements
+  let disabled = readonly ? ' disabled' : '';																										// Read-only attribute for input elements
+  
+  if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
+	 {
+	  if (typeof e.data !== 'string') return '';																											// Text data is undefined (non string)? Return empty
+	  if (e.flag.indexOf('+') !== -1) placeholder = ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('+') + 1), TAGATTRIBUTEENCODEMAP)}"`;// Placholder attribute for text elements
+	 }
+  if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1)
+	 {
+	  if (!e.options.length) return '';																												// No options for selectable element? Return empty
+	  for (const option of e.options) if (option[1] && ((activeoption = option) || true)) break;													// Search for element active option
+	  if (e.selectionid !== undefined)																												// Profile selection detected
 		 {
-		  e.gap = e.timer = Math.min(e.flag.split('_').length - 1 + (e.flag.split('-').length - 1) * 60, BUTTONTIMERMAXSECONDS); // Calculate button auto-apply timer in sec
-		  e.timerstart = new Date().getTime();
-		  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);
-		  this.autoapplybuttonid = e.id;
+		  if (e.options.length === 1 && !e.head && !e.hint) return '';																				// One single profile and no head/hint? Profile selection is hidden
+	  	  if (activeoption[4].indexOf('+') !== -1) add += '<div class="itemadd">&nbsp&nbsp&nbsp&nbsp</div>';										// Define 'clone' icon for the active profile
+	  	  if (activeoption[4].indexOf('-') !== -1) add += '<div class="itemremove">&nbsp&nbsp&nbsp&nbsp</div>';										// Define 'remove' icon for the active profile
 		 }
-	      return (typeof e.data === 'string' && e.data) ? `<div class="button" ${attribute}${e.head ? ' style="' + AdjustString(e.head, TAGATTRIBUTEENCODEMAP) + '"' : ''}>${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(e.gap)}</div>` : '';
+	  SortSelectableElementData(e.options, e.flag);																									// Sort element option for selectable types
 	}
- }
 
- ButtonTimer()
- {
-  const e = this.elementlinks[this.autoapplybuttonid];
-  e.gap = e.timer - (new Date().getTime() - e.timerstart)/1000;
-  e.gap < 0 ? this.ButtonApply(this.autoapplybuttonid) : this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);
-  //if (typeof e.data === 'string' && e.data) this.autoapplybuttonelement.innerHTML = `${AdjustString(this.elementlinks[this.autoapplybuttonid].data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(e.gap)}`;
-  if (this.autoapplybuttonelement) this.autoapplybuttonelement.innerHTML = `${AdjustString(this.elementlinks[this.autoapplybuttonid].data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(e.gap)}`;
+  switch (e.type)
+         {
+          case 'title':
+	    	   return e.data ? `<div class="title">${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>` : '';				// Empty title string? Whole title element is invisible
+		  case 'select':
+			   let arrowindex = 0;
+			   if (e.flag.indexOf('a') !== -1) arrowindex += 2;																						// Calculate sort icon via arrow<index> class:
+			   if (e.flag.indexOf('^') !== -1) arrowindex += 1;																						// arrow[01]: default appearance ascending/decending order, arrow[23]: alphabetical ascending/descending order
+			   let classlist = `select arrow${arrowindex}${e.selectionid === undefined ? '' : ' profileselectionstyle'}${add ? ' flexrow' : ''}`;	// Define corresponded class list string for 'select' element. Add specific style 'profileselectionstyle' for profile selection
+			   if (this.allelements[0] !== e)																										// For usual 'select' element return only active option content (expanded dorp-down list is hidden)
+				  return `${add ? '<div class="flexrow" '+ attribute + '>' : ''}<div class="${classlist}"${add ? '' : ' ' + attribute}><div value="${activeoption[2]}">${AdjustString(activeoption[0] ? activeoption[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div></div>${add ? add + '</div>' : ''}`;
+			   for (let option of e.options)																										// For pad selection element (pad bar) collect pad divs to 'content' var
+				   content += `<div class="${option[1] ? 'activepad' : 'pad'}${option[1] && add ? ' flexrow' : ''}" value="${option[2]}">${add && option[1] ? '<div>' : ''}${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${add && option[1] ? '</div>' + add : ''}</div>`;
+			   return `<div class="padbar flexrow" ${attribute}>${content}</div>`;
+		  case 'multiple':
+			   for (const option of e.options) content += `<div value="${option[2]}"${option[1] ? ' class="selected"' : ''}>${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div>`;	// For multiple selection element collect option divs
+			   return `<div class="select" ${attribute}>${content}</div>`;																																			// Return div wraped content
+		  case 'checkbox':
+		  case 'radio':
+			   for (const i in e.options)																																						// For checkbox/readio element types collect input and label tags
+				   content += `<input type="${e.type}" class="${e.type}" ${e.options[i][1] ? ' checked' : ''}${disabled} name="${uniqeid}" id="${uniqeid + '_' + i}" value="${e.options[i][2]}"><label for="${uniqeid + '_' + i}" value="${e.options[i][2]}">${AdjustString(e.options[i][0], HTMLINNERENCODEMAP)}</label>`;
+			   return `<div ${attribute}>${content}</div>`;
+		  case 'textarea':
+			   return `<textarea type="textarea" class="textarea" ${attribute}${readonly}${placeholder}>${AdjustString(e.data, HTMLINNERENCODEMAP)}</textarea>`;								// For textarea element type return textarea tag
+		  case 'text':
+		  case 'password':
+			   return `<input type="${e.type}" class="${e.type}" ${attribute}${readonly} value="${AdjustString(e.data, TAGATTRIBUTEENCODEMAP)}"${placeholder}>`;								// For text/password element types return input tag with appropriate type
+		  case 'table':
+			   if (!e.data || typeof e.data !== 'object') return '';
+			   for (const row in e.data)
+				   {
+					if (!e.data[row] || typeof e.data[row] !== 'object') continue;
+					content += '<tr>';
+					for (const cell in e.data[row]) content += `<td class="boxtablecell${cell[0] === '_' ? ' cursorpointer" data-id="' + AdjustString(cell, TAGATTRIBUTEENCODEMAP) + '"' : '"'}>${AdjustString(e.data[row][cell], HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</td>`;
+					content += '</tr>';
+				   }
+			   return content ? `<table class="boxtable" ${attribute}><tbody>${content}</tbody></table>` : '';
+	 	  case 'button':
+			   if (typeof e.data !== 'string' || !e.data) return '';																		// Button is hidden? Return empty
+	      	   return `<div class="button" ${attribute}${e.head ? ' style="' + AdjustString(e.head, TAGATTRIBUTEENCODEMAP) + '"' : ''}>${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(e.timer)}</div>`;
+		 }
  }
-
+ 
+  // Get interface element divider line inner html for non title/button/padbar element types only. Depends on element flag '*' presence
  GetElementFooterHTML(e)
  {
-  if (e.type === 'title' || e.type === 'padbar' || e.type === 'button') return ''; // Return element divider line for non title/btn/padbar elements only
-  return e.flag.indexOf('_') === -1 ? '<div></div>' : '<div class="divider"></div>'; // Return footer depended on divider flag set
+  return (e.type === 'title' || e.type === 'button' || e === this.allelements[0]) ? '' : `<div${e.flag.indexOf('*') === -1 ? '' : ' class="divider"'}></div>`;
+ }
+
+ // Function calculates the timer, applies the button if needed and refreshes button text with the new timer in seconds
+ ButtonTimer()
+ {
+  const e = this.allelements[this.autoapplybuttonid];																					// Retrieve button element
+  e.timer -= new Date().getTime() - e.timerstart;																						// Calculate estimated timer in milliseconds
+  e.timer < 0 ? this.ButtonApply(this.autoapplybuttonid) : this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);	// Timer is up? Apply the button or restart the timer function
+  if (!this.autoapplybuttonelement) return;																								// Btn is visible? Refresh its timer string below
+  this.autoapplybuttonelement.innerHTML = `${AdjustString(this.allelements[this.autoapplybuttonid].data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(e.timer)}`;
  }
 
  ShowDialogBox()
  {
-  if (!this.profile.length) return this.AdjustElementDOMSize() || (this.dragableElements = [this.elementDOM]); // No valid dialog content? Return empty innerHTML with adjusted size and drag capability
+  if (!this.profile.length) return this.AdjustElementDOMSize() || (this.dragableElements = [this.elementDOM]);			// No valid dialog content? Adjusted dialog box size, set drag capability and return
+  this.currenttitleid = undefined;																						// Init title id to store current active profile title
+  this.currentbuttonids = [];																							// Init empty array to store all active profile bundle specific button ids
 
-  this.currenttitleindex = undefined;
-  this.currentbuttonsindexes = [];
+  // Define dialog box content inner HTML code via root (pad) profile recursive passing through. Additionally calculate current title element and buttons list
+  let content = `<div class="boxcontentwrapper">${this.GetCurrentProfileHTML(this.profile[GetElementOptionByChecked(this.allelements[0].options)[3]], true)}</div>`;
 
-  let padbar = this.elementlinks[0];
-  let content = `<div class="boxcontentwrapper">${this.GetCurrentProfileHTML(this.profile[padbar.activeprofileid])}</div>`;
-  padbar = this.GetElementContentHTML(padbar);
+  // Define title inner HTML via current or default one
+  let title = this.GetElementContentHTML(this.allelements[this.currenttitlei === undefined ? this.defaulttitleid : this.currenttitleid]);
 
-  if (this.currenttitleindex === undefined) this.currenttitleindex = this.defaulttitleindex;
-  let title = this.currenttitleindex === undefined ? '' : this.GetElementContentHTML(this.elementlinks[this.currenttitleindex]);
+  // Define padbar inner HTML
+  let padbar = this.GetElementContentHTML(this.allelements[0]);
 
-  if (!this.currentbuttonsindexes.length) this.currentbuttonsindexes = this.defaultbuttonsindexes;
-  let footer = '<div class="footer">';
-  if (this.autoapplybuttonid !== undefined && this.currentbuttonsindexes.indexOf(this.autoapplybuttonid) === -1) footer += this.GetElementContentHTML(this.elementlinks[this.autoapplybuttonid]);
-  for (const i of this.currentbuttonsindexes) footer += this.GetElementContentHTML(this.elementlinks[i]);
+  // Define footer inner HTML
+  if (!this.currentbuttonids.length) this.currentbuttonids = this.defaultbuttonids;											// No active profile bundle specific buttons? Use default button list with non specific ones
+  if (this.autoapplybuttonid === undefined) for (const id of this.currentbuttonids)											// No auto apply button ever defined? Parse all current buttons on their auto apply feature (flags +|-)
+	 {
+	  const e = this.allelements[id];																						// Fix current button element
+	  if (!(/\+|\-/.test(e.flag))) continue;																				// The button has no auto apply feature? Continue or calculate the timer and execute auto apply otherwise
+	  e.timer = 1000 * Math.min(e.flag.split('+').length - 1 + (e.flag.split('-').length - 1) * 60, BUTTONTIMERMAXSECONDS);	// Calculate button auto-apply timer in milliseconds
+	  e.timerstart = new Date().getTime();																					// Store current time value in milliseconds since midnight, January 1, 1970
+	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);											// Execute button timer in one second
+	  this.autoapplybuttonid = e.id;																						// Store this btn id to exclude all other auto apply btns if exist
+    }
+  if (this.autoapplybuttonid !== undefined && this.currentbuttonids.indexOf(this.autoapplybuttonid) === -1)					// Auto apply button doesn't exist in current btns array? Add it
+	 this.currentbuttonids.push(this.autoapplybuttonid);
+  let footer = '<div class="footer">';																						// Fill dialog box footer with current btns html content wraped in div tag
+  for (const id of this.currentbuttonids) footer += this.GetElementContentHTML(this.allelements[id]);
   footer += '</div>';
 
+  //  Set dialog box DOM element inner html
   this.elementDOM.innerHTML = title + padbar + content + footer;
 
+  // Set some parent interface props for the title DOM element if exist, otherwise for dialog box DOM element
   if (title = this.elementDOM.querySelector('.title'))
      {
-      this.dragableElements = [title].concat([...title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]);
-      this.dblclickableElements = [title].concat([...title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]);
-      this.RefreshCMIcon(title);
+      this.dragableElements = [title].concat([...title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]);		// Set title with all child elements dragable
+      this.dblclickableElements = [title].concat([...title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]);	// Set title with all child elements double clickable
+      this.RefreshCMIcon(title);																					// Set child management icon to the title element
      }
    else
      {
-      this.dragableElements = [this.elementDOM];
-      this.dblclickableElements = [this.elementDOM];
-      this.RefreshCMIcon(this.elementDOM);
+      this.dragableElements = [this.elementDOM];																	// Set dialog box DOM element dragable
+      this.dblclickableElements = [this.elementDOM];																// Set dialog box DOM element double clickable
+      this.RefreshCMIcon(this.elementDOM);																			// Set child management icon to the dialog box DOM element
      }
 
+  // Pass through all button DOM elements to set some props
   this.pushableElements = [];
   for (const button of this.elementDOM.querySelectorAll('.button'))
       {
-       this.pushableElements.push([button, button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));
-       if (this.autoapplybuttonid !== undefined && this.GetInterfaceElement(button).id === this.autoapplybuttonid) this.autoapplybuttonelement = button;
+       this.pushableElements.push([button, button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));											// Set queried btn element (with all childs in) pushable
+       if (this.autoapplybuttonid !== undefined && this.GetEventTargetInterfaceElement(button)[0]?.id === this.autoapplybuttonid) this.autoapplybuttonelement = button;	// The btn is auto apply? Set <autoapplybuttonelement> to use it for timer refresh
       }
+
+  // Set dialog box contentwrapper var to simplify dialog content saving
   this.contentwrapper = this.elementDOM.querySelector('.boxcontentwrapper');
+
+  // Set dialog box of itself as a resizing element
   this.resizingElement = this.elementDOM;
+
+  // Set focus to the first found text element
   setTimeout(this.SetFirstTextElementFocus, 1, this);
+
+  // Set dialog box size to 100x100 (function args default values) if it is less than DOMELEMENTMINWIDTH/DOMELEMENTMINHEIGHT
   this.AdjustElementDOMSize();
+ 
+  // Remove ald and add new event listeners for textable/selectable elements to save their data interactively newhui
+  if (this.InputNodeList) this.InputNodeList.forEach((node) => node.removeEventListener('input', this.Handler));
+  this.InputNodeList = this.contentwrapper.querySelectorAll('input, textarea');
+  this.InputNodeList.forEach((node) => node.addEventListener('input', this.Handler));
  }
 
- SetFirstTextElementFocus(child)
+ // Todo2 - Save flag '!' for last active profile the user has clicked
+ ModifyElementPathProfileActiveState(profile, active)
  {
-  if (!child.elementDOM) return;
-  for (let element of child.elementDOM.querySelectorAll('input[type=password], input[type=text], textarea'))
-      if (!element.readOnly) return element.focus();
+  let e;
+  for (const element of profile)						// Browse all profile elements
+	  if (typeof element === 'number')					// Take elements only, not nested profiles
+	  if (e = this.allelements[element])				// Alias current element
+	  if (e.selectionid === undefined)					// Not profile selection
+		 {
+		  let pos = e.path.lastIndexOf(SELECTABLEOPTIONSDIVIDER);	// Calc divider pos in element path
+		  pos = pos === -1 ? 0 : pos + 1;							// And increase pos for any existing divider to set the pos for 1st option char
+		  e.path = e.path.substring(0, pos) + (active ? CHECKEDOPTIONPREFIX : '') + e.path.substring(pos + (e.path[pos] === CHECKEDOPTIONPREFIX ? 1 : 0));	// Join two halfs with checked option prefix
+		 }
+	   else												// Profile selection
+	     {
+	  	 }
  }
 
- GetCurrentProfileHTML(profile)
- {
-  /*******************************************************************************************************************
+ // Get current profile all interface elements outer HTML
+ /*******************************************************************************************************************
+  Functions pushes interface element <e> to the global element list (allelements array) with creating treelike profile structure:
   profile [
-	   0: <elemntid> (user defined element 'title|button|select|multiple|checkbox|radio|textarea|text|password|table')
-	   1: <elemntid> (system defined profile selection '{listid, activeprofileid=3, flag, data, profileids{2: <name>, 3: <name>}, profileflags{2: <flag>, 3: <flag>}}')
-	   2: profile []
-	   3: profile []
+	   0: <element id number> (user defined element type'title|button|select|multiple|checkbox|radio|textarea|text|password|table')
+	   1: <element id number> (system defined profile selection element type 'select')
+	   2: <profile array>
+	   3: <profile array>
 	  ]
-  *******************************************************************************************************************/
-  let inner = '';
-
-  for (let id in profile)
-      {
-       if (typeof profile[id] !== 'number') continue;
-       const e = this.elementlinks[profile[id]];
-       switch (e.type)
-	      {
-	       case 'title':
-		    this.currenttitleindex = e.id;
-		    break;
-	       case 'button':
-		    if (/\+/.test(e.flag)) this.currentbuttonsindexes.push(e.id);
-		    break;
-	       case 'select':
-		    inner += this.GetElementHeaderHTML(e) + this.GetElementContentHTML(e) + this.GetElementFooterHTML(e);
-		    if (e.listid !== undefined) inner += this.GetCurrentProfileHTML(profile[e.activeprofileid]);
-		    break;
-	       default:
-		    inner += this.GetElementHeaderHTML(e) + this.GetElementContentHTML(e) + this.GetElementFooterHTML(e);
-	      }
-      }
+ *******************************************************************************************************************/
+ GetCurrentProfileHTML(profile, recursive)
+ {
+  if (!Array.isArray(profile)) return '';
+  let e, inner = '';
+  for (const element of profile) if (typeof element === 'number' && (e = this.allelements[element]))
+      switch (e.type)
+	      	 {
+	       	  case 'title':
+		    	   this.currenttitleid = e.id;
+		    	   break;
+	       	  case 'button':
+		    	   if (/\*/.test(e.flag)) this.currentbuttonids.push(e.id);
+		    	   break;
+	       	  default:
+		    	   inner += this.GetElementHeaderHTML(e) + this.GetElementContentHTML(e) + this.GetElementFooterHTML(e);
+				   if (e.selectionid !== undefined && recursive) inner += this.GetCurrentProfileHTML(profile[GetElementOptionByChecked(e.options)[3]], true);	// 
+	      	 }
   return inner;
  }
 
- GetInterfaceElement(target)
+ // Set focus to the '1st found' in child non-readonly text element 
+ SetFirstTextElementFocus(child)
  {
-  const attr = target.attributes?.['data-element']?.value;
-  if (attr) return this.elementlinks[attr.substr(attr.indexOf('_') + 1)];
+  if (!child.elementDOM) return;
+  for (const element of child.elementDOM.querySelectorAll('input[type=password], input[type=text], textarea'))
+      if (!element.readOnly) return element.focus();
  }
 
+ // Get interface element link with its wrapped html element from 'target' DOM element via 'data-element' attribute
+ GetEventTargetInterfaceElement(target)
+ {
+  let attribute;
+  while (true)																						// Search for 'data-element' attribute until its true
+		{
+		 if (!target) break;																		// Undefined target? Break it right now
+		 attribute = target.attributes?.['data-element']?.value;									// Retrieve 'data-element' attribute
+		 if (attribute) break;																		// Retrieved attribute is valid? Break it
+		 target = target.parentNode;																// Go uplink node
+		}
+  if (!attribute) return [];																		// No valid attribute found? Return empty array
+
+  const element = this.allelements[attribute.substr(attribute.indexOf('_') + 1)];					// Get interafce element link via its id (after char '_') parsed from found attribute
+  return element ? [element, target] : [];															// Return result array with onterface element and its target (wrapped DOM element)
+ }
+
+ // Inheritance function that is called on mouse/keyboard events on dialog box
  Handler(event)
  {
-  let e = this.GetInterfaceElement(event.target);
+  let e, target;
   switch (event.type)
          {
-	  case 'keyup':
-	       if ((event.keyCode === 37 || event.keyCode === 39) && event.altKey && event.shiftKey)
-		  {
-		   e = [];
-		   for (let i in this.elementlinks[0].profileids) e.push(+i);
-		   for (let i in e) if (e[i] === +this.elementlinks[0].activeprofileid)
-		       {
-			if ((e = e[+i + (event.keyCode === 37 ? -1 : 1)]) === undefined) break;
-			SelectElementOption(this.elementlinks[0].sortdata, +i + (event.keyCode === 37 ? -1 : 1));
-			this.elementlinks[0].activeprofileid = e;
-			this.SaveDialogProfile();
-			this.ShowDialogBox();
-			break;
-		       }
-		  }
-	       break;
-	  case 'mousedown':
-	       switch (e?.type)
-		      {
-		       case 'select':
-			    if (event.which === 3)
-			       {
-				e.flag = /\+.*\-|\-.*\+/.test(e.flag) ? '+' + e.flag.replace(/\+|\-/g, '') : /\+/.test(e.flag) ? '-' + e.flag.replace(/\+|\-/g, '') : /\-/.test(e.flag) ? e.flag.replace(/\+|\-/g, '') : '+-' + e.flag.replace(/\+|\-/g, '');
-				event.target.parentNode.outerHTML = this.GetElementContentHTML(e);
-				break;
-			       }
-			    if (e.eventcounter !== app.eventcounter) new ExpandedSelect(e, this, event.target);
-			    break;
-		       case 'multiple':
-			    if (event.which === 3)
-			       {
-				e.flag = /\+.*\-|\-.*\+/.test(e.flag) ? '+' + e.flag.replace(/\+|\-/g, '') : /\+/.test(e.flag) ? '-' + e.flag.replace(/\+|\-/g, '') : /\-/.test(e.flag) ? e.flag.replace(/\+|\-/g, '') : '+-' + e.flag.replace(/\+|\-/g, '');
-				event.target.parentNode.outerHTML = this.GetElementContentHTML(e);
-				break;
-			       }
-			    if (SelectElementOption(e.sortdata, event.target.attributes?.value?.value, true) === undefined) break;
-			    event.target.classList.toggle("selected");
-			    break;
-		       case 'padbar':
-			    if (this.ProcessProfileAddRemove(event.target, e)) break;
-			    e.activeprofileid = SearchPropValue(e.profileids, SelectElementOption(e.sortdata, event.target.attributes?.value?.value)) ?? e.activeprofileid;
-			    this.SaveDialogProfile();
-			    this.ShowDialogBox();
-			    break;
-		       case 'button':
-			    if (this.currentbuttonsindexes[e.id]) this.ButtonApply(e.id);
-			    break;
-		      }
-	       break;
-	  case 'mouseup':
-	       switch (e?.type)
-		      {
-		       case 'button':
-			    if (this.currentbuttonsindexes.indexOf(e.id) !== -1) this.ButtonApply(e.id);
-			    break;
-		      }
-	       break;
-	 }
+	  	  case 'keyup':																									// left/right arrow key with Alt and Ctrl hold for pad selection
+	       	   if (event.keyCode === 37 || event.keyCode === 39)
+		  		  {
+				   if (!event.altKey || !event.shiftKey) break;															// No Alt/Ctrl hold? Break
+				   if (!ShiftElementOption(this.allelements[0].options, event.keyCode === 37 ? -1 : 1, true)) break;	// Option hasn't been changed? Break;
+				   this.SaveDialogCurrentProfile();
+				   this.ShowDialogBox();
+		       	  }
+			   break;
+		  case 'input':
+			   [e, target] = this.GetEventTargetInterfaceElement(event.target);											// Define the clicked element 'e' and its wrapped target
+			   if (!e) break;																							// Break for undefined element 'e'
+			   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
+				  {
+				   e.data = target.value;																				// Get text element data directly from its DOM element value
+				   break;
+				  }
+			   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1)
+				  {
+				   if (e.type === 'radio') ChangeElementOptionById(e.options, event.target.attributes?.value?.value);
+				    else ToggleElementOptionById(e.options, event.target.attributes?.value?.value);
+				   break;
+				  }
+			   break;
+	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
+			   [e, target] = this.GetEventTargetInterfaceElement(event.target);											// Define the clicked element 'e' and its wrapped target
+			   if (!e) break;																							// Break for undefined element 'e'
+			   if (event.which === 3)																					// Process right btn down event first, all code out of this 'if' case is left-btn event related
+				  {
+				   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1) this.ChangeElementSortOrder(e, target);			// Right btn down changes sort order
+				   break;
+				  }
+		       switch (e.type)
+				  	  {
+					   case 'multiple':
+							if (!ToggleElementOptionById(e.options, event.target.attributes?.value?.value)) break;		// Toggle clicked option and break in case of no change
+							event.target.classList.toggle("selected");													// Refresh 'multiple' element via option class toggle
+							break;
+					   case 'select':
+							if (this.IsProfileCloneRemoveEvent(event.target)) break;									// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
+							if (e === this.allelements[0])
+						   	   {
+								if (!ChangeElementOptionById(e.options, event.target.attributes?.value?.value)) break;	// Set clicked pad and break in case of no change
+								this.SaveDialogCurrentProfile();														// Save dialog and refresh otherwise
+								this.ShowDialogBox();
+								break;
+						   	   }
+							if (this.dropdownlist?.hideeventid !== app.eventcounter)									// Drop-down list is hidden via current 'select' element click (this.dropdownlisthide_eventcounter === app.eventcounter)?
+							   this.dropdownlist = new DropDownList(e.options, this, event.target);						// Do nothing or create new option list box again otherwise.
+							  break;
+					  }
+			   break;
+		  case 'optionchange':
+			   [e, target] = this.GetEventTargetInterfaceElement(this.dropdownlist.selectdiv);							// Define the clicked element 'e' and its wrapped target
+			   if (!e) break;																							// Break for undefined element 'e'
+			   if (ChangeElementOptionById(e.options, this.dropdownlist.cursor))
+			   if (e.selectionid === undefined)
+				  {
+				   target.outerHTML = this.GetElementContentHTML(e);
+				  }
+			    else
+				  {
+				   this.SaveDialogCurrentProfile();																		// Save dialog and refresh otherwise
+				   this.ShowDialogBox();
+				  }
+			   break;
+		  case 'mouseup':
+			   [e, target] = this.GetEventTargetInterfaceElement(event.target);											// Define the clicked element 'e' and its wrapped target
+			   if (!e) break;																							// Break for undefined element 'e'
+			   if (e.type === 'button')
+		      	  {
+			       if (this.currentbuttonids.indexOf(e.id) !== -1) this.ButtonApply(e.id);								// Button id does exist in current profile bundle? Call button apply for the button id in case
+			       break;
+		      	  }
+	       	   break;
+		 }
  }
 
- ProcessProfileAddRemove(target, e)
+ // Sort order change, see element flag description
+ ChangeElementSortOrder(e, target)
  {
-lg (target)
-  if (!target.classList.contains('itemadd') && !target.classList.contains('itemremove')) return;
-  this.SaveDialogProfile();
-lg(e)
-  return true;
+  e.flag.indexOf('^') === -1 ? e.flag += '^' : e.flag = e.flag.indexOf('a') === -1 ? (e.flag + 'a').replaceAll(/\^/g, '') : e.flag.replaceAll(/a|\^/g, '');
+  target.outerHTML = this.GetElementContentHTML(e);
  }
 
- SaveDialogProfile()
+ // Target DOM element is on clone/remove icon?
+ IsProfileCloneRemoveEvent(target)
  {
-  this.contentwrapper.querySelectorAll('input, textarea, .select').forEach(element =>
-  {
-   const e = this.GetInterfaceElement(element);
-   if (!e) return;
-   switch (element.attributes?.type?.value)
+  return target.classList.contains('itemadd') || target.classList.contains('itemremove');
+ }
+
+ // Clone/remove profile
+ ProcessProfileCloneRemove(e)
+ {
+  //this.SaveDialogCurrentProfile();
+ }
+
+ // Save dialog profile :)
+ SaveDialogCurrentProfile()
+ {
+  let e;
+  const radioids = new Set();																														// Create new set collection to store radio/checkbox ids to detect appropriate DOM element 1st appearance
+  const elements = this.contentwrapper.querySelectorAll('input, textarea, .select');																// Get contnet wrapper all textable/selectable elements
+  for (const element of elements)																													// Pass through all DOM elements of dialog box content (html element 'contentwrapper')
 	  {
-	   case 'checkbox':
-	   case 'radio':
-		if (e.sortdata && !(e.data = '')) delete e.sortdata;
-		e.data += `${element.checked ? '/' : ''}/${element.nextSibling.innerHTML}`;
-                break;
-	   case 'text':
-	   case 'textarea':
-	   case 'password':
-                e.data = element.value;
-                break;
-	   default:
-		if (e.type !== 'select' || e.listid !== undefined) break;
-		e.data = '';
-		SortSelectDataArray(e.sortdata, '');
-                for (let option of e.sortdata) e.data += `${option[1] ? '/' : ''}/${option[0]}`;
-		delete e.sortdata;
-                break;
+	   if (!(e = this.GetEventTargetInterfaceElement(element)[0])) continue;																		// Retrieve GUI element object
+	   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
+		  {
+		   e.data = element.value;																													// Get text element data from its DOM element value
+           continue;
+		  }
+	   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1 || e.selectionid !== undefined) continue;													// Exclude non 'select' elements or profile selections (for user defined 'select' only)
+	   if (radioids.has(e.id)) continue;																											// Element repeat appearance? Continue
+	   radioids.add(e.id);																															// Add element id
+	   e.data = '';																																	// Init element data
+	   for (const i in e.options) e.data += `${i ? SELECTABLEOPTIONSDIVIDER : ''}${e.options[i][1] ? CHECKEDOPTIONPREFIX : ''}${e.options[i][0]}`;	// Collect element data from from DOM element directly
 	  }
-  });
  }
 
  ButtonApply(eid)
  {
-  if (this.autoapplybuttonid === eid) clearTimeout(this.autoapplybuttontimeoutid); // Dialog pushed btn id is auto-apply? Cancel timeout
-
-  if (this.callbuttonsindexes.indexOf(eid) !== -1) // Dialog pushed btn should call the controller? Save all dialog data and call the controller
+  if (this.autoapplybuttonid === eid) clearTimeout(this.autoapplybuttontimeoutid);			// Applied btn id is auto-apply? Cancel timeout
+  if (this.callbuttonids.indexOf(eid) !== -1)												// Applied btn id is controller callable? Save all dialog data and call the controller
      {
-      this.SaveDialogProfile();
-      for (const i in this.data) for (const prop of ['sortdata', 'id', 'eventcounter', 'timer', 'timerstart']) delete this.data[i].prop;
-      lg(this.data);
+      this.SaveDialogCurrentProfile();
+      for (const i in this.data)
+		  for (const prop of ELEMENTSERVICEPROPS) delete this.data[i].prop;					// Delete unnecessary element props
+	  lg('Calling controller with data', data);												// Call controller 
      }
-
-  const e = this.elementlinks[eid];
-  if (!(/\!/.test(e.flag))) this.parentchild.KillChild(this.id); // Kill the child for non-interactive btn
+  if (this.allelements[eid].flag.indexOf('!') === -1) this.parentchild.KillChild(this.id);	// Kill dialog box for non-interactive btn
  }
 }
 
-class ExpandedSelect extends Interface
+class DropDownList extends Interface
 {
- constructor(e, initialchild, target)
+ constructor(options, dialogbox, selectdiv)
  {
-  super(e, initialchild.parentchild, {overlay: 'NONSTICKY', effect: 'rise', flags: CLOSEESC}, {class: 'select expanded', style: `left: ${target.offsetLeft + initialchild.elementDOM.offsetLeft}px; top: ${target.offsetTop + initialchild.elementDOM.offsetTop + target.offsetHeight}px;`}); // (data, parentchild, props, attributes)
-  this.initialchild = initialchild;
+  // Create element 'e' drop-down option list
+  super(options, dialogbox.parentchild, {overlay: 'NONSTICKY', effect: 'rise', flags: CLOSEESC}, {class: 'select expanded', style: `left: ${selectdiv.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${selectdiv.offsetTop + dialogbox.elementDOM.offsetTop + selectdiv.offsetHeight - dialogbox.contentwrapper.scrollTop}px;`}); // (data, parentchild, props, attributes)
+  this.dialogbox = dialogbox;
+  this.selectdiv = selectdiv;
+  this.cursor = +(GetElementOptionByChecked(options)?.[2]);
 
-  let content = '';
-  for (let i in e.sortdata) content += `<div value="${e.sortdata[i][2]}" class="selectnone${e.sortdata[i][1] ? ' selected' : ''}">${AdjustString(e.sortdata[i][0], HTMLINNERENCODEMAP)}</div>`;
-  this.elementDOM.innerHTML = content;
+  // And fill it with element options
+  this.Show();
   this.resizingElement = this.elementDOM;
  }
 
+ // Display drop-down list content
+ Show()
+ {
+  let content = '';
+  for (const option of this.data) content += `<div value="${option[2]}" class="selectnone${option[1] || (+option[2]) === this.cursor ? ' selected' : ''}">${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div>`;
+  this.elementDOM.innerHTML = content;
+ }
+
+ // 'Hide' function fixes the global event (by passing its counter to the dialogbox) the drop-down list is killed by. Needed for dialogbox to know (via comparing event counters) whether 'select' element click event or not removes drop-down list
  Hide()
  {
-  this.data.eventcounter = app.eventcounter;
+  this.hideeventid = app.eventcounter;
   super.Hide();
  }
 
+ // Handle interface events
  Handler(event)
  {
   switch (event.type)
-         {
-	  case 'mouseup':
-	       let option = event.target.attributes?.value?.value;
-	       if (event.which === 3 || typeof option !== 'string') break;
-	       option = SelectElementOption(this.data.sortdata, option);
-	       if (option === undefined) return { type: 'KILLME' };
-	       if (this.data.listid !== undefined) this.data.activeprofileid = SearchPropValue(this.data.profileids, option) ?? this.data.activeprofileid;
-	       this.initialchild.SaveDialogProfile()
-	       this.initialchild.ShowDialogBox();
-	       return { type: 'KILLME' };
-	 }
+		 {
+		  case 'keydown':
+			   switch (event.keyCode)
+			   		  {
+					   case 13:																							// Enter key
+					   		return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange' } };	// Return 'optionchange' event to change dialog box selectable element checked option
+					   case 38:																							// Up arrow key
+					   		this.cursor --;																				// Decrease cursor pos up or down from current option appearance id
+							if (this.cursor < 0) this.cursor = this.data.length - 1;									// Out of range is adjusted to last option
+							this.Show();
+							break;
+					   case 40:																							// Down arrow key
+					   		this.cursor ++;																				// Increase cursor pos from current option appearance id
+					   		if (this.cursor >= this.data.length) this.cursor = 0;										// Out of range is adjusted to 1st option
+					   		this.Show();
+							break;
+					  }
+			   break;
+		  case 'mouseup':																								// Handle left btn mouse up event
+		  	   if (event.which !== 1) break;																			// Break for non left btn
+		  	   this.cursor = event.target.attributes?.value?.value;														// Set cursor to option appearance id
+			   return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange' } };				// Return 'optionchange' event to change dialog box selectable element checked option
+		 }
  }
 }
