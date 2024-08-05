@@ -54,7 +54,7 @@ class Connection extends Interface
 	       break;
 	  case 'DIALOG':
 	       new DialogBox(event.data, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', cascade: true}, {class: 'dialogbox selectnone', style: `left: ${Math.round(Math.random()*100)}%; top: ${Math.round(Math.random()*100)}%;`});
-            //new DialogBox(undefined, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', cascade: true}, {class: 'dialogbox selectnone', style: `left: ${Math.round(Math.random()*100)}%; top: ${Math.round(Math.random()*100)}%;`});
+            //new DialogBox(undefined, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', cascade: true, overlay: 'MODAL'}, {class: 'dialogbox selectnone', style: `left: ${Math.round(Math.random()*100)}%; top: ${Math.round(Math.random()*100)}%;`});
 	       break;
 	 }
     }

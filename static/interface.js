@@ -242,7 +242,7 @@ class Interface
 	      if (this.activeid) StyleActiveChild(this.childs[this.activeid], false);			// If old active child is not me, remove the old active child shadow
 	      if (!(this.activeid = id)) return;							// If new active child is me - return
 	      StyleActiveChild(this.childs[id]);							// Make new active child shadowed
-	      this.BringUpChild(id);									// and bring it up
+	      this.BringUpChild(id);										// and bring it up
 	     }
 
  KillChild(id) // Kill specified via id child via z-indexes rebuild and child array element deletion with not forgetting to set 'removeonhide' flag to remove element from the DOM

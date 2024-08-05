@@ -4,7 +4,8 @@ class App extends Interface
  eventcounter = 0;
  static style = {
  				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
- 				 "_Appearance animation": "Select interface elements appearance animation"
+ 				 "_Appearance animation": "Select interface elements appearance animation", 
+				 ".modalfilter": { "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
 				}
 
  constructor(...args)
@@ -35,7 +36,7 @@ class App extends Interface
 		  		break;
 	     case 'New connection':
 		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
-		  //if (event.data == 'New connection') new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true, overlay: 'MODAL'}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
+		  //new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true, overlay: 'MODAL'}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
 		  break;
 	    }
     }
