@@ -87,11 +87,11 @@ or 'Map' (objects are placed on the map via 'geo' element property)`;
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'CHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
 
 const testdata = {
-		  10: { type: 'title', path: 'Database|+', data: 'New Database Configuration' },
+		  10: { type: 'title', path: 'Database|+-', data: 'New Database Configuration' },
 		  11: { type: 'text', path: 'Database', head: 'Database name', hint: DBCONFDIALOGHINTDBNAME, data: '', flag: '+Enter new database name' },
 		  12: { type: 'select', path: 'Database', head: 'Default event profile for all database elements', hint: `Specified handler profile will be used for any database element (see 'Element pad' pad) for all defined client events as a default one (in case of no any other hanlder exist)`, data: 'None/Content editable/Chat', flag: '*' },
 
-		  13: { type: 'text', path: 'Database/New macros|+-|Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: ``, data: '', expr: '/sdd/14' },
+		  13: { type: 'text', path: 'Database/New macros||Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: ``, data: '', expr: '/sdd/14' },
 		  14: { type: 'textarea', path: 'Database/New macros', data: 'sdd', head: 'Macros value', flag: '' },
 		  15: { type: 'textarea', path: 'Database/New macros', data: 'hui', head: 'Macros hint', flag: '*' },
 

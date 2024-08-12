@@ -12,6 +12,18 @@ const CHECKEDOPTIONPREFIX				= '!';
 const EMPTYOPTIONTEXT					= ' ';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
+const NEWPROFILEINPUTDIALOGDATA			= {
+										   NAME: { type: 'text', data: '', head: 'Enter cloning profile new name', hint: `All elements from the cloning profile (except 'button' and 'title)' will be copied to the new profile name wich should be uniq,
+otherwise the cloning procedure will be failed. Press 'Enter' to clone or 'Esc' to cancel` }
+										  }
+const macros = {
+	SIDE_MARGIN: '10px',
+	ELEMENT_MARGIN: '10px',
+	HEADER_MARGIN: '5px',
+	TITLE_PADDING: '5px',
+	BUTTON_PADDING: '10px',
+	FONT: 'Lato, Helvetica',
+ }
 
 // Todo0 in october (OD structure in DB)
 // Todo0 - Cursor scheme default, custom
@@ -27,19 +39,14 @@ const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 // Todo0 - Make new todo.txt that was done during EOS work
 // Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
 // Todo0 - split dialog box and drop down list class to different files
-// Todo0 - Figure out another way instead of app.eventcounter for dropdown list. How to release up/down arrow keys navigating for last focused (based on app.eventcounter?) select element?
 // Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
-// Todo0 - For drop-down list class send only 'option is changed' event to its parenr dialog box, SRP principle
+// Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
+// Todo0 - Make pad/profiles +- btns; 
 
-// Todo0 in july (dialogbox.js):
-// Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line
-	// Todo2 - make grey btns via html visual effects
-	// Todo2 - Multuiple flag * creates rounded area arount GUI element
-	// Todo2 - macros for interface elements margins/fonts to scale/form dialog box.
-	// Todo2 - Bold font for headders?
-	// Todo2 - Make pad/profiles +- btns; and make them pushable
-
-// Todo0 - The function is unused for a while. Use it later to complete 'dialog' help section then remove it
+// Todo2 - Change icon cmnofullscreen
+// Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
+// Todo2 - function 'CheckSyntaxForHelp' is unused for a while. Use it later to complete 'dialog' help section then remove it
+// Todo2 - Multuiple flag * creates rounded area arount GUI element. 
 function CheckSyntaxForHelp(e, prop)
 {
  if (!e || typeof e !== 'object') return;		// Return for non-object element
@@ -313,77 +320,77 @@ class DialogBox extends Interface
  autoapplybuttontimeoutid = undefined;
  autoapplybuttonid = undefined;
  autoapplybuttonelement = undefined;
-
+ 
  static style = {
-		   // dialog box global css props
-		   ".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
-		   // dialog box title
-		   ".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": "bold .9em Lato, Helvetica;", "padding": "5px;" },
-		   // dialog box pad
-		   ".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": ".9em Lato, Helvetica;", "color": "#57C;", "border-radius": "5px 5px 0 0;" },
-		   // dialog box active pad
-		   ".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": "bold .9em Lato, Helvetica;", "color": "#57C;", "border-radius": "5px 5px 0 0;" },
-		   // dialog box pad bar
-		   ".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 0 0;" },
-		   // dialog box divider
-		   ".divider": { "background-color": "transparent;", "margin": "5px 10px 5px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
-		   // dialog box button
-		   ".button": { "background-color": "#13BB72;", "border": "none;", "padding": "10px;", "margin": "10px;", "border-radius": "5px;", "font": "bold 12px Lato, Helvetica;", "color": "white;" },
-		   // dialog box button push
-		   ".buttonpush": { "transform": "translate(3%, 3%);" },
-		   // dialog box button and pad hover
-		   ".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
-		   // dialog box element headers
-		   ".element-headers": { "margin": "5px 5px 5px 5px;", "font": ".9em Lato, Helvetica;", "color": "#555;", "text-shadow": "none;" },
-		   // dialog box help icon
-		   ".hint-icon": { "padding": "1px;", "font": ".9em Lato, Helvetica;", "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
-		   // dialog box help icon hover
-		   ".hint-icon:hover": { "padding": "1px;", "font": "bold 1em Lato, Helvetica;", "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
-		   // dialog box table
-		   ".boxtable": { "font": ".8em Lato, Helvetica;", "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
-		   // dialog box table cell
-		   ".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
-		   // dialog box readonly elements css filter
-		   ".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion." },
-		   //------------------------------------------------------------
-		   // dialog box select
-		   ".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 5px 10px;", "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "20em;", "width": "auto;", "display": "inline-block;", "effect": "rise", "_effect": "Select fall-down option list " + EFFECTSHINT },
-		   // dialog box select option
-		   ".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
-		   // dialog box select option hover
-		   ".select:not([class*=arrow]) > div:hover": { "background-color": "rgb(211, 222, 192);", "color": "" },
-		   // dialog box select option selected
-		   ".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
-		   // Profile selection additional style
-		   ".profileselectionstyle": { "font": "bold .8em Lato, Helvetica;", "border-radius": "4px;" },
-		   // Expanded selection
-		   ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
-		   //------------------------------------------------------------
-		   // dialog box radio
-		   "input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": "3px 5px 6px 10px;", "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
-		   // dialog box radio checked
-		   "input[type=radio]:checked::after": { "content": "", "color": "white;" },
-		   // dialog box radio checked background
-		   "input[type=radio]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
-		   // dialog box radio label
-		   "input[type=radio] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
-		   //------------------------------------------------------------
-		   // dialog box checkbox
-		   "input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": "3px 5px 6px 10px;", "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
-		   // dialog box checkbox checked
-		   "input[type=checkbox]:checked::after": { "content": "", "color": "white;" },
-		   // dialog box checkbox checked background
-		   "input[type=checkbox]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
-		   // dialog box checkbox label
-		   "input[type=checkbox] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
-		   //------------------------------------------------------------
-		   // dialog box input text
-		   "input[type=text]": { "margin": "0px 10px 5px 10px;", "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "5%;", "font": ".9em Lato, Helvetica;", "width": "90%;", "min-width": "300px;" },
-		   // dialog box input password
-		   "input[type=password]": { "margin": "0px 10px 5px 10px;", "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "5%;", "font": ".9em Lato, Helvetica;", "width": "90%;", "min-width": "300px;" },
-		   // dialog box input textarea
-		   "textarea": { "margin": "0px 10px 5px 10px;", "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": ".9em Lato, Helvetica;", "width": "90%;", "min-width": "300px;" },
-		};
+	// dialog box global css props
+	".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
+	// dialog box title
+	".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": `bold .9em ${macros.FONT};`, "padding": "5px;" },
+	// dialog box pad
+	".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `.9em ${macros.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	// dialog box active pad
+	".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${macros.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	// dialog box pad bar
+	".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 0 0;" },
+	// dialog box divider
+	".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
+	// dialog box button
+	".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${macros.BUTTON_PADDING};`, "margin": "10px;", "border-radius": "5px;", "font": `bold 12px ${macros.FONT};`, "color": "white;" },
+	// dialog box button push
+	".buttonpush": { "transform": "translate(3%, 3%);" },
+	// dialog box button and pad hover
+	".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
+	// dialog box element headers
+	".element-headers": { "margin": `${macros.HEADER_MARGIN};`, "font": `.9em ${macros.FONT};`, "color": "#555;", "text-shadow": "none;" },
+	// dialog box help icon
+	".hint-icon": { "padding": "1px;", "font": `.9em ${macros.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
+	// dialog box help icon hover
+	".hint-icon:hover": { "padding": "1px;", "font": `bold 1em ${macros.FONT};`, "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
+	// dialog box table
+	".boxtable": { "font": `.8em ${macros.FONT};`, "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
+	// dialog box table cell
+	".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
+	// dialog box readonly elements css filter
+	".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion." },
+	//------------------------------------------------------------
+	// dialog box select
+	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${macros.FONT};`, "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;", "effect": "rise", "_effect": "Select fall-down option list " + EFFECTSHINT },
+	// dialog box select option
+	".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
+	// dialog box select option hover
+	".select:not([class*=arrow]) > div:hover": { "background-color": "rgb(211, 222, 192);", "color": "" },
+	// dialog box select option selected
+	".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
+	// Profile selection additional style
+	".profileselectionstyle": { "font": `bold .8em ${macros.FONT};`, "border-radius": "4px;" },
+	// Expanded selection
+	".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
+	//------------------------------------------------------------
+	// dialog box radio
+	"input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${macros.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
+	// dialog box radio checked
+	"input[type=radio]:checked::after": { "content": "", "color": "white;" },
+	// dialog box radio checked background
+	"input[type=radio]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
+	// dialog box radio label
+	"input[type=radio] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
+	//------------------------------------------------------------
+	// dialog box checkbox
+	"input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${macros.ELEMENT_MARGIN};`, "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
+	// dialog box checkbox checked
+	"input[type=checkbox]:checked::after": { "content": "", "color": "white;" },
+	// dialog box checkbox checked background
+	"input[type=checkbox]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
+	// dialog box checkbox label
+	"input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${macros.FONT};`, "margin": "0px 10px 0px 0px;" },
+	//------------------------------------------------------------
+	// dialog box input text
+	"input[type=text]": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "400px;" },
+	// dialog box input password
+	"input[type=password]": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "400px;" },
+	// dialog box input textarea
+	"textarea": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "400px;" },
+ };
 
  destructor()
  {
@@ -401,6 +408,10 @@ class DialogBox extends Interface
   // No valid dialog structure, so let it be empty
   if (!this.data || typeof this.data !== 'object') this.data = {};
 
+  // Set default prop index and callback to pass dialog data
+  this.propmaxindex = 0;
+  this.DialogDataCallback = args[4];
+
   // Iterate all dialog GUI interface elements one by one in initial dialog data
   for (const element in this.data) 
 	  if (CheckGUIElement(this.data[element], element))				// Check element object props and their types
@@ -408,17 +419,15 @@ class DialogBox extends Interface
 	   else
 		 delete this.data[element];									// or delete element otherwise
 
-  // Correct checked options number of all selectable elements, including service ones (profile selections). Do it here after all elements is pushed (inserted) - PushInterfaceElement function modifies profile selections for every GUI element inserted
-  // Todo0 - make interface element expr work: 1. Check expr to allowed chars and convert /expr/prop to regex func //.test(prop) 2.For each prop add dependent eid to element with name 'prop' view new Set 3. After any text/selectable elements change
-  //	/[^&|()!]/.test('(()') - [regex, replacement (non string replacement doesn't change match)]
-  // '/sdd/ /5/'.matchAll(/\/.*?[^\\]\//g)
+  // Correct checked options number of all selectable elements, including service ones (profile selections). Do it here after all elements is pushed (PushInterfaceElement function modifies profile selections for every GUI element inserted)
+  // and adjust  every element 'expr' property
   for (const e of this.allelements)
 	  {
 	   if (e.options) CorrectCheckedOptions(e.options, e.type);
 	   this.AdjustExprProp(e);
 	  }
 
-  // Show dialog box:) 
+  // Show dialog box:)
   this.ShowDialogBox();
  }
 
@@ -593,6 +602,10 @@ EvalElementExpression(e)
   this.allelements.push(e); 																													// Insert user defined element to the 'allelements' global array
   currentprofile.push(e.id);																													// Insert user defined element id to the current profile based on calculated path above
   if ([...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].indexOf(e.type) !== -1) e.affect = new Set();											// Add empty set collection to all elements which data can affect to other elements readonly flag 
+
+  // Calculating prop max number (digits at the end) to add some props name via incrementing that max number
+  const match = prop.match(/\d+$/);
+  if (Array.isArray(match) && +match[0] > this.propmaxindex) this.propmaxindex = +match[0];
  }
 
  // Get interface element header+hint inner html for non title/button/padbar element types only
@@ -645,7 +658,8 @@ EvalElementExpression(e)
 			   let arrowindex = 0;
 			   if (e.flag.indexOf('a') !== -1) arrowindex += 2;																						// Calculate sort icon via arrow<index> class:
 			   if (e.flag.indexOf('^') !== -1) arrowindex += 1;																						// arrow[01]: default appearance ascending/decending order, arrow[23]: alphabetical ascending/descending order
-			   let classlist = `select${readonlyclass} arrow${arrowindex}${e.selectionid === undefined ? '' : ' profileselectionstyle'}${add ? ' flexrow' : ''}`;	// Define corresponded class list string for 'select' element. Add specific style 'profileselectionstyle' for profile selection
+			   //let classlist = `select${readonlyclass} arrow${arrowindex}${e.selectionid === undefined ? '' : ' profileselectionstyle'}${add ? ' flexrow' : ''}`;	// Define corresponded class list string for 'select' element. Add specific style 'profileselectionstyle' for profile selection
+			   let classlist = `select${readonlyclass} arrow${arrowindex}${e.selectionid === undefined ? '' : ' profileselectionstyle'}`;			// Define corresponded class list string for 'select' element. Add specific style 'profileselectionstyle' for profile selection
 			   if (this.allelements[0] !== e)																										// For usual 'select' element return only active option content (expanded dorp-down list is hidden)
 				  return `${add ? '<div class="flexrow" '+ attribute + '>' : ''}<div class="${classlist}"${add ? '' : ' ' + attribute}><div value="${activeoption[2]}">${AdjustString(activeoption[0] ? activeoption[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div></div>${add ? add + '</div>' : ''}`;
 			   for (let option of e.options)																										// For pad selection element (pad bar) collect pad divs to 'content' var
@@ -710,7 +724,7 @@ EvalElementExpression(e)
 
  ShowDialogBox()
  {
-  if (!this.profile.length) return this.AdjustElementDOMSize() || (this.dragableElements = [this.elementDOM]);			// No valid dialog content? Adjusted dialog box size, set drag capability and return
+  if (!this.profile.length) return (this.dragableElements = [this.elementDOM]);											// No valid dialog content? Adjusted dialog box size, set drag capability and return
   this.currenttitleid = undefined;																						// Init title id to store current active profile title
   this.currentbuttonids = [];																							// Init empty array to store all active profile bundle specific button ids
   let e;
@@ -780,9 +794,6 @@ EvalElementExpression(e)
   // Set focus to the first found text element
   setTimeout(this.SetFirstTextElementFocus.bind(this), 1);
 
-  // Set dialog box size to 100x100 (function args default values) if it is less than DOMELEMENTMINWIDTH/DOMELEMENTMINHEIGHT
-  this.AdjustElementDOMSize();
- 
   // Remove ald and add new event listeners for textable/selectable elements to save their data interactively
   if (this.InputNodeList) this.InputNodeList.forEach((node) => node.removeEventListener('input', this.Handler.bind(this)));
   this.InputNodeList = this.contentwrapper.querySelectorAll('input, textarea');
@@ -849,20 +860,25 @@ EvalElementExpression(e)
  Handler(event)
  {
   let e, id, target;
-  if (event.type !== 'keyup')
-	 {
-	  [id, target] = GetEventTargetInterfaceElement(event.target);														// Define the clicked element 'id' and its wrapped target
-	  if (!(e = this.allelements[id])) return;																			// Return for nonexistent element
-	 }
+  [id, target] = GetEventTargetInterfaceElement(event.target);															// Define the clicked element 'id' and its wrapped target
+  if (!(e = this.allelements[id])) return;																				// Return for nonexistent element
 
   switch (event.type)
          {
-	  	  case 'keyup':																									// left/right arrow key with Alt and Ctrl hold for pad selection
+	  	  case 'keyup':																									// Enter key for btn apply or left/right arrow key with Alt and Ctrl hold for pad selection
+	       	   if (event.keyCode === 13)
+		  		  {
+				   if (e.type !== 'text' || e.flag.indexOf('-') !== -1) break;											// For 'text' type and no readonly elements only
+				   for (id of this.callbuttonids)																		// Go through all callable btns and apply first non readonly one
+					   if ((e = this.allelements[id]).flag.indexOf('-') === -1 && !this.ButtonApply(e)) break;
+				   break;
+		       	  }
 	       	   if (event.keyCode === 37 || event.keyCode === 39)
 		  		  {
 				   if (!event.altKey || !event.shiftKey) break;															// No Alt/Ctrl hold? Break
 				   if (!ShiftElementOption(this.allelements[0].options, event.keyCode === 37 ? -1 : 1, true)) break;	// Option hasn't been changed? Break;
 				   this.ShowDialogBox();
+				   break;
 		       	  }
 			   break;
 		  case 'input':
@@ -950,7 +966,12 @@ EvalElementExpression(e)
  // Target DOM element is on clone/remove icon?
  IsProfileCloneRemoveEvent(target)
  {
-  return target.classList.contains('itemadd') || target.classList.contains('itemremove');
+  //return target.classList.contains('itemadd') || target.classList.contains('itemremove');
+  if (target.classList.contains('itemadd'))
+	 {
+	  new DialogBox(NEWPROFILEINPUTDIALOGDATA, this, {flags: CMCLOSE | CLOSEESC, effect: 'fade', overlay: 'MODAL'}, {class: 'dialogbox selectnone', style: `left: 40%; top: 40%; border: none; background-color: ${nicecolors[7]};`});
+	  return true;
+	 }
  }
 
  // Clone/remove profile
@@ -966,11 +987,13 @@ EvalElementExpression(e)
       for (const i in this.data)
 		  for (const prop of ELEMENTSERVICEPROPS) delete this.data[i].prop;					// Delete unnecessary element props
 	  lg('Calling controller with data', this.data);										// Call controller 
+	  //if (this.DialogDataCallback) this.DialogDataCallback(this.data);
      }
   if (this.allelements[e.id].flag.indexOf('!') === -1) this.parentchild.KillChild(this.id);	// Kill dialog box for non-interactive btn
  }
 }
 
+// Todo0 - how to release up/down arrow keys navigating for last focused select element?
 class DropDownList extends Interface
 {
  constructor(options, dialogbox, selectdiv)
@@ -1009,24 +1032,24 @@ class DropDownList extends Interface
 		  case 'keydown':
 			   switch (event.keyCode)
 			   		  {
-					   case 13:																										// Enter key
-					   		return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange' } };				// Return 'optionchange' event to change dialog box selectable element checked option
-					   case 38:																										// Up arrow key
-					   		this.cursor --;																							// Decrease cursor pos up or down from current option appearance id
-							if (this.cursor < 0) this.cursor = this.data.length - 1;												// Out of range is adjusted to last option
+					   case 13:																													// Enter key
+					   		return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };	// Return 'optionchange' event to change dialog box selectable element checked option
+					   case 38:																													// Up arrow key
+					   		this.cursor --;																										// Decrease cursor pos up or down from current option appearance id
+							if (this.cursor < 0) this.cursor = this.data.length - 1;															// Out of range is adjusted to last option
 							this.Show();
 							break;
-					   case 40:																										// Down arrow key
-					   		this.cursor ++;																							// Increase cursor pos from current option appearance id
-					   		if (this.cursor >= this.data.length) this.cursor = 0;													// Out of range is adjusted to 1st option
+					   case 40:																													// Down arrow key
+					   		this.cursor ++;																										// Increase cursor pos from current option appearance id
+					   		if (this.cursor >= this.data.length) this.cursor = 0;																// Out of range is adjusted to 1st option
 					   		this.Show();
 							break;
 					  }
 			   break;
-		  case 'mouseup':																											// Handle left btn mouse up event
-		  	   if (event.which !== 1) break;																						// Break for non left btn
-		  	   this.cursor = event.target.attributes?.value?.value;																	// Set cursor to option appearance id
-			   return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };	// Return 'optionchange' event to change dialog box selectable element checked option
+		  case 'mouseup':																														// Handle left btn mouse up event
+		  	   if (event.which !== 1) break;																									// Break for non left btn
+		  	   this.cursor = event.target.attributes?.value?.value;																				// Set cursor to option appearance id
+			   return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };				// Return 'optionchange' event to change dialog box selectable element checked option
 		 }
  }
 }

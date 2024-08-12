@@ -1,5 +1,8 @@
-const DOMELEMENTMINWIDTH	= 50;
-const DOMELEMENTMINHEIGHT	= 50;
+// Todo0 - dom element any non-close btn postion starting mouse capture with release at close btn - closes frame! That shouldn't be!!
+
+const DOMELEMENTMINWIDTH			= 50;
+const DOMELEMENTMINHEIGHT			= 50;
+const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
 
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
@@ -137,7 +140,7 @@ class Interface
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 	     this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body; // Set DOM element to document.body in case of no parent child defined
 	     if (!this.props.flags) this.props.flags = 0;
-	     if (this.props.cascade && !Array.isArray(this.props.cascade)) this.props.cascade = [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
+	     if (this.props.cascade && !Array.isArray(this.props.cascade)) this.props.cascade = DOMELEMENTCASCADEPOSITIONS;
 
 	     // Attributes
 	     this.attributes = (args[3] && typeof args[3] === 'object') ? args[3] : {};
@@ -172,7 +175,8 @@ class Interface
 	     this.parentchild.childs[this.id] = this;
 	     this.parentchild.zindexes.push(this.id);
 	     this.parentchild.ChangeActive(this.id);
-	     if (Array.isArray(this.props.cascade) && this.props.cascade.length) [this.elementDOM.style.left, this.elementDOM.style.top] = [this.props.cascade[(this.id - 1) % this.props.cascade.length][0], this.props.cascade[(this.id - 1) % this.props.cascade.length][1]];
+	     //if (Array.isArray(this.props.cascade) && this.props.cascade.length) [this.elementDOM.style.left, this.elementDOM.style.top] = [this.props.cascade[(this.id - 1) % this.props.cascade.length][0], this.props.cascade[(this.id - 1) % this.props.cascade.length][1]];
+		 if (Array.isArray(this.props.cascade) && this.props.cascade.length) [this.elementDOM.style.left, this.elementDOM.style.top] = [this.props.cascade[(this.parentchild.zindexes.length - 1) % this.props.cascade.length][0], this.props.cascade[(this.parentchild.zindexes.length - 1) % this.props.cascade.length][1]];
 	    }
 
  AdjustElementDOMSize(width = DOMELEMENTMINWIDTH, height = DOMELEMENTMINHEIGHT)
