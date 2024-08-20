@@ -1,6 +1,6 @@
 const HTMLINNERENCODEMAP		= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode/decode each other
 const TAGATTRIBUTEENCODEMAP		= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
-const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre'];
+const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
 
 const EFFECTS					= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 const EFFECTSHINT				= "effect appearance. Possible values:<br>'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall' and 'rise'.<br>All other values makes no effect.";
@@ -128,6 +128,8 @@ function ProcessChildEvent(child, event) // Process child response
 		     child = child.parentchild;
 		    }
 	      break;
+	 case 'NONE':
+		  break;
 	}
 }
 

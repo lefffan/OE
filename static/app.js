@@ -35,8 +35,7 @@ class App extends Interface
 	     case 'dblclick':
 		  		break;
 	     case 'New connection':
-		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
-		  //new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', cascade: true, overlay: 'MODAL'}, {class: 'defaultbox', style: `background-color: ${nicecolors[Math.round(Math.random()*(nicecolors.length - 1))]}`});
+		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE'}, {class: 'defaultbox', style: `background-color: ${nicecolors[7]}`});
 		  break;
 	    }
     }

@@ -135,12 +135,11 @@ class Interface
 	     // Parent child
 	     this.parentchild = args[1];
 
-	     // Props {tagName: 'DIV|BODY', flags: CMFULLSCREEN|CMCLOSE|CLOSEESC, screen: {full: <>}, overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', cascade: true/false}
+	     // Props {tagName: 'DIV|BODY', flags: CMFULLSCREEN|CMCLOSE|CLOSEESC, screen: {full: <>}, overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', position: 'CASCADE|CENTER|RANDOM'}
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 	     this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body; // Set DOM element to document.body in case of no parent child defined
 	     if (!this.props.flags) this.props.flags = 0;
-	     if (this.props.cascade && !Array.isArray(this.props.cascade)) this.props.cascade = DOMELEMENTCASCADEPOSITIONS;
 
 	     // Attributes
 	     this.attributes = (args[3] && typeof args[3] === 'object') ? args[3] : {};
@@ -175,8 +174,20 @@ class Interface
 	     this.parentchild.childs[this.id] = this;
 	     this.parentchild.zindexes.push(this.id);
 	     this.parentchild.ChangeActive(this.id);
-	     //if (Array.isArray(this.props.cascade) && this.props.cascade.length) [this.elementDOM.style.left, this.elementDOM.style.top] = [this.props.cascade[(this.id - 1) % this.props.cascade.length][0], this.props.cascade[(this.id - 1) % this.props.cascade.length][1]];
-		 if (Array.isArray(this.props.cascade) && this.props.cascade.length) [this.elementDOM.style.left, this.elementDOM.style.top] = [this.props.cascade[(this.parentchild.zindexes.length - 1) % this.props.cascade.length][0], this.props.cascade[(this.parentchild.zindexes.length - 1) % this.props.cascade.length][1]];
+		 switch (this.props.position)
+				{
+				 case 'CASCADE':
+					  [this.elementDOM.style.left, this.elementDOM.style.top] = [DOMELEMENTCASCADEPOSITIONS[(this.parentchild.zindexes.length - 1) % DOMELEMENTCASCADEPOSITIONS.length][0],
+																			     DOMELEMENTCASCADEPOSITIONS[(this.parentchild.zindexes.length - 1) % DOMELEMENTCASCADEPOSITIONS.length][1]];
+					  break;
+				 case 'RANDOM':
+					  [this.elementDOM.style.left, this.elementDOM.style.top] = [`${Math.round(Math.random()*100)}%`, `${Math.round(Math.random()*100)}%`];
+					  break;
+				 case 'CENTER':
+					  setTimeout(() => [this.elementDOM.style.left, this.elementDOM.style.top] = [`${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientWidth - this.elementDOM.offsetWidth)*100/(2 * this.parentchild.elementDOM.clientWidth))}%`,
+																								  `${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientHeight - this.elementDOM.offsetHeight)*100/(2 * this.parentchild.elementDOM.clientHeight))}%`], 0);
+					  break;
+				}
 	    }
 
  AdjustElementDOMSize(width = DOMELEMENTMINWIDTH, height = DOMELEMENTMINHEIGHT)
