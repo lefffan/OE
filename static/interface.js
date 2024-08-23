@@ -1,4 +1,5 @@
 // Todo0 - dom element any non-close btn postion starting mouse capture with release at close btn - closes frame! That shouldn't be!!
+// Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
 
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;

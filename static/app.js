@@ -35,7 +35,7 @@ class App extends Interface
 	     case 'dblclick':
 		  		break;
 	     case 'New connection':
-		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE'}, {class: 'defaultbox', style: `background-color: ${nicecolors[7]}`});
+		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: ${nicecolors[7]}`});
 		  break;
 	    }
     }

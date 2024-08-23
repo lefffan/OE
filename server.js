@@ -1,3 +1,8 @@
+// Todo1 - TimeScaleDB
+//			https://github.com/timescale/timescaledb/blob/main/tsl/README.md
+//			https://docs.timescale.com/self-hosted/latest/install/installation-windows/
+//			https://www.timescale.com
+
 /*
             'element3' => ['type' => 'radio', 'head' => 'Template', 'data' => '+Table|Tree|Map|', 'help' => "Select object view type from 'table' (displays objects in a form of a table),<br>'scheme' (displays object hierarchy built on object selection link name),<br>'map' (displays objects on the geographic map)"],
 
@@ -95,7 +100,7 @@ const testdata = {
 		  14: { type: 'textarea', path: 'Database/New macros', data: 'sdd', head: 'Macros value', flag: '' },
 		  15: { type: 'textarea', path: 'Database/New macros', data: 'hui', head: 'Macros hint', flag: '*' },
 
-		  16: { type: 'text', path: 'Database/New path|+-!|Path list', head: 'Database configuration pad/profile path', hint: DBCONFDIALOGHINTPATHLIST, data: '' },
+		  16: { type: 'text', path: 'Database|+/New path|+-!|Path list', head: 'Database configuration pad/profile path', hint: DBCONFDIALOGHINTPATHLIST, data: '' },
 		  17: { type: 'radio', path: 'Database/New path|!', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '', expr: '/sdd/14' },
 		  18: { type: 'textarea', path: 'Database/New path|!', head: 'User/group list', hint: DBCONFDIALOGHINTUSERLIST, data: '' },
 
@@ -117,7 +122,7 @@ const testdata = {
 		  38: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output (correct JSON)', data: '!Apply/Debug/Ignore' },
 		  39: { type: 'checkbox', path: 'Event/New event profile', data: 'Log', flag: '*' },
 
-		  40: { type: 'text', path: 'View/id1', head: 'Name', hint: DBCONFDIALOGHINTVIEWNAME, data: '', flag: '+Enter view name' },
+		  40: { type: 'text', path: '!View/id1', head: 'Name', hint: DBCONFDIALOGHINTVIEWNAME, data: '', flag: '+Enter view name' },
 		  41: { type: 'textarea', path: 'View/id1', head: 'Description', hint: DBCONFDIALOGHINTVIEWDESCRIPTION, data: '', flag: '*' },
 		  42: { type: 'textarea', path: 'View/id1', head: 'Object selection query', hint: '', data: '' },
 		  43: { type: 'text', path: 'View/id1', head: 'Object selection prop name', hint: '', data: 'value', },

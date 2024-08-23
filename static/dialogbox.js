@@ -1,3 +1,12 @@
+// Todo2 - Change cmnofullscreen and application icon
+// Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
+// Todo2 - Multuiple flag * creates rounded area arount GUI element. 
+// Todo2 - Review all css props, its content props, some for builtin conf (index.html), some for configurable GUI via user customization
+// Todo2 - add style prop (type, data head hint expr and style!) to style all element types
+// Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
+// Todo2 - When two modal appears - lower box has grey filter and that filter doesn't go away after above box gone away
+// Todo2 - Should clickable elements react to 'click' event instead of 'mousedown' (like 'button' element for a example)?
+
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
 const ELEMENTSERVICEPROPS				= ['id', 'options', 'selectionid', 'timer', 'timerstart', 'eventcounter', 'affect'];
@@ -17,8 +26,7 @@ const macros							= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGI
 // Todo0 in october (OD structure in DB)
 // Todo0 - Cursor scheme default, custom
 // Todo0 - DB SQL handle for OD structure
-// Todo1 - Make interface btns and background like in VCSA and dialog box scale (cause it seems too compact)
-// Todo2 - Somehow use some nice colors: orange RGB(243,131,96), 247,166,138; blue RGB(87,156,210), 50,124,86; bordovij RGB(136,74,87), 116,63,73; salatovij (174,213,129), 150,197,185;
+// Todo1 - Scale dialog box somehow, cause it seems too compact, use some nice colors: orange RGB(243,131,96), 247,166,138; blue RGB(87,156,210), 50,124,86; bordovij RGB(136,74,87), 116,63,73; salatovij (174,213,129), 150,197,185; And make more nice interface somehow
 // Todo0 - macros for interface elements margins/fonts to scale/form dialog box. Also use macroses in user css configuration profile! Make 3-level macro; 1 - global (system user), 2 - OD, 3 - Specific user.
 
 // Todo0 in september (all for sidebar):
@@ -32,15 +40,8 @@ const macros							= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGI
 // Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
 // Todo0 - Make pad/profiles +- btns; 
 
-// Todo2 - Adjust button and other GUI elements to VMWARE vcenter style like
-// Todo2 - Change cmnofullscreen and application icon
-// Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
+
 // Todo2 - function 'CheckSyntaxForHelp' is unused for a while. Use it later to complete 'dialog' help section then remove it
-// Todo2 - Multuiple flag * creates rounded area arount GUI element. 
-// Todo2 - Review all css props, its content props, some for builtin conf (index.html), some for configurable GUI via user customization
-// Todo2 - add style prop (type, data head hint expr and style!) to style all element types
-// Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
-// Todo2 - When two modal appears - lower box has grey filter and that filter doesn't go away after above box gone away
 function CheckSyntaxForHelp(e, prop)
 {
  if (!e || typeof e !== 'object') return;		// Return for non-object element
@@ -164,7 +165,7 @@ function ParseSelectableElementData(data)
 function CorrectCheckedOptions(options, type)
 {
  // 'select' element type - should have at least one option selected, 1st option is forced otherwise
- // 'radio' - may have no options selected
+ // 'radio' - may have no options selected'
  // Both types should have no more than one selected option, last selected is used otherwise
  if (type !== 'select' && type !== 'radio') return;
  let checkedcount = 0;
@@ -179,15 +180,16 @@ function SortSelectableElementData(options, flag)
  if (typeof flag !== 'string') flag = '';
 
  if (flag.indexOf('a') === -1)																			// Default appearance sorting order in case of flag 'a' value, otherwise - alphabetical
-	return options.sort((a, b) => (flag.indexOf('^') === -1 ? 1 : -1) * a[2] - b[2]);					// Default appearance ascending/descending order
+	options.sort((a, b) => (flag.indexOf('^') === -1 ? 1 : -1) * ((+a[2]) - (+b[2])));					// Default appearance ascending/descending order
   else 
-    return options.sort((a, b) => (flag.indexOf('^') === -1 ? 1 : -1) * a[0].localeCompare(b[0]));		// Alphabetical ascending/descending order
+    options.sort((a, b) => (flag.indexOf('^') === -1 ? 1 : -1) * a[0].localeCompare(b[0]));				// Alphabetical ascending/descending order
 }
 
 // Function creates and returns selectable element data from option list 'options'
 function CreateElementOptionsData(options)
 {
- options = SortSelectableElementData(Array.from(options), '');																// Create an array copy and sort it by default sort order (flag='')
+ options = Array.from(options);																								// Create an array copy and sort it by default sort order (flag='') below
+ SortSelectableElementData(options, '');
  if (!Array.isArray(options)) return '';																					// Return empty string for incorrect options
  let data = '';
  for (const option of options) data += `${SELECTABLEOPTIONSDIVIDER}${option[1] ? CHECKEDOPTIONPREFIX : ''}${option[0]}`;	// Collect data for each option
@@ -465,6 +467,7 @@ class DialogBox extends Interface
 
 EvalElementExpression(e)
 {
+ if (!e.affect) return;
  const changedelements = new Set();
  for (const id of e.affect)
 	 {
@@ -546,10 +549,11 @@ EvalElementExpression(e)
   // Each profile consists of its name (with optional CHECKEDOPTIONPREFIX for the currently selected profile), flags, head and hint separated via PROFILEFIELDSDIVIDER. All are optional.
   for (const name of e.path.split(SELECTABLEOPTIONSDIVIDER))
       {
-	   currentpath = currentpath === undefined ? name : `${currentpath}${SELECTABLEOPTIONSDIVIDER}${name}`;
 	   // Init some needed vars for splited path name
 	   let nestedprofileindex, option, currente, profilename, profileflag, profilehead, profilehint;
 	   [profilename, profileflag, profilehead, profilehint] = name.split(PROFILEFIELDSDIVIDER, 4);												// Split current profile splited path to its name, flag, head and hint
+	   currentpath = currentpath === undefined ? `${profilename[0] === CHECKEDOPTIONPREFIX ? profilename.substring(1) : profilename}` : `${currentpath}${SELECTABLEOPTIONSDIVIDER}${profilename[0] === CHECKEDOPTIONPREFIX ? profilename.substring(1) : profilename}`;
+
 	   if (profilehint !== undefined) profilehint = name.substring(profilename.length + profileflag.length + profilehead.length + 3);			// Hint is not undefined? Use the rest of a string as a hint regardless of PROFILEFIELDSDIVIDER char
        // Search profile selection elements (from current profile) matched its selection id
        for (const eid of currentprofile)
@@ -584,6 +588,7 @@ EvalElementExpression(e)
 		   currente.options[0].push(currentprofile.length + 1, profileflag.replaceAll(/[^\+\-]/g, ''));											// For the added <profilename> as a last option of profile selection element: add nested profile index and profile specific flags (+|-) if exist
 		   this.allelements.push(currente);																										// Insert new profile selection element to the global element list
 		   nestedprofileindex = currentprofile.push(currente.id, []) - 1;																		// Insert empty profile array the last added option points to, and assign nested profile index to point to that profile array
+		   currente.profile = currentprofile;
 		  }
 
 	   // Go to parsed splited path profile
@@ -636,7 +641,7 @@ EvalElementExpression(e)
   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1)
 	 {
 	  if (!e.options.length) return '';																												// No options for selectable element? Return empty
-	  for (const option of e.options) if (option[1] && ((activeoption = option) || true)) break;													// Search for element active option
+	  activeoption = GetElementOptionByChecked(e.options);																							// Search for element active option. Old realisation: for (const option of e.options) if (option[1] && ((activeoption = option) || true)) break;
 	  if (e.selectionid !== undefined)																												// Profile selection detected
 		 {
 		  if (e.options.length === 1 && !e.head && !e.hint) return '';																				// One single profile and no head/hint? Profile selection is hidden
@@ -644,7 +649,7 @@ EvalElementExpression(e)
 	  	  if (activeoption[4].indexOf('-') !== -1) add += '<div class="itemremove" title="Remove current profile">&nbsp&nbsp&nbsp&nbsp</div>';		// Define 'remove' icon for the active profile
 		 }
 	  SortSelectableElementData(e.options, e.flag);																									// Sort element option for selectable types
-	}
+	 }
 
   switch (e.type)
          {
@@ -775,6 +780,7 @@ EvalElementExpression(e)
   this.pushableElements = [];
   this.contentwrapper = this.elementDOM.querySelector('.boxcontentwrapper');
   this.footer = this.elementDOM.querySelector('.footer');
+  this.padbar = this.elementDOM.querySelector('.padbar');
   for (let button of this.footer.querySelectorAll('.button'))
 	  {
 	   let id;
@@ -854,9 +860,16 @@ EvalElementExpression(e)
 
  RemoveProfileCloneInput()
  {
-  if (this.profilecloning.e !== this.allelements[0]) this.profilecloning.wrapdiv.parentNode.firstChild.style.display = 'block';
+  this.profilecloning.isDeleted = true;
+  if (this.profilecloning.e.id !== 0) this.profilecloning.wrapdiv.parentNode.firstChild.style.display = 'block';
+  this.profilecloning.input.removeEventListener('blur', this.Handler.bind(this)); 
   this.profilecloning.wrapdiv.remove();
   this.profilecloning.input.remove();
+  if (this.profilecloning.e.id === 0)
+  	 {
+	  this.padbar.outerHTML = this.GetElementContentHTML(this.allelements[0]);											// Cloning dialog pad? Refresh pad bar
+  	  this.padbar = this.elementDOM.querySelector('.padbar');
+	 }
   delete this.profilecloning;
  }
 
@@ -869,19 +882,28 @@ EvalElementExpression(e)
 
   switch (event.type)
          {
+	  	  case 'blur':																									// 
+			   if (this.profilecloning)
+				  {
+				   if (this.profilecloning.isDeleted) break;
+				   this.ProcessCloneButton();
+				   this.RemoveProfileCloneInput();
+				   break;
+				  }
+			   break;
 	  	  case 'keyup':																									// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
 	       	   if (event.keyCode === 27)
 				  {
 				   if (!this.profilecloning) break;
 				   this.RemoveProfileCloneInput();
-				   return { type: 'NONE'};
+				   return { type: 'NONE' };
 				  }
 			   if (event.keyCode === 13)
 		  		  {
 				   if (this.profilecloning)
 					  {
-					   this.ProcessProfileClone();
-					   this.RemoveProfileCloneInput();
+					   this.ProcessCloneButton();
+						this.RemoveProfileCloneInput();
 					   break;
 					  }
 				   if (e.type !== 'text' || e.flag.indexOf('-') !== -1) break;											// For 'text' type and no readonly elements only
@@ -923,12 +945,6 @@ EvalElementExpression(e)
 				  }
 			   break;
 	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (this.profilecloning)
-				  {
-				   this.ProcessProfileClone();
-				   this.RemoveProfileCloneInput();
-				   break;
-				  }
 			   if (event.which === 3)																					// Process right btn down event first, all code out of this 'if' case is left-btn event related
 				  {
 				   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;											// Sort order change for selectable element types only
@@ -948,12 +964,14 @@ EvalElementExpression(e)
 							break;
 					   case 'select':
 							if (e.flag.indexOf('-') !== -1) break;														// Break for readonly element
+							if (this.profilecloning) break;
 							if (event.target.classList.contains('itemadd'))												// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 							   {
 								//new DialogBox({ prop: { type: 'checkbox', data: 'clonable' + SELECTABLEOPTIONSDIVIDER + '!removable', head: 'Select new profile clone/remove capability', flag: '*'}, name: { type: 'text', data: '', head: 'Enter cloning profile new name', hint: `All content elements from the cloning profile (except 'button' and 'title') will be copied to the new profile name wich should be uniq, otherwise the cloning procedure will be failed. Press 'Enter' to clone or 'Esc' to cancel`, flag: '' }, _ok: { type: 'button', data: '  OK  ', head: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }, cancel: { type: 'button', data: 'CANCEL', head: `border: 1px solid rgb(254,153,128); color: rgb(254,153,128); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }, title: { type: 'title', data: 'Clone profile ', head: `background-color: rgb(240,240,240); font: 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`}, }, this.parentchild, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', position: 'CENTER', overlay: 'MODAL'}, {class: 'dialogbox selectnone', style: 'background-color: rgb(255,255,255);'}, this.ProcessProfileClone.bind(this));
 								//break;
 								this.profilecloning = { e: e, wrapdiv: document.createElement('div'), input: document.createElement('input') };
 								this.profilecloning.wrapdiv.appendChild(this.profilecloning.input);
+								this.profilecloning.input.addEventListener('blur', this.Handler.bind(this));
 								if (e === this.allelements[0])
 								   {
 									this.profilecloning.wrapdiv.classList.add('pad');
@@ -996,8 +1014,7 @@ EvalElementExpression(e)
 				  }
 			   this.ShowDialogBox();
 			   break;
-		  case 'mouseup':
-			
+		  case 'click':
 			   if (e.type === 'button')
 		      	  {
 			       if (this.currentbuttonids.indexOf(e.id) !== -1) this.ButtonApply(e);									// Button id does exist in current profile bundle? Call button apply for the button id in case
@@ -1012,17 +1029,51 @@ EvalElementExpression(e)
  {
   e.flag.indexOf('^') === -1 ? e.flag += '^' : e.flag = e.flag.indexOf('a') === -1 ? (e.flag + 'a').replaceAll(/\^/g, '') : e.flag.replaceAll(/a|\^/g, '');
   target.outerHTML = this.GetElementContentHTML(e);
+  if (e.id === 0) this.padbar = this.elementDOM.querySelector('.padbar');
  }
 
- // Clone/remove profile
- ProcessProfileClone()
+ // Clone all input profile GUI elements except 'title' and 'button' types
+ CloneCurrentProfileElements(profile, newprofilename, pathnestedindex)
  {
-  lg(this.profilecloning.input.value);
-  //lg(this.cloningelement);
-  //lg(this.allelements);
-  // 1 - Calc cloning profile via select element active option
-  // 2 - 
-  //lg(this);
+  if (!Array.isArray(profile)) return;
+  for (const id of profile) 
+	  {
+	   if (Array.isArray(id) && !this.CloneCurrentProfileElements(id, newprofilename, pathnestedindex)) continue;
+	   let e = this.allelements[id];
+	   if (!e || e.type === 'title' || e.type === 'button' || e.selectionid !== undefined) continue;
+	   this.propmaxindex++;
+	   const path = e.path.split(SELECTABLEOPTIONSDIVIDER);
+	   path[pathnestedindex] = newprofilename;
+	   const re = new RegExp(`^!|\\${PROFILEFIELDSDIVIDER}.*`, 'g');
+	   for (const i in path) if (i < pathnestedindex) path[i] = path[i].replace(re, '');
+	   e = Object.assign({}, e, { path: path.join(SELECTABLEOPTIONSDIVIDER) });
+	   for (const prop in e)
+		   if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete e[prop];							// Clear element from unnecessary props
+	   this.PushInterfaceElement(this.data[this.propmaxindex] = e, this.propmaxindex + '');
+	   delete e.expr;
+	   delete e.affect;
+	   if (e.options) CorrectCheckedOptions(e.options, e.type);
+	  }
+ }
+
+ // Handle 'clone' button
+ ProcessCloneButton()
+ {
+  const activeprofileoption = GetElementOptionByChecked(this.profilecloning.e.options);																		// Get active profile option in selectable element
+  const cloningprofilename = activeprofileoption[0];																										// Get profile name to clone. To compare with input name below
+  const newprofile = {};																																	// Init new profile object
+  const re = new RegExp(`\\${SELECTABLEOPTIONSDIVIDER}`, 'g');
+  [newprofile.name, newprofile.flag, newprofile.head, newprofile.hint] = this.profilecloning.input.value.replaceAll(re, '').split(PROFILEFIELDSDIVIDER, 4);	// Parse input element to get new profile name/flag/head/hint
+  if (newprofile.name[0] === CHECKEDOPTIONPREFIX) newprofile.name = newprofile.name.substring(1);															// Check profile name 1st char to get prfile active status
+  for (const option of this.profilecloning.e.options)
+  	  if (option[0] === newprofile.name) return MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error');			// Cloning profile name matches new profile name? Return
+  newprofile.flag = (newprofile.flag || '').replaceAll(/!/g, '');																							// Remove selection-id '!' chars
+  newprofile.flag = newprofile.flag.padStart(this.profilecloning.e.selectionid + newprofile.flag.length, '!');												// Add cloning profile selection id to the new profile flag to match cloning selection id
+  if (newprofile.flag) newprofile.flag = '|' + newprofile.flag;
+  newprofile.head = newprofile.head === undefined ? '' : `|${newprofile.head}`;
+  newprofile.hint = newprofile.hint === undefined ? '' : `|${newprofile.hint}`;
+  this.CloneCurrentProfileElements(this.profilecloning.e.profile[activeprofileoption[3]], newprofile.name + newprofile.flag + newprofile.head + newprofile.hint, this.profilecloning.e.path.split(SELECTABLEOPTIONSDIVIDER).length - 1);
+  for (const e of this.allelements) if (e.options && e.selectionid !== undefined) CorrectCheckedOptions(e.options, e.type);									// New profile user selectable elements are all with corrected checked options (see last line of function CloneCurrentProfileElements). But not service selectable elements (such as profile selection) in just created profile. So correct their checked optoins.
  }
 
  ButtonApply(e)
@@ -1038,7 +1089,7 @@ EvalElementExpression(e)
  }
 }
 
-// Todo0 - how to release up/down arrow keys navigating for last focused select element?
+// Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 class DropDownList extends Interface
 {
  constructor(options, dialogbox, selectdiv)

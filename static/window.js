@@ -64,6 +64,19 @@ function EncodeString(string, encodemap)
  return string;
 }
 
+function MessageBox(parentchild, message, title)
+{
+ if (typeof message !== 'string') return;
+ const MESSAGEMINCHARS = 60;
+ message = message.padEnd(MESSAGEMINCHARS);
+ if (typeof title !== 'string') title = 'Warning';
+ const dialogdata = {	title: { type: 'title', data: title },
+ 						message: { type: 'text', head: message },
+						ok: { type: 'button', data: '  OK  ', head: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
+					};
+ new DialogBox(dialogdata, parentchild, {flags: CMCLOSE | CLOSEESC, effect: 'rise', position: 'CENTER', overlay: 'MODAL'}, {class: 'dialogbox selectnone'});
+}
+
 // Function searches 'string' in 'source' and return the source with excluded string or added string otherwise
 function ToggleString (source, string)
 {
@@ -204,12 +217,13 @@ function Handler(event)
 	         }
 	      break;
 
-	 case 'click':
+	 case 'c lick':
 	      if (IsModalFocusMismatch(GetFirstRegisteredChild(event.target))) event.preventDefault();
 	      break;
 
+	 case 'click':
 	 case 'dblclick':
-	      event.preventDefault();
+	      if (event.type === 'dblclick') event.preventDefault();	// No preventDefault for 'click' event to keep radio/checkbox elements working
 	      if (app.captured.child) break; // Any child is captured (another btn double click)? Break
 	      if (!(child = GetTargetedChild(target = GetFirstRegisteredChild(event.target)))) break; // Break in case of no targeted child
 	      if (IsModalFocusMismatch(child.elementDOM)) break;
