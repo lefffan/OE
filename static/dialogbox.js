@@ -9,7 +9,7 @@
 
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
-const ELEMENTSERVICEPROPS				= ['id', 'options', 'selectionid', 'timer', 'timerstart', 'eventcounter', 'affect'];
+const ELEMENTSERVICEPROPS				= ['id', 'options', 'selectionid', 'timer', 'timerstart', 'eventcounter', 'affect', 'prop'];
 const ELEMENTUSERPROPFALLBACKVALUES		= ['', undefined, undefined, undefined, undefined, '', undefined];
 const ELEMENTUSERPROPS					= ['path', 'type', 'head', 'hint', 'data', 'flag', 'expr'];
 const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
@@ -38,7 +38,7 @@ const macros							= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGI
 // Todo0 - split dialog box and drop down list class to different files
 // Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
 // Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
-// Todo0 - Make pad/profiles +- btns; 
+// Todo0 - Make pad/profiles +- btns; 1-  ELEMENTSERVICEPROPS[prop], pushelement[e.prop=prop]
 
 
 // Todo2 - function 'CheckSyntaxForHelp' is unused for a while. Use it later to complete 'dialog' help section then remove it
@@ -304,20 +304,6 @@ function GetEventTargetInterfaceElement(target)
 
 class DialogBox extends Interface
 {
- profile = [];
- allelements = [];
-
- defaulttitleid = undefined;
- currenttitleid = undefined;
-
- defaultbuttonids = [];
- currentbuttonids = [];
- callbuttonids = [];
-
- autoapplybuttontimeoutid = undefined;
- autoapplybuttonid = undefined;
- autoapplybuttonelement = undefined;
- 
  static style = {
 	// dialog box global css props
 	".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
@@ -389,6 +375,42 @@ class DialogBox extends Interface
 	"textarea": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "300px;" },
  };
 
+ InitDialogData()
+ {
+  // Set dialog profile all global elements array
+  this.profile = [];
+  this.allelements = [];
+  // Set title id arrays 
+  this.defaulttitleid = undefined;
+  this.currenttitleid = undefined;
+  // Set button id arrays
+  this.defaultbuttonids = [];
+  this.currentbuttonids = [];
+  this.callbuttonids = [];
+  // Set default prop index
+  this.propmaxindex = 0;
+  // No valid dialog structure? Let it be empty
+  if (!this.data || typeof this.data !== 'object') this.data = {};
+ }
+
+ CreateDialogData(checksyntax)
+ {
+  // Iterate all dialog GUI interface elements one by one in initial dialog data
+  for (const element in this.data) 
+	  if (!checksyntax || CheckGUIElement(this.data[element], element))	// Check element object props and their types
+	   	  this.PushInterfaceElement(this.data[element], element);		// Push interface element to the global elements array 'allelements' if successful
+	   else
+		  delete this.data[element];									// or delete element otherwise
+
+  // Correct checked options number of all selectable elements, including service ones (profile selections). Do it here after all elements is pushed (PushInterfaceElement function modifies profile selections for every GUI element inserted)
+  // and adjust  every element 'expr' property
+  for (const e of this.allelements)
+	  {
+	   if (e.options) CorrectCheckedOptions(e.options, e.type);
+	   this.AdjustExprProp(e);
+	  }
+ }
+
  destructor()
  {
   super.destructor();
@@ -402,29 +424,16 @@ class DialogBox extends Interface
   args[3]['data-element'] = '_-1';
   super(...args);
 
-  // No valid dialog structure, so let it be empty
-  if (!this.data || typeof this.data !== 'object') this.data = {};
-
-  // Set default prop index and callback to pass dialog data
-  this.propmaxindex = 0;
+  // Set callback to pass dialog data
   this.DialogDataCallback = args[4];
 
-  // Iterate all dialog GUI interface elements one by one in initial dialog data
-  for (const element in this.data) 
-	  if (CheckGUIElement(this.data[element], element))				// Check element object props and their types
-		 this.PushInterfaceElement(this.data[element], element);	// Push interface element to the global elements array 'allelements' if successful
-	   else
-		 delete this.data[element];									// or delete element otherwise
+  // Init dialog data
+  this.InitDialogData();
 
-  // Correct checked options number of all selectable elements, including service ones (profile selections). Do it here after all elements is pushed (PushInterfaceElement function modifies profile selections for every GUI element inserted)
-  // and adjust  every element 'expr' property
-  for (const e of this.allelements)
-	  {
-	   if (e.options) CorrectCheckedOptions(e.options, e.type);
-	   this.AdjustExprProp(e);
-	  }
+  // Create dialog data
+  this.CreateDialogData(true);
 
-  // Show dialog box:)
+  // Show dialog data (dialog box:)
   this.ShowDialogBox();
  }
 
@@ -607,6 +616,9 @@ EvalElementExpression(e)
   // Calculating prop max number (digits at the end) to add some props name via incrementing that max number
   const match = prop.match(/\d+$/);
   if (Array.isArray(match) && +match[0] > this.propmaxindex) this.propmaxindex = +match[0];
+
+  // Fix element prop name to delete specified elemnent via global data object
+  e.prop = prop;
  }
 
  // Get interface element header+hint inner html for non title/button/padbar element types only
@@ -705,22 +717,21 @@ EvalElementExpression(e)
  // Function calculates the timer, applies the button if needed and refreshes button text with the new timer in seconds
  ButtonTimer()
  {
-  const e = this.allelements[this.autoapplybuttonid];	// Retrieve button element
-  if (!e)
+  if (!this.autoapplybuttonelement)
 	 {
-	  clearTimeout(this.autoapplybuttontimeoutid);		// Clear timer function for unknown btn
-	  return;											// and return
+	  clearTimeout(this.autoapplybuttontimeoutid);															// Clear timer function for unknown btn
+	  return;																								// and return
 	 }
-  if (new Date().getTime() - e.timerstart > e.timer)	// Timer is up?
+  if (new Date().getTime() - this.autoapplybuttonelement.timerstart > this.autoapplybuttonelement.timer)	// Timer is up?
 	 {
-	  this.ButtonApply(e);								// Apply the button
-	  clearTimeout(this.autoapplybuttontimeoutid);		// and clear timer function
+	  this.ButtonApply(this.autoapplybuttonelement);														// Apply the button
+	  clearTimeout(this.autoapplybuttontimeoutid);															// and clear timer function
 	 }
    else
      {
-	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);	 // Restart timer function otherwise
+	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);	 						// Restart timer function otherwise
 	 }
-  if (this.autoapplybuttonelement) this.autoapplybuttonelement.innerHTML = `${AdjustString(this.allelements[this.autoapplybuttonid].data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(e)}`;
+  if (this.autoapplybuttonDOMelement) this.autoapplybuttonDOMelement.innerHTML = `${AdjustString(this.autoapplybuttonelement.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(this.autoapplybuttonelement)}`;
  }
 
  ShowDialogBox()
@@ -741,20 +752,20 @@ EvalElementExpression(e)
 
   // Define footer inner HTML
   if (!this.currentbuttonids.length) this.currentbuttonids = this.defaultbuttonids;											// No active profile bundle specific buttons? Use default button list with non specific ones
-  if (this.autoapplybuttonid === undefined) for (const id of this.currentbuttonids)											// No auto apply button ever defined? Parse all current buttons on their auto apply feature (flags +|-)
+  if (this.autoapplybuttonelement === undefined) for (const id of this.currentbuttonids)									// No auto apply button ever defined? Parse all current buttons on their auto apply feature (flags +|-)
 	 {
-	  e = this.allelements[id];																						// Fix current button element
+	  e = this.allelements[id];																								// Fix current button element
 	  if (e.flag.indexOf('+') === -1) continue;																				// The button has no auto apply feature? Continue or calculate the timer and execute auto apply otherwise
 	  e.timer = e.flag.split('+').length - 1;																				// Calculating timer seconds number
 	  if (e.timer > 300) e.timer = (e.timer - 295) * 60;																	// Timer is more than 300? Interpret timer value as a minutes and convert it to seconds
 	  e.timer = 1000 * Math.min(e.timer, BUTTONTIMERMAXSECONDS);															// Convert button auto-apply timer to milliseconds for 'setTimeout'
 	  e.timerstart = new Date().getTime();																					// Store current time value in milliseconds since midnight, January 1, 1970
 	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);											// Execute button timer in one second
-	  this.autoapplybuttonid = e.id;																						// Store this btn id to exclude all other auto apply btns if exist
+	  this.autoapplybuttonelement = e;																						// Store this btn id to exclude all other auto apply btns if exist
 	  break;
     }
-  if (this.autoapplybuttonid !== undefined && this.currentbuttonids.indexOf(this.autoapplybuttonid) === -1)					// Auto apply button doesn't exist in current btns array? Add it
-	 this.currentbuttonids.push(this.autoapplybuttonid);
+  if (this.autoapplybuttonelement !== undefined && this.currentbuttonids.indexOf(this.autoapplybuttonelement.id) === -1)	// Auto apply button doesn't exist in current btns array? Add it
+	 this.currentbuttonids.push(this.autoapplybuttonelement.id);
   let footer = '<div class="footer">';																						// Fill dialog box footer with current btns html content wraped in div tag
   for (const id of this.currentbuttonids) footer += this.GetElementContentHTML(this.allelements[id]);
   footer += '</div>';
@@ -787,7 +798,7 @@ EvalElementExpression(e)
 	   [id, button] = GetEventTargetInterfaceElement(button);																									// Define button id to retreive btn GUI element below
 	   const e = this.allelements[id];
 	   if (e.flag.indexOf('-') === -1) this.pushableElements.push([button, button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set queried btn element (with all childs in) pushable. For enabled btns only
-	   if (this.autoapplybuttonid !== undefined && +id === this.autoapplybuttonid) this.autoapplybuttonelement = button;										// The btn is auto apply? Set <autoapplybuttonelement> to use it for timer refresh
+	   if (this.autoapplybuttonelement !== undefined && +id === this.autoapplybuttonelement.id) this.autoapplybuttonDOMelement = button;						// The btn is auto apply? Set <autoapplybuttonDOMelement> to use it for timer refresh
 	  }
 
   // Set dialog box of itself as a resizing element
@@ -800,24 +811,42 @@ EvalElementExpression(e)
   if (this.InputNodeList) this.InputNodeList.forEach((node) => node.removeEventListener('input', this.Handler.bind(this)));
   this.InputNodeList = this.contentwrapper.querySelectorAll('input, textarea');
   this.InputNodeList.forEach((node) => node.addEventListener('input', this.Handler.bind(this)));
+
+  // Modify all user element paths depending on active profile bundles
+  this.ModifyElementPathActiveProfiles();
  }
 
  // Todo2 - Save flag '!' for last active profile the user has clicked
- ModifyElementPathProfileActiveState(profile, active)
+ ModifyElementPathActiveProfiles()
  {
-  let e;
-  for (const element of profile)						// Browse all profile elements
-	  if (typeof element === 'number')					// Take elements only, not nested profiles
-	  if (e = this.allelements[element])				// Alias current element
-	  if (e.selectionid === undefined)					// Not profile selection
-		 {
-		  let pos = e.path.lastIndexOf(SELECTABLEOPTIONSDIVIDER);	// Calc divider pos in element path
-		  pos = pos === -1 ? 0 : pos + 1;							// And increase pos for any existing divider to set the pos for 1st option char
-		  e.path = e.path.substring(0, pos) + (active ? CHECKEDOPTIONPREFIX : '') + e.path.substring(pos + (e.path[pos] === CHECKEDOPTIONPREFIX ? 1 : 0));	// Join two halfs with checked option prefix
-		 }
-	   else												// Profile selection
-	     {
-	  	 }
+  for (const e of this.allelements) if (e.selectionid === undefined) e.splitpath = e.path.split(SELECTABLEOPTIONSDIVIDER);	// Split user elements path
+
+  for (const e of this.allelements)
+	  {
+	   if (e.selectionid === undefined) continue;																			// Parse only service elements
+	   const nestedindex = e.path.split(SELECTABLEOPTIONSDIVIDER).length - 1;												// Calc profile selection path depth
+	   const activeoption = GetElementOptionByChecked(e.options)[0];														// Get active profile name
+	   const selectionid = e.selectionid;																					// Fix profile selection id to identify element profile membership
+	   for (const e of this.allelements)
+		   {
+			if (e.selectionid !== undefined) continue;																		// Parse only user elements
+			if (e.splitpath[nestedindex] === undefined) continue;															// Current element path depth is lower than upper profile selection
+			let pos = e.splitpath[nestedindex].indexOf(PROFILEFIELDSDIVIDER);												// Get PROFILEFIELDSDIVIDER first appearance
+			let part1 = pos === -1 ? e.splitpath[nestedindex] : e.splitpath[nestedindex].substring(0, pos);					// Split element path string to part1 (before PROFILEFIELDSDIVIDER)
+			let part2 = pos === -1 ? '' : e.splitpath[nestedindex].substring(pos);											// Split element path string to part1 (after PROFILEFIELDSDIVIDER including one)
+			pos = part2.indexOf(PROFILEFIELDSDIVIDER);																		// Get part2 string PROFILEFIELDSDIVIDER first appearance (flag value part)
+			if (selectionid !== part2.substring(0, pos === -1 ? part2.length : pos).split('!').length - 1) continue;		// Current element profile membership doesn't match profile selection id? Continue
+			if (part1[0] === CHECKEDOPTIONPREFIX) part1 = part1.substring(1);												// Remove first char CHECKEDOPTIONPREFIX if exist
+			e.splitpath[nestedindex] = `${activeoption === part1 ? CHECKEDOPTIONPREFIX : ''}${part1}${part2}`;				// Modify element path with depending on cirrent active profile
+		   }
+	  }
+
+  for (const e of this.allelements)
+	  {
+	   if (e.selectionid !== undefined) continue;
+	   e.path = e.splitpath.join(SELECTABLEOPTIONSDIVIDER);
+	   delete e.splitpath;
+	  }
  }
 
  // Get current profile all interface elements outer HTML
@@ -990,6 +1019,7 @@ EvalElementExpression(e)
 							   }
 							if (event.target.classList.contains('itemremove'))											// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 							   {
+								this.ProcessRemoveButton(e);
 								break;
 							   }
 							if (e === this.allelements[0])
@@ -1076,16 +1106,60 @@ EvalElementExpression(e)
   for (const e of this.allelements) if (e.options && e.selectionid !== undefined) CorrectCheckedOptions(e.options, e.type);									// New profile user selectable elements are all with corrected checked options (see last line of function CloneCurrentProfileElements). But not service selectable elements (such as profile selection) in just created profile. So correct their checked optoins.
  }
 
+ // Remove all input profile GUI elements
+ RemoveCurrentProfileElements(profile)
+ {
+  if (!Array.isArray(profile)) return;
+  //for (const id of profile) 
+	  //Array.isArray(id) ? this.RemoveCurrentProfileElements(id) : delete this.data[this.allelements[id]['prop']];
+  for (const id of profile) 
+	  if (Array.isArray(id)) 
+		 {
+		  this.RemoveCurrentProfileElements(id);
+		 }
+	   else
+	     {
+		  if (id === this.autoapplybuttonelement.id)
+			 {
+			  delete this.autoapplybuttonelement;
+			  clearTimeout(this.autoapplybuttontimeoutid);
+			 }
+		  delete this.data[this.allelements[id]['prop']];
+		 }
+ }
+
+ // Handle 'remove' button
+ ProcessRemoveButton(e)
+ {
+  const activeprofileoption = GetElementOptionByChecked(e.options);	
+  this.RemoveCurrentProfileElements(e.profile[activeprofileoption[3]]);
+  
+  this.InitDialogData();					// Init dialog data
+  this.ClearDialogDataFromServiceProps();	// Delete unnecessary element props
+  this.CreateDialogData();					// Create dialog data
+  this.ShowDialogBox();						// Show dialog data (dialog box:)
+ }
+ 
+ // Delete service element props
+ ClearDialogDataFromServiceProps()
+ {
+  for (const i in this.data)
+	  for (const prop of ELEMENTSERVICEPROPS)
+		  delete this.data[i].prop;
+ }
+
  ButtonApply(e)
  {
   if (e.flag.indexOf('-') !== -1) return;													// Do nothing for 'readonly' (disabled) btns
-  if (this.callbuttonids.indexOf(e.id) !== -1)												// Applied btn id is controller callable? Save all dialog data and call the controller
+  if (this.callbuttonids.indexOf(e.id) !== -1 && this.DialogDataCallback)					// Applied btn id is controller callable? Save all dialog data and call the controller
      {
-      for (const i in this.data)
-		  for (const prop of ELEMENTSERVICEPROPS) delete this.data[i].prop;					// Delete unnecessary element props
-	  if (this.DialogDataCallback) this.DialogDataCallback(this.data);						// Call back function to process dialog data or lg('Calling controller with data', this.data);
+	  this.ClearDialogDataFromServiceProps();												// Delete unnecessary element props
+  	  this.ModifyElementPathActiveProfiles();												// Modify all user element paths depending on active profile bundles
+	  this.DialogDataCallback(this.data);													// Call back function to process dialog data or lg('Calling controller with data', this.data);
      }
-  if (this.allelements[e.id].flag.indexOf('!') === -1) this.parentchild.KillChild(this.id);	// Kill dialog box for non-interactive btn
+  if (this.allelements[e.id].flag.indexOf('!') !== -1) return;								// Button is interactive? Return
+  if (this.dropdownlist) this.parentchild.KillChild(this.dropdownlist.id);					// Othewise kill drop-down list if exist
+  this.parentchild.KillChild(this.id);														// and dialog box of itself
  }
 }
 

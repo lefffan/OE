@@ -131,7 +131,7 @@ const testdata = {
 		  46: { type: 'textarea', path: 'View/id1', head: 'Object selection input args', hint: '', data: '', flag: '*' },
 		  47: { type: 'radio', path: 'View/id1', head: 'Template', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: 'Table/Tree/Map' },
 		  48: { type: 'textarea', path: 'View/id1', head: 'Layout', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: '', flag: '*' },
-		  _50: { type: 'button', path: 'Database', data: 'CREATE', expr: '/sdd/14', flag: '+++++++++++++++++++++++++++++' }
+		  _50: { type: 'button', path: 'Element', data: 'CREATE', expr: '/sdd/14', flag: '+++++++++++++++++++++++++++++' }
 		 };
 
 // View pad:
