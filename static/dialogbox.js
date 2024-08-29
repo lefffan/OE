@@ -1096,7 +1096,8 @@ EvalElementExpression(e)
   [newprofile.name, newprofile.flag, newprofile.head, newprofile.hint] = this.profilecloning.input.value.replaceAll(re, '').split(PROFILEFIELDSDIVIDER, 4);	// Parse input element to get new profile name/flag/head/hint
   if (newprofile.name[0] === CHECKEDOPTIONPREFIX) newprofile.name = newprofile.name.substring(1);															// Check profile name 1st char to get prfile active status
   for (const option of this.profilecloning.e.options)
-  	  if (option[0] === newprofile.name) return MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error');			// Cloning profile name matches new profile name? Return
+  	  if (option[0] === newprofile.name)
+		 return new DialogBox(...MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error'));							// Cloning profile name matches new profile name? Return
   newprofile.flag = (newprofile.flag || '').replaceAll(/!/g, '');																							// Remove selection-id '!' chars
   newprofile.flag = newprofile.flag.padStart(this.profilecloning.e.selectionid + newprofile.flag.length, '!');												// Add cloning profile selection id to the new profile flag to match cloning selection id
   if (newprofile.flag) newprofile.flag = '|' + newprofile.flag;
@@ -1158,7 +1159,8 @@ EvalElementExpression(e)
 	  this.DialogDataCallback(this.data);													// Call back function to process dialog data or lg('Calling controller with data', this.data);
      }
   if (this.allelements[e.id].flag.indexOf('!') !== -1) return;								// Button is interactive? Return
-  if (this.dropdownlist) this.parentchild.KillChild(this.dropdownlist.id);					// Othewise kill drop-down list if exist
+  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])
+	 this.parentchild.KillChild(this.dropdownlist.id);										// Othewise kill drop-down list if exist
   this.parentchild.KillChild(this.id);														// and dialog box of itself
  }
 }
