@@ -32,7 +32,10 @@ class Connection extends Interface
   for (const i = 1; i < this.childs.length - 1; i ++) this.childs[i].Handler({ type: 'SOCKETCLOSE' });
  }
 
- CallController1(){}
+ CallController1()
+ {
+  new SideBar(undefined, this);
+ }
 
  CallController()
  {

@@ -129,14 +129,13 @@ function Handler(event)
 	      switch (app.captured.action)
 		     {
 		      case 'cmresizing':
-		           //window.requestAnimationFrame(() => { app.captured.child.elementDOM.style.width = (event.clientX - app.captured.x + app.captured.width) + 'px'; app.captured.child.elementDOM.style.height = (event.clientY - app.captured.y + app.captured.height) + 'px'; });
 		           app.captured.target.style.width = (event.clientX - app.captured.x + app.captured.rect.width) + 'px';
 		           app.captured.target.style.height = (event.clientY - app.captured.y + app.captured.rect.height) + 'px';
 		           document.body.style.cursor = 'nw-resize';
 		           break;
 		      case 'cmdragging':
-		           //window.requestAnimationFrame(() => { app.captured.child.elementDOM.style.left = (event.clientX - app.captured.offsetx + ElementScrollX(app.captured.child.elementDOM.parentNode)) + 'px'; app.captured.child.elementDOM.style.top = (event.clientY - app.captured.offsety + ElementScrollY(app.captured.child.elementDOM.parentNode)) + 'px'; });
-		           app.captured.child.elementDOM.style.left = (event.clientX - app.captured.offsetx + ElementScrollX(app.captured.child.elementDOM.parentNode)) + 'px'; app.captured.child.elementDOM.style.top = (event.clientY - app.captured.offsety + ElementScrollY(app.captured.child.elementDOM.parentNode)) + 'px';
+		           app.captured.child.elementDOM.style.left = (event.clientX - app.captured.offsetx + ElementScrollX(app.captured.child.elementDOM.parentNode)) + 'px';
+				   app.captured.child.elementDOM.style.top = (event.clientY - app.captured.offsety + ElementScrollY(app.captured.child.elementDOM.parentNode)) + 'px';
 		           break;
 		      case 'cmpushing':
 		           if (app.captured.target === app.captured.child.IsPushable(event.target))

@@ -1,5 +1,6 @@
-// Todo0 - dom element any non-close btn postion starting mouse capture with release at close btn - closes frame! That shouldn't be!!
+// Todo0 - starting mouse capture on scrollbar with release on close btn - closes frame! That shouldn't be!!
 // Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
+// Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
 
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
@@ -8,15 +9,13 @@ const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%']
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
 {
- if (element === document.body) return element.scrollLeft || document.documentElement.scrollLeft || window.scrollX;
- return element.scrollLeft;
+ return element === document.body ? element.scrollLeft || document.documentElement.scrollLeft || window.scrollX : element.scrollLeft;
 }
 
 // Function calculates pixels number the element is scrolled from the top
 function ElementScrollY(element)
 {
- if (element === document.body) return element.scrollTop || document.documentElement.scrollTop || window.scrollY;
- return element.scrollTop;
+ return element === document.body ? element.scrollTop || document.documentElement.scrollTop || window.scrollY : element.scrollTop;
 }
 
 // Function returns 1st registered (with 'data-child' attr set) child DOM element
@@ -43,13 +42,14 @@ function IsModalFocusMismatch(element, blink)
      }
 }
 
-function GetChildAreaMouseCursorPosition(child, event) // Calculate child cursor position
+// Calculate child cursor position
+function GetChildAreaMouseCursorPosition(child, event)
 {
  if (!child) return;
  const rect = child.elementDOM.getBoundingClientRect();
 
  // 'x' area
- if (event.clientY - rect.y < 12 && rect.x + rect.width - event.clientX < 12)
+ if (event.clientY - rect.y < CLOSEICONAREAHEIGHT && rect.x + rect.width - event.clientX < CLOSEICONAREAWIDTH)
     {
      if (!(child.props.flags & CMCLOSE) && !(child.props.flags & CMFULLSCREEN)) return;
      document.body.style.cursor = 'pointer';
@@ -57,7 +57,7 @@ function GetChildAreaMouseCursorPosition(child, event) // Calculate child cursor
     }
 
  // Left of 'x' area
- if (event.clientY - rect.y < 12 && rect.x + rect.width - event.clientX < 24)
+ if (event.clientY - rect.y < CLOSEICONAREAHEIGHT && rect.x + rect.width - event.clientX < (CLOSEICONAREAWIDTH * 2))
     {
      if (!(child.props.flags & CMFULLSCREEN)) return;
      document.body.style.cursor = 'pointer';
@@ -73,47 +73,34 @@ function GetChildAreaMouseCursorPosition(child, event) // Calculate child cursor
     }
 }
 
-function MoveElement(element, offsetx, offsety, abs) // Function is deprecated
-{
- if (abs)
-    {
-     element.style.left = offsetx;
-     element.style.top = offsety;
-    }
-  else
-    {
-     element.style.left = (element.offsetLeft + offsetx) + 'px';
-     element.style.top = (element.offsetTop + offsety) + 'px';
-    }
-}
-
 function StyleActiveChild(child, status = true)
 {
  child.StyleActiveChild(status);
 }
 
+// Function removes all non-sticky childs (except current one in the bundle, because of its mouse/keyboard interaction that shouldn't result removal) in the current layer
 function RemoveAllNonStickyChilds(child)
 {
  let excludeid;
- while (child) // Remove all non-sticky childs (except current one in the bundle, because of its interaction [mouse/keyboard] shouldn't result removal) in the current layer
+ while (child)
        {
-	for (const id of child.zindexes) if (id && id !== excludeid && child.childs[id].IsNonsticky()) child.KillChild(id);
-	excludeid = child.id;
-	child = child.parentchild; // Go to next layer of nested childs
+		for (const id of child.zindexes) if (id && id !== excludeid && child.childs[id].IsNonsticky()) child.KillChild(id); // For non-zero ids (zero child id is a parent child of itself), for non-active and for non-sticky (context menu for a example)
+		excludeid = child.id;																								// Fix current active child to exclude it
+		child = child.parentchild;																							// Go to next upper layer of nested childs
        }
 }
-
-function GetTargetedChild(element) // Search for the child of the specified element
+// Function searches for the child of the specified DOM element
+function GetTargetedChild(element)
 {
  let child;
  const attr = element?.attributes?.['data-child']?.value;
 
- if (typeof attr === 'string')
- for (let id of attr.split('i')) // Split element data-child attribute to the array of child ids separated by 'i'
-     {
-      child = id ? child.childs[id] : app; // Get a child link from ids chain
-      if (!child) break;
-     }
+ // Split element data-child attribute to the array of child ids separated by 'i'
+ if (typeof attr === 'string') for (let id of attr.split('i'))
+    {
+     child = id ? child.childs[id] : app;	// Get a child link from ids chain
+     if (!child) break;
+    }
 
  return child;
 }
@@ -139,25 +126,25 @@ class Interface
 	     // Props {tagName: 'DIV|BODY', flags: CMFULLSCREEN|CMCLOSE|CLOSEESC, screen: {full: <>}, overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', position: 'CASCADE|CENTER|RANDOM'}
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
-	     this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body; // Set DOM element to document.body in case of no parent child defined
+	     this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body;	// Set DOM element to document.body in case of no parent child defined
 	     if (!this.props.flags) this.props.flags = 0;
 
 	     // Attributes
 	     this.attributes = (args[3] && typeof args[3] === 'object') ? args[3] : {};
-	     this.attributes['data-child'] = ''; // Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
+	     this.attributes['data-child'] = '';																// Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
 	     for (const name in this.attributes) this.elementDOM.setAttribute(name, this.attributes[name]);
 
 	     // Other child settings
-	     this.childs = {0: this};	// list of child objects sorted by id
-	     this.zindexes = [0];	// list of child ids sorted by z-index
-	     this.activeid = 0;		// Active child id - 0 is current object used as a parent for its child, 1 - first child and etc..
-	     this.maxchildid = 0;	// Child max id ever been inserted
-	     this.classid = '';		// Class identificator
+	     this.childs = {0: this};																			// list of child objects sorted by id
+	     this.zindexes = [0];																				// list of child ids sorted by z-index
+	     this.activeid = 0;																					// Active child id - 0 is current object used as a parent for its child, 1 - first child and etc..
+	     this.maxchildid = 0;																				// Child max id ever been inserted
+	     this.classid = '';																					// Class identificator
 
 	     // Stop constructor for root child (app) that has no parent. Root element is always document.body.
 	     if (!this.parentchild) return;
 
-	     // Filter all childs in case of this child overlay 'MODAL' mode
+	     // Set scc filter for all childs with overlay 'MODAL' mode
 	     if (this.props.overlay === 'MODAL') for (const i in this.parentchild.childs) if (+i) this.parentchild.childs[i].elementDOM.classList.add('modalfilter');
 
 	     // Child display

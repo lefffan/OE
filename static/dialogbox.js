@@ -29,16 +29,11 @@ const macros							= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGI
 // Todo1 - Scale dialog box somehow, cause it seems too compact, use some nice colors: orange RGB(243,131,96), 247,166,138; blue RGB(87,156,210), 50,124,86; bordovij RGB(136,74,87), 116,63,73; salatovij (174,213,129), 150,197,185; And make more nice interface somehow
 // Todo0 - macros for interface elements margins/fonts to scale/form dialog box. Also use macroses in user css configuration profile! Make 3-level macro; 1 - global (system user), 2 - OD, 3 - Specific user.
 
-// Todo0 in september (all for sidebar):
-// Todo0 - Make sidebar from the virtual data - look for 16 april in diary book
-
 // Todo0 in august (other src code):
 // Todo0 - Make new todo.txt that was done during EOS work
 // Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
-// Todo0 - split dialog box and drop down list class to different files
 // Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
 // Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
-// Todo0 - Make pad/profiles +- btns; 1-  ELEMENTSERVICEPROPS[prop], pushelement[e.prop=prop]
 
 
 // Todo2 - function 'CheckSyntaxForHelp' is unused for a while. Use it later to complete 'dialog' help section then remove it
@@ -57,7 +52,7 @@ function CheckSyntaxForHelp(e, prop)
  // Note that root level profiles look like usual pads, others non root - like dropdown list with options to select.
  // Profile flags are optional and set some behaviour:
 			  	// add-remove (+-): profile is clonable and may be used as a template to add new profiles (+), profile is removable (-)
-			  	// Sort order (a^): + ascending alphabetical order, - descending alphabetical order, +-|-+ descending default, absent value: ascending default sort order (default), 
+			  	// Sort order (a^): ascending alphabetical order, - descending alphabetical order, +-|-+ descending default, absent value: ascending default sort order (default), 
 			  	// 		Sorting is applied among current nested level the pad/profile is a memeber of. The flag value is collcted from all flag values for specified nested profile nested level
 				// divider (*): any set value - divider is displayed.
 				// selection id (!): profiles (not pads) may be grouped to a separate selections via number of '%' (see below), so profile names with one number of '%' - are in one selection, with other number - in other selection.
@@ -816,7 +811,6 @@ EvalElementExpression(e)
   this.ModifyElementPathActiveProfiles();
  }
 
- // Todo2 - Save flag '!' for last active profile the user has clicked
  ModifyElementPathActiveProfiles()
  {
   for (const e of this.allelements) if (e.selectionid === undefined) e.splitpath = e.path.split(SELECTABLEOPTIONSDIVIDER);	// Split user elements path
@@ -1162,66 +1156,5 @@ EvalElementExpression(e)
   if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])
 	 this.parentchild.KillChild(this.dropdownlist.id);										// Othewise kill drop-down list if exist
   this.parentchild.KillChild(this.id);														// and dialog box of itself
- }
-}
-
-// Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
-class DropDownList extends Interface
-{
- constructor(options, dialogbox, selectdiv)
- {
-  // Create element 'e' drop-down option list
-  super(options, dialogbox.parentchild, {overlay: 'NONSTICKY', effect: 'rise', flags: CLOSEESC}, {class: 'select expanded', style: `left: ${selectdiv.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${selectdiv.offsetTop + dialogbox.elementDOM.offsetTop + selectdiv.offsetHeight - dialogbox.contentwrapper.scrollTop}px;`}); // (data, parentchild, props, attributes)
-  this.dialogbox = dialogbox;
-  this.selectdiv = selectdiv;
-  this.cursor = +(GetElementOptionByChecked(options)?.[2]);
-
-  // And fill it with element options
-  this.Show();
-  this.resizingElement = this.elementDOM;
- }
-
- // Display drop-down list content
- Show()
- {
-  let content = '';
-  for (const option of this.data) content += `<div value="${option[2]}" class="selectnone${option[1] || (+option[2]) === this.cursor ? ' selected' : ''}">${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div>`;
-  this.elementDOM.innerHTML = content;
- }
-
- // 'Hide' function fixes the global event the drop-down list is killed by. Needed for dialogbox to know (via comparing event counters) whether 'select' element click event or not removes drop-down list
- Hide()
- {
-  this.hideeventid = app.eventcounter;
-  super.Hide();
- }
-
- // Handle interface events
- Handler(event)
- {
-  switch (event.type)
-		 {
-		  case 'keydown':
-			   switch (event.keyCode)
-			   		  {
-					   case 13:																													// Enter key
-					   		return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };	// Return 'optionchange' event to change dialog box selectable element checked option
-					   case 38:																													// Up arrow key
-					   		this.cursor --;																										// Decrease cursor pos up or down from current option appearance id
-							if (this.cursor < 0) this.cursor = this.data.length - 1;															// Out of range is adjusted to last option
-							this.Show();
-							break;
-					   case 40:																													// Down arrow key
-					   		this.cursor ++;																										// Increase cursor pos from current option appearance id
-					   		if (this.cursor >= this.data.length) this.cursor = 0;																// Out of range is adjusted to 1st option
-					   		this.Show();
-							break;
-					  }
-			   break;
-		  case 'mouseup':																														// Handle left btn mouse up event
-		  	   if (event.which !== 1) break;																									// Break for non left btn
-		  	   this.cursor = event.target.attributes?.value?.value;																				// Set cursor to option appearance id
-			   return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };				// Return 'optionchange' event to change dialog box selectable element checked option
-		 }
  }
 }
