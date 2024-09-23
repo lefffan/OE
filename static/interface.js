@@ -1,6 +1,8 @@
 // Todo0 - starting mouse capture on scrollbar with release on close btn - closes frame! That shouldn't be!!
 // Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
-// Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
+// Todo1 - Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
+// Todo1 - Resizing cursor type during resizing process while mouse cursir is moving should have privelege to other cursor types. Otherwise other hover pseudo classes is activated on some elements (for example - cursor 'pointer' on sidebar view/db options)
+// Todo1 - Resizing cursor problem above may be decided via custom cursor div with 'cursor: none;' for all elements
 
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;

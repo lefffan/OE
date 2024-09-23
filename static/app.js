@@ -58,7 +58,7 @@ function Handler(event)
 	         {
 	          if (app.captured.action) break; // Already registered event has some child-management action? Break
 	          if (child !== app.captured.child) break; // Another mouse btn is down on other than captured child? Break
-	          event = { type: 'mousedownuncap' }; // Otherwise generate two-mouse-btns-click event
+	          event = { type: 'mousedownuncap', target: event.target }; // Otherwise generate two-mouse-btns-click event
 	         }
 	       else
 	         {
@@ -95,7 +95,7 @@ function Handler(event)
 	         {
 	          if (app.captured.action) break; // Already registered event has some child-management action at another btn released? Break
 	          if (IsModalFocusMismatch(child.elementDOM, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-	          event = { type: 'mouseupuncap' }; // Otherwise generate two-mouse-btns-release event
+	          event = { type: 'mouseupuncap', target: event.target }; // Otherwise generate two-mouse-btns-release event
 		  ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
 	         }
 	      break;
@@ -191,7 +191,8 @@ class App extends Interface
 	     case 'dblclick':
 		  		break;
 	     case 'New connection':
-		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: ${nicecolors[7]}`});
+		  //new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: ${nicecolors[7]}`});
+		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: #343e54;}`});
 		  break;
 	    }
     }

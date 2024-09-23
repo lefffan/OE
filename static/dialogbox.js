@@ -967,15 +967,14 @@ EvalElementExpression(e)
 				   break;
 				  }
 			   break;
+		  case 'mouseupuncap':
+			   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;												// Sort order change for selectable element types only
+			   if (event.target.classList.contains('itemadd')) break;													// and for non profile clone icon click
+			   if (event.target.classList.contains('itemremove')) break;												// and for non profile remove icon click
+			   this.ChangeElementSortOrder(e, target);																	// Right with left btn held change sort order
+		   	   break;
 	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (event.which === 3)																					// Process right btn down event first, all code out of this 'if' case is left-btn event related
-				  {
-				   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;											// Sort order change for selectable element types only
-				   if (event.target.classList.contains('itemadd')) break;												// and for non profile clone icon click
-				   if (event.target.classList.contains('itemremove')) break;											// and for non profile remove icon click
-				   this.ChangeElementSortOrder(e, target);																// Right btn down changes sort order
-				   break;
-				  }
+			   if (event.which === 3) break;																			// Process right btn down event first, all code out of this 'if' case is left-btn event related
 		       switch (e.type)
 				  	  {
 					   case 'multiple':

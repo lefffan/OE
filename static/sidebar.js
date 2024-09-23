@@ -1,19 +1,17 @@
+// Todo0 - No sort icon for empty db
+// Todo0 - predefined all classes: view0-100
+// Todo0 - sorting
+// Todo0 - wrapping
+// Todo0 - comment
 class SideBar extends Interface
 {
  static style = {
-                 ".sidebar": { "border": "none;", "background-color": "rgb(16,91,160);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;" },
-                 ".unwrap": { "font-size": "70%;", "padding": "3px 8px;", "content": "", "background-repeat": "no-repeat !important;", "background-position": "center;", "background-size": "70% 70%;", "background-image": `url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 5L21 12M21 12L14 19M21 12L3 12' stroke='green' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E%0A");` },
-                 ".wrap": { "font-size": "70%;", "padding": "3px 8px;", "content": "", "background-repeat": "no-repeat !important;", "background-position": "center;", "background-size": "70% 70%;", "background-image": `url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 14L12 21M12 21L19 14M12 21L12 3' stroke='green' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E%0A");` },
-                 ".nowrap": { "font-size": "70%;", "padding": "3px 8px;", "content": "", "background-repeat": "no-repeat !important;", "background-position": "center;", "background-size": "70% 70%;", "background-image": `url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M14 5L21 12M21 12L14 19M21 12L3 12' stroke='coral' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E%0A");` },
-                 ".itemactive": { "background-color": "#4578BF;", "color": "#FFFFFF;", "font": "1.1em Lato, Helvetica;" },
-
-                 ".sidebar_branchicon": { "font-size": "70%;", "padding": "3px 8px;", "content": "", "background-repeat": "no-repeat !important;", "background-position": "center;", "background-size": "70% 70%;" },
-                 ".sidebar_branchstatus": { "font-size": "70%;", "padding": "3px 8px;", "content": "", "background-repeat": "no-repeat !important;", "background-position": "center;", "background-size": "70% 70%;" },
-                 ".sidebar tr:hover": { "background-color": "#3568AF;", "cursor": "pointer;" },
-                 ".sidebar_folder": { "padding": "3px 5px 3px 0px;", "margin": "0px;", "color": "", "font": "1.3em Lato, Helvetica;"  },
-                 ".sidebar_database": { "padding": "3px 5px 3px 0px;", "margin": "0px;", "color": "", "font": "1.2em Lato, Helvetica;"  },
-                 ".sidebar_view": { "padding": "2px 5px 2px 10px;", "margin": "0px;", "color": "", "font": "1.1em Lato, Helvetica;" },
+                 ".sidebar": { "border": "none;", "background-color": "rgb(15,85,149);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;" },
                  ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.6em Lato, Helvetica;", "background-color": "rgb(251,11,22);", "border-radius": "35%"},
+                 ".sidebar tr:hover": { "background-color": "#3568AF;", "cursor": "pointer;", "margin": "100px 100px;" },
+                 ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+                 ".sidebar_database": { "color": "", "font": "1.6em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+                 ".sidebar_view": { "color": "", "font": "1.4em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
                 }
 
  destructor()
@@ -64,7 +62,9 @@ class SideBar extends Interface
 
  Handler(event)
  {
-  event = { type: 'SIDEBARSET', odid: 13, path: '/OD13', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}};
+  event = { type: 'SIDEBARSET', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}};
+  //event = { type: 'SIDEBARSET', odid: 13, path: '/hui1/OD13', ov: {}};
+  if (this.event) event = this.event;
   switch (event.type)
 	     {
 	      case 'mouseup':
@@ -75,22 +75,24 @@ class SideBar extends Interface
                    for (const path in event.ov[ovid]) 
                        this.SideBarAdd(event.ov[ovid][path], event.odid, ovid);
 
-               RemoveEmptySubtrees(this.tree, event.odid);
-               RemoveEmptySubtrees(this.tree);
+               this.RemoveEmptySubtrees(this.tree, event.odid);
+               this.RemoveEmptySubtrees(this.tree);
 
                this.inner = this.GetBranchInner(this.tree, 0);
                requestAnimationFrame(() => this.elementDOM.innerHTML = this.inner);
                //this.ShowSideBar();
                break;
           case 'SIDEBARDELETE': // event = { type: 'SIDEBARDELETE', odid: } 
-               RemoveEmptySubtrees(this.tree, event.odid);
-               RemoveEmptySubtrees(this.tree);
+               this.RemoveEmptySubtrees(this.tree, event.odid);
+               this.RemoveEmptySubtrees(this.tree);
                break;
           case 'SIDEBARFOOTNOTE': // event = { type: 'SIDEBARFOOTNOTE', odid:, ovid:, value: }
                break;
           case 'SIDEBARLOAD': // event = { type: 'SIDEBARLOAD', odid:, ovid:, value: }
                break;
 	     }
+  this.event = { type: 'SIDEBARSET', odid: 13, path: '/hui2/OD13', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}};         
+  //this.event = { type: 'SIDEBARSET', odid: 13, path: '/hui2/OD13', ov: {}};
  }
  
  RemoveEmptySubtrees(tree, odid)
@@ -98,6 +100,7 @@ class SideBar extends Interface
   switch (tree[0].type)
          {
           case 'folder':
+               if (tree === this.tree) break;
                if (odid === undefined && tree.length < 2) return true;
                break;
           case 'database':
@@ -110,7 +113,7 @@ class SideBar extends Interface
                break;
          }
   for (const i in tree)
-      if (+i && RemoveEmptySubtrees(tree[i], odid)) tree.splice[i, 1];
+      if (+i && this.RemoveEmptySubtrees(tree[i], odid)) tree.splice(i, 1);
  }
 
  GetBranchInner(tree, depth, id)
@@ -121,11 +124,23 @@ class SideBar extends Interface
       {
        if (!depth) continue;
        let attribute = ` data-branch="${id}"`;
-       inner += `<table><tr class="sidebar_${tree[branch].type}">`;
-       inner += `<td${attribute}>${'&nbsp'.repeat(depth)}</td>`;
-       inner += `<td class="sidebar_branchstatus"${attribute}></td>`;
-       inner += `<td class="sidebar_branchicon"${attribute}></td>`;
-       inner += `<td style="width: 100%;"${attribute}>${tree[branch].name}</td>`;
+       inner += `<table><tr">`;
+       inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                // Depth margin
+       switch (tree[branch].type)
+              {
+               case 'folder':
+                    inner += `<td class="folder${tree[branch].wrap === false ? 'un' : ''}wrapped"${attribute}></td>`;   // Folder icon
+                    break;
+               case 'database':
+                    inner += `<td class="database${tree[branch].wrap === false ? 'un' : ''}wrapped"${attribute}></td>`; // Database icon
+                    break;
+               case 'view':
+                    inner += `<td class="view0"${attribute}></td>`;                                                     // View icon (od[branch.odid][branch.id]['status'])
+                    break;
+              }
+       inner += `<td class="sidebar_${tree[branch].type}"${attribute}>${tree[branch].name}</td>`;                       // Folder/database/view name
+       if (tree[branch].type !== 'view') inner += `<td class="arrow0" style="padding-right: 15px; background-color: transparent;"${attribute}></td>`; // Sort order
+       inner += `<td style="width: 100%;"${attribute}></td>`;                                                           // Estamated space
        inner += '</tr></table>';
       }
     else
@@ -151,4 +166,83 @@ class SideBar extends Interface
   this.tree = [{ sort: '', type: 'folder', wrap: false, name: 'Root folder', id: 0 }];
   this.folderid = 0;
  }
+}
+
+SideBar.style['.view0'] = {
+         "background-image": SVGUrlHeader() + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(1,110,1)') + SVGRect(2, 2, 18, 18, 3, 65, 'RGB(1,150,1)') + SVGUrlFooter(),
+         "background-repeat": `no-repeat !important;`,
+         "background-position": `center;`,
+         "background-color": `transparent;`,
+         "padding": `0px 10px;`,
+};
+SideBar.style['.viewonline'] = {
+     "background-image": SVGUrlHeader() + SVGRect(6, 6, 10, 10, 1, 105, 'RGB(185,122,87)', 'none', '2') + SVGUrlFooter(), //RGB(185,122,87) RGB(1,130,0)
+     "background-repeat": `no-repeat !important;`,
+     "background-position": `center;`,
+     "background-color": `transparent;`,
+     "padding": `0px 10px;`,
+};
+
+SideBar.style['.folderwrapped'] = {
+     "background-image": SVGUrlHeader() + SVGRect(2, 2, 15, 15, 3, 105, 'RGB(77,129,7)', 'RGB(77,129,7)', '2') + SVGRect(6, 6, 15, 15, 2, 105, 'RGB(77,129,7)', 'none', '3') + SVGUrlFooter(),
+     "background-repeat": `no-repeat !important;`,
+     "background-position": `center;`,
+     "background-color": `transparent;`,
+     "padding": `0px 10px;`,
+};
+SideBar.style['.folderunwrapped'] = {
+     "background-image": SVGUrlHeader() + SVGRect(0, 0, 18, 18, 2, 105, 'RGB(140,123,23)', 'none', '2') + SVGRect(4, 4, 18, 18, 2, '0 15 65', 'RGB(140,123,23)', 'none', '2') + SVGUrlFooter(),
+     "background-repeat": `no-repeat !important;`,
+     "background-position": `center;`,
+     "background-color": `transparent;`,
+     "padding": `0px 10px;`,
+};
+
+SideBar.style['.databaseunwrapped'] = {
+     "background-image": SVGUrlHeader() +  SVGPath('M6 12L18 12', 'rgb(1,130,1)', '6') + SVGUrlFooter(),
+     "background-repeat": `no-repeat !important;`,
+     "background-position": `center;`,
+     "background-color": `transparent;`,
+     "padding": `0px 10px;`,
+};
+
+SideBar.style['.databasewrapped'] = {
+     "background-image": SVGUrlHeader() +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 5) + SVGUrlFooter(),
+     "background-repeat": `no-repeat !important;`,
+     "background-position": `center;`,
+     "background-color": `transparent;`,
+     "padding": `0px 10px;`,
+};
+
+SideBar.style['.databasewrappedempty'] = {
+     "background-image": SVGUrlHeader() +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 5) + SVGUrlFooter(),
+     "background-repeat": `no-repeat !important;`,
+     "background-position": `center;`,
+     "background-color": `transparent;`,
+     "padding": `0px 10px;`,
+};
+
+function SVGUrlHeader(viewwidth = 24, viewheight = 24)
+{
+ return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
+}
+
+function SVGUrlFooter()
+{
+ return `%3C/svg%3E");`;
+}
+
+function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4')
+{
+ const disp = Math.round(strength/2);
+ x += disp;
+ y += disp;
+ h -= disp * 2;
+ w -= disp * 2;
+ return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' /%3E`;
+}
+
+function SVGPath(path, color, width)
+{
+ return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
 }
