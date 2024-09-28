@@ -18,28 +18,30 @@ class ContextMenu extends Interface
   switch (event.type)
 	 {
 	  case 'mouseup':
-	       return event.target.classList.contains('contextmenuitem') ? { type: 'KILLME', destination: this.destination, subevent: { type: event.target.innerHTML } } : undefined;
+	       return event.target.classList.contains('contextmenuitem') ? { type: 'KILLME', event: { type: 'CONTEXTMENU', data: this.data[event.target.attributes['data-item'].value] } } : undefined;
 	 }
  }
 
- constructor(data, parentchild, event, destination) // (data, parentchild, props, attributes)
+ constructor(data, parentchild, event)
  {
-  let inner = '', count = 0;
-  if (Array.isArray(data)) for (let item of data)
-     {
-      inner += (!Array.isArray(item) || typeof item[0] !== 'string' || !item[0]) ? '<div class="contextmenuitemdivider"></div>' : `<div class="${item[1] ? 'grey' : ''}contextmenuitem">${item[0]}</div>`;
-      count++;
-     }
+  let inner = '';
+  if (Array.isArray(data)) for (const item in data)
+     switch (typeof data[item])
+            {
+             case 'object':
+                  if (!Array.isArray(data[item])) break;
+                  inner += `<div class="contextmenuitem" data-item="${item}">${data[item] ? data[item] : '&nbsp'}</div>`;
+                  break;
+             case 'string':
+                  inner += data[item] ? `<div class="greycontextmenuitem">${data[item]}</div>` : '<div class="contextmenuitemdivider"></div>';
+                  break;
+            }
 
-  super(count ? data : undefined, parentchild, { flags: CLOSEESC, effect: 'rise', overlay: 'NONSTICKY'}, {class: 'contextmenu selectnone' });
+  super(inner ? data : undefined, parentchild, { flags: CLOSEESC, effect: 'rise', overlay: 'NONSTICKY'}, {class: 'contextmenu selectnone' }); // (data, parentchild, props, attributes)
   this.elementDOM.innerHTML = inner;
-  this.destination = destination;
 
   if (!event) return;
   this.elementDOM.style.left = document.documentElement.clientWidth > this.elementDOM.offsetWidth + event.clientX ? event.clientX + 'px' : event.clientX - this.elementDOM.clientWidth + 'px';
   this.elementDOM.style.top  = document.documentElement.clientHeight > this.elementDOM.offsetHeight + event.clientY ? event.clientY + 'px' : event.clientY - this.elementDOM.clientHeight + 'px';
-
-  //this.elementDOM.style.left = this.parentchild.elementDOM.offsetWidth + this.parentchild.elementDOM.offsetLeft > this.elementDOM.offsetWidth + event.clientX ? event.clientX + 'px' : event.clientX - this.elementDOM.clientWidth + 'px';
-  //this.elementDOM.style.top  = this.parentchild.elementDOM.offsetHeight + this.parentchild.elementDOM.offsetTop > this.elementDOM.offsetHeight + event.clientY ? event.clientY + 'px' : event.clientY - this.elementDOM.clientHeight + 'px';
  }
 }

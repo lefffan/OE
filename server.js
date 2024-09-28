@@ -206,8 +206,11 @@ function WSMessageProcess(msg)
  if (!msg || typeof msg !== 'object' || !msg['type']) return;
  switch (msg['type'])
 	{
-	 case 'newod':
+	 case 'Test Dialog':
 	      this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));
+	      break;
+	 case 'New Database':
+	      this.send(JSON.stringify({ type: 'SIDEBARSET', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}}));
 	      break;
 	}
 }

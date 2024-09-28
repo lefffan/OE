@@ -37,24 +37,26 @@ class DropDownList extends Interface
 		  case 'keydown':
 			   switch (event.keyCode)
 			   		  {
-					   case 13:																													// Enter key
-					   		return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };	// Return 'optionchange' event to change dialog box selectable element checked option
-					   case 38:																													// Up arrow key
-					   		this.cursor --;																										// Decrease cursor pos up or down from current option appearance id
-							if (this.cursor < 0) this.cursor = this.data.length - 1;															// Out of range is adjusted to last option
+					   case 13:																			// Enter key
+					   		this.dialogbox.Handler({ type: 'optionchange', target: this.selectdiv });	// Call dialog box handler to change selected option
+					   		return { type: 'KILLME' };													// Return 'optionchange' event to change dialog box selectable element checked option
+					   case 38:																			// Up arrow key
+					   		this.cursor --;																// Decrease cursor pos up or down from current option appearance id
+							if (this.cursor < 0) this.cursor = this.data.length - 1;					// Out of range is adjusted to last option
 							this.Show();
 							break;
-					   case 40:																													// Down arrow key
-					   		this.cursor ++;																										// Increase cursor pos from current option appearance id
-					   		if (this.cursor >= this.data.length) this.cursor = 0;																// Out of range is adjusted to 1st option
+					   case 40:																			// Down arrow key
+					   		this.cursor ++;																// Increase cursor pos from current option appearance id
+					   		if (this.cursor >= this.data.length) this.cursor = 0;						// Out of range is adjusted to 1st option
 					   		this.Show();
 							break;
 					  }
 			   break;
-		  case 'mouseup':																														// Handle left btn mouse up event
-		  	   if (event.which !== 1) break;																									// Break for non left btn
-		  	   this.cursor = event.target.attributes?.value?.value;																				// Set cursor to option appearance id
-			   return { type: 'KILLME', destination: this.dialogbox, subevent: { type: 'optionchange', target: this.selectdiv } };				// Return 'optionchange' event to change dialog box selectable element checked option
+		  case 'mouseup':																				// Handle left btn mouse up event
+		  	   if (event.which !== 1) break;															// Break for non left btn
+		  	   this.cursor = event.target.attributes?.value?.value;										// Set cursor to option appearance id
+			   this.dialogbox.Handler({ type: 'optionchange', target: this.selectdiv });				// Call dialog box handler to change selected option
+			   return { type: 'KILLME' };																// Return 'optionchange' event to change dialog box selectable element checked option
 		 }
  }
 }

@@ -8,6 +8,7 @@ const EFFECTSHINT				= "effect appearance. Possible values:<br>'fade', 'grow', '
 const CMCLOSE					= 0b1;
 const CMFULLSCREEN				= 0b10;
 const CLOSEESC					= 0b100;
+const NODOWNLINKNONSTICKYCHILDS	= 0b1000;
 
 const REFRESHMININTERVAL		= 50;
 const ELEMENTPUSHOFFSET			= 3;
@@ -21,6 +22,33 @@ const CLOSEICONAREAHEIGHT		= 12;
 const nicecolors				= [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
 const style 					= document.createElement('style'); // Style default user GUI and append style DOM element to the document head
 let app; // Create application
+
+// initevent: any non undefined value calls <callbackfunction> 
+// captureevent: event the capture starts at. Since the capture is started - no other captures allowed, so any other childs mouse/keyboards events are ignored. The capture starts at this event, area match (if exists) and DOM elements array match
+// keycode: key code for keyboard <captureevent> and <releaseevent>
+// modifier: key flag to match together with mouse/keyboard <captureevent> for next keys: CTRL (0b1), ALT (0b10), SHIFT (0b100) and META (0b1000)
+// processevent: event the current capture handles via <callbackfunction> call
+// releaseevent: event the capture is released on. Since the capture is released - any other childs mouse/keyboards events become available. Capture is released at this event occur or <outofarearelease> true value (see below)
+// area: child element DOM relative rectangle coordinates x1,y1,x2,y2 the mouse cursor in to start the capture
+// outofarearelease: true value releases the cature in case of mouse coordinates out of defined area 
+// elements: array of DOM elements the capture starts at together with 'area' and 'capturestart'. For empty array child <elementDom> is used. Two-level nested array is allowed (for pushing elements with its childs DOM elements, for a example)
+// callbackfunction: for all defined capture stages <callbackfunction> call is perfomed - callbackfunction(event). For native control (fullscreen toggle, close, ecs btn..) predefined functions are used. String type prop generates appropriate event instead of call
+// data: current control specific data, used for callback inner behaviour and/or background icon (see below)
+// iconon|iconoff: url used as a background image with area coordinates, iconon/iconoff depends on <data> truthy/falsy vlaue and refreshed at capture/relese events automatically
+// cursor: document cursor style on <area> hover
+// child: child object inited at child insert. Property is defined automatically at child insert.
+// parentcontrol: control property name to retreive callback, state and icon props
+CHILDCONTROLTEMPLATES           = {
+                                   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, iconon: '', iconoff: '', cursor: 'pointer' }, 
+                                   fullscreendblclick: { releaseevent: 'dblclick', parentcontrol: 'fullscreenicon' }, 
+                                   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, iconoff: '', callback: 'KILLME', cursor: 'pointer' }, 
+                                   closeesc: { captureevent: 'keydown', releaseevent: 'keyup', keycode: 13, parentcontrol: 'closeicon' }, 
+                                   drag: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'grabbing' }, 
+                                   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize' }, 
+                                   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', parentcontrol: 'resize' }, 
+                                   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', parentcontrol: 'resize' }, 
+                                   push: { captureevent: 'mousedown', releaseevent: 'mouseup', cursor: 'pointer' }, 
+                                  }
 
 function lg(...data)
 {

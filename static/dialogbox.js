@@ -23,19 +23,6 @@ const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 const macros							= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
  
-// Todo0 in october (OD structure in DB)
-// Todo0 - Cursor scheme default, custom
-// Todo0 - DB SQL handle for OD structure
-// Todo1 - Scale dialog box somehow, cause it seems too compact, use some nice colors: orange RGB(243,131,96), 247,166,138; blue RGB(87,156,210), 50,124,86; bordovij RGB(136,74,87), 116,63,73; salatovij (174,213,129), 150,197,185; And make more nice interface somehow
-// Todo0 - macros for interface elements margins/fonts to scale/form dialog box. Also use macroses in user css configuration profile! Make 3-level macro; 1 - global (system user), 2 - OD, 3 - Specific user.
-
-// Todo0 in august (other src code):
-// Todo0 - Make new todo.txt that was done during EOS work
-// Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
-// Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
-// Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
-
-
 // Todo2 - function 'CheckSyntaxForHelp' is unused for a while. Use it later to complete 'dialog' help section then remove it
 function CheckSyntaxForHelp(e, prop)
 {
@@ -314,8 +301,6 @@ class DialogBox extends Interface
 	".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
 	// dialog box button
 	".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${macros.BUTTON_PADDING};`, "margin": "10px;", "border-radius": "5px;", "font": `bold 12px ${macros.FONT};`, "color": "white;" },
-	// dialog box button push
-	".buttonpush": { "transform": "translate(3%, 3%);" },
 	// dialog box button and pad hover
 	".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
 	// dialog box element headers

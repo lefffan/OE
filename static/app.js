@@ -1,163 +1,18 @@
-function HasOwnHandler(child)
-{
- //return child ? !(child.__proto__.__proto__.Handler === child.Handler) : false;
- return child ? !(Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler === child.Handler) : false;
-}
+// Todo0 in september (other src code):
+// Todo0 - Sidebar
+// Todo0 - Make new todo.txt that was done during EOS work
+// Todo0 - Shemsetdinov justify src arch via require/import + remove windows.js code to index.js 
+// Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
+// Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
 
-function ProcessChildEvent(child, event) // Process child response
-{
- if (!child || !event) return;
-
- if (event.destination?.Handler) event.destination.Handler(event.subevent);
-
- switch (event.type) // { type: , source: , destination: , data: , }
-	{
-	 case 'KILLME':
-	      if (child === app) break;
-	      child.parentchild.KillChild(child.id);
-	      break;
-	 case 'BRINGTOTOP': // Bring to top all childs bundle from current nested one until the root one (app)
-	      if (child === app) app.ChangeActive(0);
-	      while (child.parentchild)
-		    {
-		     child.parentchild.ChangeActive(child.id);
-		     child = child.parentchild;
-		    }
-	      break;
-	 case 'NONE':
-		  break;
-	}
-}
-
-function Handler(event)
-{
- let target, child;
- app.eventcounter ++;
-
- switch (event.type)
-	{
-	 case 'keydown':
-	 case 'keyup':
-	      if (app.captured.child) break; // Disallow any key events while any child captured
-	      child = [target = app]; // Create array with the app as a 1st array element and var 'target' linked to that 1st element (app)
-	      while (target.activeid) child.push(target = target.childs[target.activeid]); // Create downstrem active childs chain from app root child
-
-	      for (let id = child.length - 1; id >= 0; id--) // Dispatch key event to all childs in the chain from lowest acive to the root app and break in case of any child event
-		  {
-	           if ((target = child[id]?.Handler(event)) && !ProcessChildEvent(child[id], target)) break;
-	           if (HasOwnHandler(child[id]) && (target = Object.getPrototypeOf(Object.getPrototypeOf(child[id])).Handler.call(child[id], event)) && !ProcessChildEvent(child[id], target)) break; 
-			   // Handle keydown for childs with own handlers only, cause no keydown event default handle
-		  }
-	      break;
-
-	 case 'mousedown': // event.which values: 0 - no mouse button pushed, 1 - left button, 2 - middle button, 3 - right (context) button
-	      if (event.which !== 1 && event.which !== 3) return event.preventDefault(); // Break for non left/right mouse btn click
-	      if (!(child = GetTargetedChild(target = GetFirstRegisteredChild(event.target)))) break; // Break in case of no targeted child
-
-	      if (app.captured.child) // Simultaneous two mouse buttons click event occured (another mouse down event has been already registered on captured child)
-	         {
-	          if (app.captured.action) break; // Already registered event has some child-management action? Break
-	          if (child !== app.captured.child) break; // Another mouse btn is down on other than captured child? Break
-	          event = { type: 'mousedownuncap', target: event.target }; // Otherwise generate two-mouse-btns-click event
-	         }
-	       else
-	         {
-	          if (IsModalFocusMismatch(target, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-	          RemoveAllNonStickyChilds(child); // Remove all childs with nonsticky overlay
-	         }
-
-	      ProcessChildEvent(child, Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event)); // Process child-management behaviour first
-	      if (!app.captured.action && HasOwnHandler(child)) ProcessChildEvent(child, child.Handler(event)); // Then child specific in case of no child-management action
-	      break;
-
-	 case 'mouseup':
-	      event.preventDefault();
-	      if (event.which !== 1 && event.which !== 3) return; // Break for non left/right mouse btn release
-	      if (!app.captured.child) break; // No captured child? Break
-	      if (!app.captured.child.elementDOM && (app.captured = {})) break; // Captured child element DOM doesn't exist? Break
-
-	      // Any mouse btn is released on another child than captured one?
-	      if ((child = GetTargetedChild(target = GetFirstRegisteredChild(event.target))) !== app.captured.child)
-	         {
-	          if (event.which === app.captured.which) app.captured = {}; // Mouse btn release event occurs on captured btn? Release captured object
-	          break; // And then break anyway
-	         }
-
-	      // Mouse btn release event occurs on captured btn? If not - non captured btn is released while captured btn is stil down
-	      if (event.which === app.captured.which)
-	         {
-	          if (app.captured.action === 'cmpushing' && app.captured.pushed) app.captured.target.classList.remove('buttonpush'); // Release captured-child pushed DOM element
-	          if (IsModalFocusMismatch(child.elementDOM, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-		  ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
-	          app.captured = {}; // Release captured object
-	         }
-	       else
-	         {
-	          if (app.captured.action) break; // Already registered event has some child-management action at another btn released? Break
-	          if (IsModalFocusMismatch(child.elementDOM, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-	          event = { type: 'mouseupuncap', target: event.target }; // Otherwise generate two-mouse-btns-release event
-		  ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
-	         }
-	      break;
-
-	 case 'c lick':
-	      if (IsModalFocusMismatch(GetFirstRegisteredChild(event.target))) event.preventDefault();
-	      break;
-
-	 case 'click':
-	 case 'dblclick':
-	      if (event.type === 'dblclick') event.preventDefault();	// No preventDefault for 'click' event to keep radio/checkbox elements working
-	      if (app.captured.child) break; // Any child is captured (another btn double click)? Break
-	      if (!(child = GetTargetedChild(target = GetFirstRegisteredChild(event.target)))) break; // Break in case of no targeted child
-	      if (IsModalFocusMismatch(child.elementDOM)) break;
-	      ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
-	      break;
-
-	 case 'mousemove':
-	      // Set default cursor first, then others if needed
-	      document.body.style.cursor = 'auto';
-
-	      // Modal child pops up at cursor moving on captured element? Break with returning pushed element released and free captured element
-	      if (app.captured.child && IsModalFocusMismatch(app.captured.child.elementDOM))
-	         {
-	          if (app.captured.pushed) app.captured.target.classList.remove('buttonpush');
-	          app.captured = {};
-	          break;
-	         }
-
-	      // Process captured child action (default case - no capture/action)
-	      switch (app.captured.action)
-		     {
-		      case 'cmresizing':
-		           app.captured.target.style.width = (event.clientX - app.captured.x + app.captured.rect.width) + 'px';
-		           app.captured.target.style.height = (event.clientY - app.captured.y + app.captured.rect.height) + 'px';
-		           document.body.style.cursor = 'nw-resize';
-		           break;
-		      case 'cmdragging':
-		           app.captured.child.elementDOM.style.left = (event.clientX - app.captured.offsetx + ElementScrollX(app.captured.child.elementDOM.parentNode)) + 'px';
-				   app.captured.child.elementDOM.style.top = (event.clientY - app.captured.offsety + ElementScrollY(app.captured.child.elementDOM.parentNode)) + 'px';
-		           break;
-		      case 'cmpushing':
-		           if (app.captured.target === app.captured.child.IsPushable(event.target))
-		              {
-		               if (!app.captured.pushed && (app.captured.pushed = true)) app.captured.target.classList.add('buttonpush');
-		              }
-		            else
-		              {
-		               if (app.captured.pushed && !(app.captured.pushed = false)) app.captured.target.classList.remove('buttonpush');
-		              }
-		           break;
-		      default:
-		           GetChildAreaMouseCursorPosition(child = GetTargetedChild(GetFirstRegisteredChild(event.target)), event);
-		     }
-	      break;
-	}
-}
+// Todo0 in october (OD structure in DB)
+// Todo0 - Cursor scheme default, custom
+// Todo0 - DB SQL handle for OD structure
+// Todo1 - Scale dialog box somehow, cause it seems too compact, use some nice colors: orange RGB(243,131,96), 247,166,138; blue RGB(87,156,210), 50,124,86; bordovij RGB(136,74,87), 116,63,73; salatovij (174,213,129), 150,197,185; And make more nice interface somehow
+// Todo0 - macros for interface elements margins/fonts to scale/form dialog box. Also use macroses in user css configuration profile! Make 3-level macro; 1 - global (system user), 2 - OD, 3 - Specific user.
 
 class App extends Interface
 {
- captured = {};
- eventcounter = 0;
  static style = {
  				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
  				 "_Appearance animation": "Select interface elements appearance animation", 
@@ -167,13 +22,15 @@ class App extends Interface
  constructor(...args)
 	    {
 	     super(...args);
-	     document.addEventListener('keydown', Handler);
-	     document.addEventListener('keyup', Handler);
-	     document.addEventListener('mousedown', Handler);
-	     document.addEventListener('dblclick', Handler);
-	     document.addEventListener('mouseup', Handler);
-	     document.addEventListener('mousemove', Handler);
-	     document.addEventListener('click', Handler);
+		 this.captured = {};
+		 this.eventcounter = 0;
+	     document.addEventListener('keydown', Interface.EventHandler);
+	     document.addEventListener('keyup', Interface.EventHandler);
+	     document.addEventListener('mousedown', Interface.EventHandler);
+	     document.addEventListener('dblclick', Interface.EventHandler);
+	     document.addEventListener('mouseup', Interface.EventHandler);
+	     document.addEventListener('mousemove', Interface.EventHandler);
+	     document.addEventListener('click', Interface.EventHandler);
 	     document.addEventListener('contextmenu', (event) => event.preventDefault());
 	    }
 
@@ -186,13 +43,12 @@ class App extends Interface
      switch (event.type)
 	    {
 	     case 'mouseup':
-		  if (event.which === 3) new ContextMenu([['New connection'], ['Help'], ['Test', 0]], this, event, this);
+		  if (event.which === 3) new ContextMenu([['New connection'], ['Help']], this, event);
 		  break;
 	     case 'dblclick':
 		  		break;
-	     case 'New connection':
-		  //new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: ${nicecolors[7]}`});
-		  new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: #343e54;}`});
+	     case 'CONTEXTMENU':
+			if (event.data[0] === 'New connection') new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN | NODOWNLINKNONSTICKYCHILDS, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: #343e54;}`});
 		  break;
 	    }
     }

@@ -3,15 +3,18 @@
 // Todo0 - sorting
 // Todo0 - wrapping
 // Todo0 - comment
+// Todo0 - footnote
+// Todo0 - SIDEBARDELETE
+// Todo0 - context menu
 class SideBar extends Interface
 {
  static style = {
                  ".sidebar": { "border": "none;", "background-color": "rgb(15,85,149);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;" },
-                 ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.6em Lato, Helvetica;", "background-color": "rgb(251,11,22);", "border-radius": "35%"},
+                 ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
                  ".sidebar tr:hover": { "background-color": "#3568AF;", "cursor": "pointer;", "margin": "100px 100px;" },
                  ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
                  ".sidebar_database": { "color": "", "font": "1.6em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
-                 ".sidebar_view": { "color": "", "font": "1.4em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
+                 ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
                 }
 
  destructor()
@@ -62,12 +65,25 @@ class SideBar extends Interface
 
  Handler(event)
  {
-  event = { type: 'SIDEBARSET', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}};
-  //event = { type: 'SIDEBARSET', odid: 13, path: '/hui1/OD13', ov: {}};
-  if (this.event) event = this.event;
   switch (event.type)
 	     {
+           case 'New Database':
+                this.connection.CallController(event);
+                break;
 	      case 'mouseup':
+               if (event.which !== 3) break;
+               const data = [['New Database'], '', ['Help'], ['Logout']];
+               if (event.target.attributes['data-branch']?.value)
+                  {
+                   let subtree = this.tree;
+                   for (const i of event.target.attributes['data-branch'].value.split('_')) subtree = subtree[i];
+                   if (subtree[0].type === 'view') data.splice(1, 0, ['Open in a new view']);
+                   if (subtree[0].type === 'database') data.splice(1, 0, ['Configure database']);
+                  }
+               new ContextMenu(data, this, event);
+               break;
+          case 'CONTEXTMENU':
+               if (event.data[0] === 'New Database') this.parentchild.CallController({type: 'New Database'});
                break;
           case 'SIDEBARSET': // event = { type: 'SIDEBARSET', odid:, ov{ovid}{pathid}: }
                this.SideBarAdd(event.path, event.odid);
@@ -91,8 +107,6 @@ class SideBar extends Interface
           case 'SIDEBARLOAD': // event = { type: 'SIDEBARLOAD', odid:, ovid:, value: }
                break;
 	     }
-  this.event = { type: 'SIDEBARSET', odid: 13, path: '/hui2/OD13', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}};         
-  //this.event = { type: 'SIDEBARSET', odid: 13, path: '/hui2/OD13', ov: {}};
  }
  
  RemoveEmptySubtrees(tree, odid)
@@ -138,7 +152,8 @@ class SideBar extends Interface
                     inner += `<td class="view0"${attribute}></td>`;                                                     // View icon (od[branch.odid][branch.id]['status'])
                     break;
               }
-       inner += `<td class="sidebar_${tree[branch].type}"${attribute}>${tree[branch].name}</td>`;                       // Folder/database/view name
+       let footnote = tree[branch].type === 'view' ? '&nbsp<span class="changescount">987</span>' : '';
+       inner += `<td class="sidebar_${tree[branch].type}"${attribute}>${tree[branch].name}${footnote}</td>`;            // Folder/database/view name
        if (tree[branch].type !== 'view') inner += `<td class="arrow0" style="padding-right: 15px; background-color: transparent;"${attribute}></td>`; // Sort order
        inner += `<td style="width: 100%;"${attribute}></td>`;                                                           // Estamated space
        inner += '</tr></table>';
