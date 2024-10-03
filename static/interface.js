@@ -4,16 +4,11 @@
 // Todo1 - Resizing cursor type during resizing process while mouse cursir is moving should have privelege to other cursor types. Otherwise other hover pseudo classes is activated on some elements (for example - cursor 'pointer' on sidebar view/db options)
 // Todo1 - Resizing cursor problem above may be decided via custom cursor div with 'cursor: none;' for all elements
 // Todo1 - all 'cm' icons (such as 'full screen toggle' or 'close') should have native or user defined behaviuour with user defined position x/y (negative x,y interpretated as a related right,bottom margins)
-//			First - add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available). All 'cm' buttons are toggle and have 2 condition - on or off. User define 'cm' buttons are user handled.
+//		   First - add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available). All 'cm' buttons are toggle and have 2 condition - on or off. User define 'cm' buttons are user handled.
+
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
 const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
-
-// Function defines whether child has its Handler function or inherits it
-function HasOwnHandler(child)
-{
- return child ? !(Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler === child.Handler) : false; // or: return child ? !(child.__proto__.__proto__.Handler === child.Handler) : false;
-}
 
 // Function processes child response event. Nested event prop (event.event) is passed to the parent child handler
 function ProcessChildEvent(child, event)
@@ -23,20 +18,17 @@ function ProcessChildEvent(child, event)
 
  switch (event.type)																	// Process event
 		{
-	 	 case 'KILLME':																		// Destroy child event
-	      	  if (child === app) break;														// For non application childs only
-	      	  child.parentchild.KillChild(child.id);										// Call parent child kill function with current child id
+	 	 case 'KILLME':																	// Destroy child event
+	      	  if (child !== app) child.parentchild.KillChild(child.id);					// Call parent child kill function with current child id. For non application childs only
 	      	  break;
-	 	 case 'BRINGTOTOP':																	// Bring to top all childs bundle from current nested one until the root one (app)
-	      	  if (child === app) app.ChangeActive(0);										// Make root child active, lower while cycle doesn't make it for app child
-	      	  while (child.parentchild)														// Cycle until parent exists
+	 	 case 'BRINGTOTOP':																// Bring to top all childs bundle from current nested one until the root one (app)
+	      	  if (child === app) app.ChangeActive(0);									// Make root child active, lower while cycle doesn't make it for app child
+	      	  while (child.parentchild)													// Cycle until parent exists
 		    	    {
-		     		 child.parentchild.ChangeActive(child.id);								// Set current child state to actove 
-		     		 child = child.parentchild;												// and go to parent one
+		     		 child.parentchild.ChangeActive(child.id);							// Set current child state to actove 
+		     		 child = child.parentchild;											// and go to parent one
 		    	    }
 	      	  break;
-	 	 case 'NONE':																		// Empty event is used to stop propagation
-		  	  break;
 		}
 }
 
@@ -53,13 +45,6 @@ function ElementScrollY(element)
 }
 
 // Function returns 1st registered (with 'data-child' attr set) child DOM element
-function GetFirstRegisteredChild(element)
-{
- while (element && element.attributes && element.attributes['data-child'] === undefined) element = element.parentNode;
- return element;
-}
-
-// Function returns 1st registered (with 'data-child' attr set) child DOM element
 function GetFirstRegisteredDOMElement(element)
 {
  while (element && element.attributes && element.attributes['data-child'] === undefined) element = element.parentNode;
@@ -70,18 +55,16 @@ function GetFirstRegisteredDOMElement(element)
 function GetDOMElementChild(element)
 {
  let child;
- const attr = element?.attributes?.['data-child']?.value;
-
- if (typeof attr === 'string') for (const id of attr.split('_'))	// Split element data-child attribute to the array of child ids separated by '_'
+ const attr = element?.attributes?.['data-child']?.value;			// Get element attribute 'data-child'
+ if (typeof attr === 'string') for (const id of attr.split('_'))	// Split element 'data-child' attribute to the array of child ids separated by '_'
     {
      child = id ? child.childs[id] : app;							// Get a child link from id splited chain
      if (!child) break;												// Break for undefined child
     }
-
- return child;
+ return child;														// For unregistered child with no 'data-child' attribute undefined child is returned
 }
 
-// Check specified element modal child focus conflict
+// Function checks specified element modal child focus conflict
 function IsModalFocusMismatch(element, blink)
 {
  if (typeof element?.attributes?.['data-child']?.value !== 'string') return;									// For registered elements (childs) only
@@ -98,112 +81,97 @@ function IsModalFocusMismatch(element, blink)
      }
 }
 
-// Calculate child cursor position
-// 0 - preventdefault
-//1 - GetFirstRegisteredChild for mouse events and bring it to top
-//2 - if child is captured check event process|release and break
-//3 - Create chain with GetFirstRegisteredChild above for mouse events or upstream active childs chain
-//4 - then check eventcapture or eventrelease in case of absent capture
-//5- call child handler(event)
-//{capture process - event capture, areacapture and element match (if not elementDOM), release process - eventrelease or arearelease (if true) match 
-//  name1: {capturestart:, captureprocess:,capturerelease:, area: [x1,y1,x2,y2], outofarearelease: true|false, elements: [event.target list, elementDom if undefined], callbackfunction: <function>, callbackevent:, iconbackground: [state: ''], state: '' cursor:, child: <inited at child insert>},
-//  name2: {...},
-//}
-function GetChildAreaMouseCursorPosition(child, event)
-{
- if (!child) return;
- const rect = child.elementDOM.getBoundingClientRect();
-
- // 'x' area
- if (event.clientY - rect.y < CLOSEICONAREAHEIGHT && rect.x + rect.width - event.clientX < CLOSEICONAREAWIDTH)
-    {
-     if (!(child.props.flags & CMCLOSE) && !(child.props.flags & CMFULLSCREEN)) return;
-     document.body.style.cursor = 'pointer';
-     return  (child.props.flags & CMCLOSE) ? 'cmclose' : 'cmscreen';
-    }
-
- // Left of 'x' area
- if (event.clientY - rect.y < CLOSEICONAREAHEIGHT && rect.x + rect.width - event.clientX < (CLOSEICONAREAWIDTH * 2))
-    {
-     if (!(child.props.flags & CMFULLSCREEN)) return;
-     document.body.style.cursor = 'pointer';
-     return 'cmscreen';
-    }
-
- // Resizing area
- if (rect.x + rect.width - event.clientX < WIDTHOFAREAFORRESIZING && rect.y + rect.height - event.clientY < HEIGHTOFAREAFORRESIZING)
-    {
-     if (!child.resizingElement || child.props.screen) return;
-     document.body.style.cursor = 'nw-resize';
-     return 'cmresizing';
-    }
-}
-
-function StyleActiveChild(child, status = true)
-{
- child.StyleActiveChild(status);
-}
-
 // Function removes all non-sticky childs (except current one in the bundle, because of its mouse/keyboard interaction that shouldn't result removal) in the current layer
 function RemoveAllNonStickyChilds(child, callparent = true, excludeid)
 {
- for (const id of child.zindexes)
-	 if (id && id !== excludeid)
-	 if (child.childs[id].IsNonsticky())
+ for (const id of child.zindexes)																				// Iterate all child indexes
+	 if (id && id !== excludeid)																				// except zero id (the child of itself) and excluded one that interacts with the user
+	 if (child.childs[id].IsNonsticky())																		// Remove non sticky child
 	    {
 		 child.KillChild(id);
 	    }
 	  else
 	    {
-		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(child.childs[id], false);
+		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(child.childs[id], false);	// Otherwise perform recursive call for all childs of current child
 	    }
- if (callparent && child.parentchild) RemoveAllNonStickyChilds(child.parentchild, true, child.id);
+ if (callparent && child.parentchild) RemoveAllNonStickyChilds(child.parentchild, true, child.id);				// Recursively call parent child non sticky removal
 }
 
-// Function searches for the child of the specified DOM element
-function GetTargetedChild(element)
+// Function detects if mouse cursor is in child control area (x1, y1, x2, y2)
+function ControlAreaMatchMouseCursor(control, userevent, phase, childclientrect)
 {
- let child;
- const attr = element?.attributes?.['data-child']?.value;
-
- if (typeof attr === 'string') for (const id of attr.split('_'))	// Split element data-child attribute to the array of child ids separated by '_'
-    {
-     child = id ? child.childs[id] : app;							// Get a child link from id splited chain
-     if (!child) break;												// Break for undefined child
-    }
-
- return child;
-}
-
-// Funcction detects if mouse cursor in DOM element rectangle area (x1, y1, x2, y2). Negative coordinates indicates right/bottom edge margins
-function MouseCursorMatchRectArea(cursorx, cursory, elementrect, matchrect)
-{
- if (!matchrect) return;
- const absolutearea = { x1: elementrect.x + matchrect.x1 + (matchrect.x1 < 0 ? elementrect.width : 0),
-					    y1: elementrect.y + matchrect.y1 + (matchrect.y1 < 0 ? elementrect.height : 0),
-						x2: elementrect.x + matchrect.x2 + (matchrect.x2 < 0 ? elementrect.width : 0),
-						y2: elementrect.y + matchrect.y2 + (matchrect.y2 < 0 ? elementrect.height : 0),
-					  };
- if (absolutearea.x1 > absolutearea.x2) [absolutearea.x1, absolutearea.x2] = [absolutearea.x2, absolutearea.x1];
+ if (!control.area || !childclientrect || (phase === 'release' && !control.outofarearelease)) return;					// Return undefined for undefined control area or non mouse events (undefined childrect) or 'release' phase falsy outofarearelease flag
+ const absolutearea = { x1: childclientrect.x + control.area.x1 + (control.area.x1 < 0 ? childclientrect.width : 0),	// Area negative coordinates indicate right/bottom edge margins
+						y1: childclientrect.y + control.area.y1 + (control.area.y1 < 0 ? childclientrect.height : 0),
+						x2: childclientrect.x + control.area.x2 + (control.area.x2 < 0 ? childclientrect.width : 0),
+						y2: childclientrect.y + control.area.y2 + (control.area.y2 < 0 ? childclientrect.height : 0),
+  					  };
+ if (absolutearea.x1 > absolutearea.x2) [absolutearea.x1, absolutearea.x2] = [absolutearea.x2, absolutearea.x1];		// Swap x1 and x2 if x2 lower than x1
  if (absolutearea.y1 > absolutearea.y2) [absolutearea.y1, absolutearea.y2] = [absolutearea.y2, absolutearea.y1];
- if (cursorx >= absolutearea.x1 && cursorx <= absolutearea.x2 && cursory >= absolutearea.y1 && cursory <= absolutearea.y2) return true;
+ return userevent.clientX >= absolutearea.x1 && userevent.clientX <= absolutearea.x2 && userevent.clientY >= absolutearea.y1 && userevent.clientX <= absolutearea.y2 ? true : false;	// Return mouse cursor coordiantes inside specified area expression result
 }
 
-//
+// Function checks control event matches user keyboard/maoiuse event
 function ControlEventMatchUserEvent(control, userevent, phase)
 {
- if (control[phase + 'event'] !== userevent.type) return;
- if (['keydown', 'keyup'].indexOf(userevent.type) === -1) return true;
- if (userevent.keyCode !== control.keycode) return;
- return control.modifier === userevent.ctrlKey * 8 + userevent.altKey * 4 + userevent.shiftKey * 2 + userevent.metaKey * 1;
+ if (control[phase + 'event'] === undefined) return;																																	// Return undefined for absent phase event
+ for (const event of control[phase + 'event'].split('|'))																																// Split all events to match user event.type
+	 if (event && ((event[0] !== '!' && event === userevent.type) || (event[0] === '!' && event !== userevent.type)))																	// Positive event value matches user event.type or negative event doesn't match?
+ 	    return ((control.button === undefined || (['keydown', 'keyup'].indexOf(userevent.type) === -1 ? control.button === userevent.button : control.button === userevent.code)) &&	// Then mouse event button and keyboard event code match (if exist)
+ 		 	    (control.modifier === undefined || control.modifier === userevent.ctrlKey * 8 + userevent.altKey * 4 + userevent.shiftKey * 2 + userevent.metaKey * 1));				// and modifier keys at the end (if exist). Return true for all successfull matches
+ return false;																																											// Return false for no any event match
+}
+
+// Function checks control DOM elements match event.target
+function ControlElementsMatchEventTarget(control, userevent, phase)
+{
+ if (!Array.isArray(control.elements)) return;							// Return undefined for non array control elements. So all control matches return 3 values: true/false (match/no-match) and undefined (match is not needed)
+ for (const element of control.elements)								// Iterate all DOM elements from control.elements
+  if (Array.isArray(element))											// All array elements might be DOM elements directly or nested array of them. Second scenario is to keep zero element to apply some options to regardless of all other (next) ones
+	 {
+	  for (const e of element) if (e === userevent.target) return true; // Iterate nested array and return the match is successfull
+	 }
+   else
+	 {
+	  if (element === userevent.target) return true;					// Check single element for match otherwise
+	 }
+ return false;															// Return falsy match
+}
+
+// Function calls control.childcall function to handle init/capture/process/release events. Then control.controlcall function
+// In case of any callback string type call another child control (child.control[controlcall|childcall].controlcall|childcall) callback function is perfomed
+// Usefull to perform one action for two or more controls, for a example full screen toggle icon click (one control) and double click (other)
+function CallControlHandler(control, userevent, phase)
+{
+ let result;
+ if (typeof control.controlcall === 'function') result = control.controlcall(userevent, control, phase);	// Call handler control.controlcall first
+ if (typeof control.controlcall === 'string' && control.child.props.control[control.controlcall].controlcall === 'function') result = control.child.props.control[control.controlcall].controlcall(userevent, control.child.props.control[control.controlcall], phase);
+ if (phase === 'init') return;
+ ProcessChildEvent(control.child, result);
+
+ result = undefined;
+ if (typeof control.childcall === 'function') result = control.childcall(userevent, control, phase);	// Then handler control.childcall
+ if (typeof control.childcall === 'string' && control.child.props.control[control.childcall].childcall === 'function') result = control.child.props.control[control.childcall].childcall(userevent, control.child.props.control[control.childcall], phase);
+ ProcessChildEvent(control.child, result);
+}
+
+// Function changes mouse cursor depending control area hover and then DOM elements match
+function ChangeMouseCursor(control, userevent, childclientrect, resetcursor)
+{
+ if (['keydown', 'keyup'].indexOf(userevent.type) !== -1 || typeof control.cursor !== 'string') return;
+ switch (ControlAreaMatchMouseCursor(control, userevent, '', childclientrect))
+		{
+		 case true: 
+			  return document.body.style.cursor = control.cursor;
+		 case undefined:
+ 			  if (ControlElementsMatchEventTarget(control, userevent) === true) return document.body.style.cursor = control.cursor;
+		 case false:
+			  return resetcursor ? document.body.style.cursor = 'auto' : undefined;
+		}
 }
 
 class Interface
 {
- dragableElements = [];
- pushableElements = [];
- dblclickableElements = [];
-
  destructor()
  {
  }
@@ -216,11 +184,10 @@ class Interface
 	     // Parent child
 	     this.parentchild = args[1];
 
-	     // Props {tagName: 'DIV|BODY', flags: CMFULLSCREEN|CMCLOSE|CLOSEESC, screen: {full: <>}, overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', position: 'CASCADE|CENTER|RANDOM'}
+	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', position: 'CASCADE|CENTER|RANDOM', controlicondirection: 'left|right|top|bottom', controliconmargin: 1}
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 	     this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body;	// Set DOM element to document.body in case of no parent child defined
-	     if (!this.props.flags) this.props.flags = 0;
 
 	     // Attributes
 	     this.attributes = (args[3] && typeof args[3] === 'object') ? args[3] : {};
@@ -233,15 +200,13 @@ class Interface
 	     this.activeid = 0;																					// Active child id - 0 is current object used as a parent for its child, 1 - first child and etc..
 	     this.maxchildid = 0;																				// Child max id ever been inserted
 
-	     // Stop constructor for root child (app) that has no parent. Root element is always document.body.
+	     // Stop constructor for root child (app) that has no parent. Root element is always document.body
 	     if (!this.parentchild) return;
 
 	     // Set scc filter for all childs with overlay 'MODAL' mode
-	     if (this.props.overlay === 'MODAL') for (const i in this.parentchild.childs) if (+i) this.parentchild.childs[i].elementDOM.classList.add('modalfilter');
+	     if (this.props.overlay === 'MODAL') for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
 
 	     // Child display
-	     this.cmtag = (this.props.flags & CMCLOSE) + (this.props.flags & CMFULLSCREEN);
-	     this.RefreshCMIcon(this.elementDOM);
 	     this.parentchild.elementDOM.appendChild(this.elementDOM);
 	     this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
 	     this.Show();
@@ -254,6 +219,8 @@ class Interface
 	     this.parentchild.childs[this.id] = this;
 	     this.parentchild.zindexes.push(this.id);
 	     this.parentchild.ChangeActive(this.id);
+
+		 // Position the child
 		 switch (this.props.position)
 				{
 				 case 'CASCADE':
@@ -268,464 +235,355 @@ class Interface
 																								  `${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientHeight - this.elementDOM.offsetHeight)*100/(2 * this.parentchild.elementDOM.clientHeight))}%`], 0);
 					  break;
 				}
-	    }
 
+		 // Parse child controls
+		 const iconcontrol = [];															// Control (with icons to display) names array
+		 let iconimage = '', iconposition = '';												// CSS style collectable background-image and background-position props
+		 for (const name in this.props.control)												// Iterate all child controls
+		  if (!this.props.control[name] || typeof this.props.control !== 'object')			// Incorrect control?
+			 {
+			  delete this.props.control[name];												// Delete it
+			 }
+		   else
+			 {
+			  this.props.control[name] = Object.assign(name in CHILDCONTROLTEMPLATES ? JSON.parse(JSON.stringify(CHILDCONTROLTEMPLATES[name])) : {}, this.props.control[name]);	// Otherwise check control name for existing template and copy it if exist. Child control props overwrite template props
+			  this.props.control[name].child = this;										// Set control child
+			  if ('initevent' in this.props.control[name]) CallControlHandler(this.props.control[name], this.props.control[name]['initevent'], 'init');							// For control 'initevent' call control and if needed child callback. And then handle callback result
+			  if ('area' in this.props.control[name] && (this.props.control[name].iconon || this.props.control[name].iconoff)) iconcontrol.push(name);							// Collect controls with icon urls and areas to display then as a background
+			 }
+		 if (['right', 'bottom', 'top', ].indexOf(child.props.controlicondirection) === -1) child.props.controlicondirection = 'left';											// Set icon offset direction in case of overlapped areas
+		 if (child.props.controliconmargin !== 'number') child.props.controliconmargin = 0;																						// and icon margin
+		 for (const id in iconcontrol)																																			// Iterate all 'icon' controls
+			 {
+			  const control = this.props.control[iconcontrol[id]];
+			  if (+id)																																							// Check icon areas overlapping from 2nd control
+				 {
+				  const prevcontrol = this.props.control[iconcontrol[id - 1]];
+				  let disp;
+				  if (control.area.x2 < prevcontrol.area.x1 || control.area.x1 > prevcontrol.area.x2 || control.area.y2 < prevcontrol.area.y1 || control.area.y1 > prevcontrol.area.y2) continue;				// No overlap with previous control
+				  switch (child.props.controlicondirection)
+					 	 {
+					      case 'right': disp = prevcontrol.area.x2 - control.area.x1; control.area.x1 += disp + child.props.controliconmargin; control.area.x2 += disp + child.props.controliconmargin; break;	// Move area coordinates to right side on offset (disp) value
+						  case 'left': disp = prevcontrol.area.x1 - control.area.x2; control.area.x1 += disp - child.props.controliconmargin; control.area.x2 += disp - child.props.controliconmargin; break;	// etc..
+					      case 'bottom': disp = prevcontrol.area.y2 - control.area.y1; control.area.y1 += disp + child.props.controliconmargin; control.area.y2 += disp + child.props.controliconmargin; break;
+						  case 'top': disp = prevcontrol.area.y1 - control.area.y2; control.area.y1 += disp - child.props.controliconmargin; control.area.y2 += disp - child.props.controliconmargin; break;
+						 }
+				 }
+			  iconposition += `${control.area.x1 < 0 ? 'right' : 'left'} ${Math.abs(control.area.x1)}px ${control.area.y1 < 0 ? 'bottom' : 'top'} ${Math.abs(control.area.y1)}px, `;							// Define icon position
+			  iconimage += `${control.data ? control.iconon : control.iconoff}, `;																																// and its image url
+			 }
+		 if (iconposition)																																														// Any icon?
+		 	{
+			 this.elementDOM.style.backgroundPosition = iconposition.substring(0, iconposition.length - 2);																										// Define style props..
+			 this.elementDOM.style.backgroundImage = iconimage.substring(0, iconimage.length - 2);
+			 this.elementDOM.style.backgroundRepeat = 'no-repeat !important';
+			}
+	    }
+ 
+ // Set child width/height
  AdjustElementDOMSize(width = DOMELEMENTMINWIDTH, height = DOMELEMENTMINHEIGHT)
  {
   const computed = window.getComputedStyle(this.elementDOM);
   if (parseInt(computed.getPropertyValue('width')) < DOMELEMENTMINWIDTH || parseInt(computed.getPropertyValue('height')) < DOMELEMENTMINHEIGHT) [this.elementDOM.style.width, this.elementDOM.style.height] = [width + 'px', height + 'px'];
  }
 
- FullScreenChildToggle()
- {
-  if (this.props.flags & CMFULLSCREEN) // child cmtag (child window management tag) value: 1 (close), 2 (fullscreen), 3 (fullscreen&close), 4 (!fullscreen), 5 (!fullscreen&close)
-     {
-      this.elementCM.classList.remove('cmicon' + this.cmtag);
-      this.cmtag += this.props.screen ? -2 : 2;
-      this.elementCM.classList.add('cmicon' + this.cmtag);
-     }
-  this.elementDOM.classList.add('smooth');
-
-  const style = this.elementDOM.style;
-  if (this.props.screen) // Full screen initial state
-     {
-      [ style.top, style.left, style.width, style.height ] = [ this.props.screen.top, this.props.screen.left, this.props.screen.width, this.props.screen.height ];
-      delete this.props.screen;
-     }
-  else
-    {
-     //const computed = window.getComputedStyle(this.elementDOM);
-     //this.props.screen = { top: computed.getPropertyValue("top"), left: computed.getPropertyValue("left"), width: computed.getPropertyValue("width"), height: computed.getPropertyValue("height") };
-     this.props.screen = { top: style.top, left: style.left, width: style.width, height: style.height };
-     [ style.top, style.left, style.width, style.height] = this.parentchild === app ? ['0%', '0%', '100%', '100%'] : ['1%', '1%', '98%', '98%'];
-    }
- }
-
+ // Call for 'transition end' event
  TransitionEnd()
  {
-  this.elementDOM.classList.remove(this.props.effect + 'show', this.props.effect + 'hide', 'smooth');
-  if (this.removeonhide) this.elementDOM.remove();
+  this.elementDOM.classList.remove(this.props.effect + 'show', this.props.effect + 'hide', 'smooth');	// Remove child DOM element all animation classes
+  if (this.removeonhide) this.elementDOM.remove();														// and DOM element of itself in case of <removeonhide> property is true
  }
 
- RefreshCMIcon(element) // Refresh child management icon for the specified element and set this element as a child-management-element (this.elementCM)
-	{
-	 if (this.cmtag && this.elementCM) this.elementCM.classList.remove('cmicon' + this.cmtag);
-	 this.elementCM = element;
-	 if (this.cmtag && this.elementCM) this.elementCM.classList.add('cmicon' + this.cmtag);
-	}
-
+ // Function changes child z-index property
  ChangeZIndex(relative, absolute)
-	 {
-	  if (absolute === undefined) this.zindex += relative; else this.zindex = absolute + relative;
-	  this.elementDOM.style.zIndex = this.zindex + '';
-	 }
+ {
+  if (absolute === undefined) this.zindex += relative; else this.zindex = absolute + relative;
+  this.elementDOM.style.zIndex = this.zindex + '';
+ }
 
+ // Function styles active child via child DOM element shadow set
  StyleActiveChild(status = true)
-	    {
-	     this.elementDOM.style.boxShadow = status ? ACTIVECHILDSHADOW : 'none';
-	    }
+ {
+  this.elementDOM.style.boxShadow = status ? ACTIVECHILDSHADOW : 'none';
+ }
 
+ // Toggle child active status via disabling it and then enabling it back. For modal child focus recapture tries
  ToggleActiveStatus()
-	    {
-	     this.StyleActiveChild(false);
-	     setTimeout(StyleActiveChild, 4 * REFRESHMININTERVAL, this);
-	    }
+ {
+  this.StyleActiveChild(false);
+  setTimeout(() => this.StyleActiveChild, 4 * REFRESHMININTERVAL);
+ }
 
+ // Function activates child
  ChangeActive(id)
-	     {
-	      if (this.activeid === id) return;								// Active child is being activated again - return
-	      if (this.activeid) StyleActiveChild(this.childs[this.activeid], false);			// If old active child is not me, remove the old active child shadow
-	      if (!(this.activeid = id)) return;							// If new active child is me - return
-	      StyleActiveChild(this.childs[id]);							// Make new active child shadowed
-	      this.BringUpChild(id);										// and bring it up
-	     }
+ {
+  if (this.activeid === id) return;											// Active child is being activated again - return
+  if (this.activeid) this.childs[this.activeid].StyleActiveChild(false);	// If old active child is not me, remove the old child activation (remove div element shadow)
+  if (!(this.activeid = id)) return;										// If new active child is me - return. Parent child will activate me in case
+  this.childs[id].StyleActiveChild();										// Make new active child shadowed
+  this.BringUpChild(id);													// and bring it up
+ }
 
- KillChild(id) // Kill specified via id child via z-indexes rebuild and child array element deletion with not forgetting to set 'removeonhide' flag to remove element from the DOM
-	{
-	 if (app.captured.child === this.childs[id] && (document.body.style.cursor = 'auto')) app.captured = {}; // Release capture in case of killing child match
-	 clearTimeout(this.childs[id].buttontimeoutid);
-	 this.childs[id].removeonhide = true;
-	 this.childs[id].Hide();
-	 this.zindexes.splice(this.childs[id].zindex, 1);
-	 for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);
-	 StyleActiveChild(this.childs[this.activeid = this.zindexes.at(-1)]);
-	 this.childs[id].destructor();
-	 delete this.childs[id];
-	 if (this.childs[this.activeid].props.overlay !== 'MODAL') for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');
-	}
+ // Function kills specified child, rebuilds z-indexes and deletes its element from child array with 'removeonhide' flag set to remove element from the DOM
+ KillChild(id)
+ {
+  if (app.control.child === this.childs[id])																												// Current captured control is on killing child? Release it
+	 {
+	  if (app.control.cursor) document.body.style.cursor = 'auto';
+	  delete app.control;
+	 }
+  clearTimeout(this.childs[id].buttontimeoutid);																											// Clear child timeouts
+  this.childs[id].removeonhide = true;																														// Set 'removeonhide' flag to kill the child on hide
+  this.childs[id].Hide();																																	// Hide and kill the child
+  this.zindexes.splice(this.childs[id].zindex, 1);																											// Remove appropriate child z-index element
+  for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);								// and decrement all z-index values
+  this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();																						// Activate upper child (last z-index array element)
+  this.childs[id].destructor();																																// Call child desctructir
+  delete this.childs[id];																																	// Delete child object
+  if (this.childs[this.activeid].props.overlay !== 'MODAL') for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');	// and reomve css style modal filter in case of killing child is 'MODAL' overlay
+ }
 
+ // Hide the child with animation this.props.effect
  Hide()
 	{
-	 if (EFFECTS.indexOf(this.props.effect) === -1)
+	 if (EFFECTS.indexOf(this.props.effect) === -1)														// No animation?
 	    {
-	     this.removeonhide ? this.elementDOM.remove() : this.elementDOM.style.visibility = 'hidden'; // Remove element from the DOM or just hide it via visibility
+	     this.removeonhide ? this.elementDOM.remove() : this.elementDOM.style.visibility = 'hidden';	// Remove element from the DOM or just hide it via visibility property
 	     return;
 	    }
-	 this.elementDOM.style.visibility = 'hidden';
+	 this.elementDOM.style.visibility = 'hidden';														// Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
 	 this.elementDOM.classList.add(this.props.effect + 'hide');
 	}
 
+ // Show child with animation
  Show()
 	{
-	 if (EFFECTS.indexOf(this.props.effect) === -1)
+	 if (EFFECTS.indexOf(this.props.effect) === -1)														// No animation?
 	    {
-	     this.elementDOM.style.visibility = 'visible';
+	     this.elementDOM.style.visibility = 'visible';													// Just style DOM element visibility and return
 	     return;
 	    }
-	 this.elementDOM.classList.add(this.props.effect + 'hide');
-	 setTimeout(() => { this.elementDOM.style.visibility = 'visible'; this.elementDOM.classList.add(this.props.effect + 'show'); }, REFRESHMININTERVAL);
+	 this.elementDOM.classList.add(this.props.effect + 'hide');											// Otherwise animate the child via adding 'hide' class
+	 setTimeout(() => { this.elementDOM.style.visibility = 'visible'; this.elementDOM.classList.add(this.props.effect + 'show'); }, REFRESHMININTERVAL);	// and then 'show' class via timeout to make transition from 'hide' to 'show' visible
 	}
 
+ // Function brings the child to top layer
  BringUpChild(id)
-    {
-     while (true)
-	   {
-	    const current = this.childs[id];
-	    const zid = current.zindex;
-	    const upper = this.zindexes[zid + 1] ? this.childs[this.zindexes[zid + 1]] : null;
-	    const lower = (zid > 1 && this.zindexes[zid - 1]) ? this.childs[this.zindexes[zid - 1]] : null;
-	    if (this.IsOnTopFlag(current)) // Break if no upper child (the current is on top, so no need other process) or bring cuurent 'alwaysontop' child up via swapping with upper one
-	       {
-		if (!upper) break;
-		this.SwapChilds(upper, current);
-		continue;
-	       }
-	    if (upper && !this.IsOnTopFlag(upper)) // Then bring 'non-alwaysontop' child up via swapping with upper one and continue
-	       {
-		this.SwapChilds(upper, current);
-		continue;
-	       }
-	    if (lower) // Bring cuurent child down
-	       {
-		if (!this.IsOnTopFlag(lower)) break;
-		this.SwapChilds(current, lower);
-		continue;
-	       }
-	    break;
-	   }
-    }
-
- IsOnTopFlag(child)
-	{
-	 if (child && (child.props.overlay === 'ALWAYSONTOP' || child.props.overlay === 'MODAL' || child.props.overlay === 'NONSTICKY')) return true;
-	}
-
- IsModal()
-	{
-	 return this.props.overlay === 'MODAL';
-	}
-
- IsNonsticky()
-	{
-	 return this.props.overlay === 'NONSTICKY';
-	}
-
- IsPushable(target)
-	{
-	 for (const arr of this.pushableElements) // Child pushable elements is an array of arrays which 1st element is main element to be pushed (moved) and others - clickable elements under main one.
-	 for (const eid in arr) if (eid && target === arr[eid]) return arr[0];
-	}
-
- SwapChilds(upper, lower)
-	{
-	 if (!upper || !lower) return;
-	 const zid = upper.zindex;
-	 upper.ChangeZIndex(0, lower.zindex);
-	 lower.ChangeZIndex(0, zid);
-	 this.zindexes[upper.zindex] = upper.id;
-	 this.zindexes[lower.zindex] = lower.id;
-	}
-
- Handler(event)
-    {
-     const area = GetChildAreaMouseCursorPosition(this, event);
-     switch (event.type)
+ {
+  while (true)
 	    {
-	     case 'keyup':
-		  switch (event.keyCode)
-			 {
-			  case 27: // ESC
-			       if (this.props.flags & CLOSEESC) return { type: 'KILLME'};
-			       break;
-			 }
-		  break;
-	     case 'mousedown':
-		  // Resizing child
-		  if (event.which === 1 && area === 'cmresizing')
-		     {
-		      app.captured = { child: this, which: event.which, target: this.resizingElement, action: 'cmresizing', x: event.clientX, y: event.clientY, rect: this.resizingElement.getBoundingClientRect() };
-		      this.ChangeActive(0);
-		      return { type: 'BRINGTOTOP'};
-		     }
-
-		  // Child management - close btn
-		  if (event.which === 1 && area === 'cmclose')
-		     {
-		      app.captured = { child: this, which: event.which, target: event.target, action: 'cmclose' };
-		      this.ChangeActive(0);
-		      return { type: 'BRINGTOTOP' };
-		     }
-
-		  // Child management - fullscreen toggle btn
-		  if (event.which === 1 && area === 'cmscreen')
-		     {
-		      app.captured = { child: this, which: event.which, target: event.target, action: 'cmscreen' };
-		      this.ChangeActive(0);
-		      return { type: 'BRINGTOTOP' };
-		     }
-
-		  // Dragging child
-		  if (this.dragableElements.indexOf(event.target) !== -1 && event.which === 1 && !this.props.screen)
-		     {
-		      app.captured = { child: this, which: event.which, target: event.target, action: 'cmdragging', offsetx: event.clientX - this.elementDOM.offsetLeft + ElementScrollX(this.elementDOM.parentNode), offsety: event.clientY - this.elementDOM.offsetTop + ElementScrollY(this.elementDOM.parentNode) };
-		      this.ChangeActive(0);
-		      return { type: 'BRINGTOTOP' };
-		     }
-
-		  // Pushing child DOM element
-		  if (event.which === 1 && (app.captured.target = this.IsPushable(event.target)))
-		     {
-		      app.captured = { child: this, which: event.which, target: app.captured.target, action: 'cmpushing', pushed: true, left: app.captured.target.style.left, top: app.captured.target.style.top };
-		      app.captured.target.classList.add('buttonpush');
-		      this.ChangeActive(0);
-		      return { type: 'BRINGTOTOP' };
-		     }
-
-		  // Any unhandled mouse button click makes the child active
-		  if (true)
-		     {
-		      app.captured = { child: this, which: event.which, target: event.target };
-		      this.ChangeActive(0);
-		      return { type: 'BRINGTOTOP' };
-		     }
-	     case 'mouseup':
-		  // Right mouse button release
-		  if (event.which === 3) break;
-		  // No child box regular actions? Break, otherwise return some events
-		  if (['cmclose', 'cmscreen', 'cmdragging', 'cmresizing'].indexOf(app.captured.action) === -1) break;
-		  if (area === 'cmclose') return { type: 'KILLME' };
-		  if (area === 'cmscreen') this.FullScreenChildToggle();
-		  return { type: '' };
-	     case 'dblclick':
-		  if (this.dblclickableElements.indexOf(event.target) === -1) break;
-		  this.FullScreenChildToggle();
-		  return { type: '' };
+	     const current = this.childs[id];																	// Fix current child
+	     const zid = current.zindex;																		// and its z-index
+	     const upper = this.zindexes[zid + 1] ? this.childs[this.zindexes[zid + 1]] : null;					// also the upper child from the current
+	     const lower = (zid > 1 && this.zindexes[zid - 1]) ? this.childs[this.zindexes[zid - 1]] : null;	// and lower one from the curren
+	     if (this.IsOnTopFlag(current))																		// Current child has 'top layer' overlay?
+	        {
+			 if (!upper) break;																				// Break if no upper one (current child is on top, so no need for other process)
+			 this.SwapChilds(upper, current);																// Otherwise bring current 'alwaysontop' child up via swapping with upper one
+			 continue;
+	        }
+	     if (upper && !this.IsOnTopFlag(upper))																// Upper child does exist and has no top layer flag
+	        {
+			 this.SwapChilds(upper, current);																// Bring 'non-alwaysontop' current child up via swapping with upper one and continue
+			 continue;
+	        }
+	     if (lower)																							// Lower child exists?
+	        {
+			 if (!this.IsOnTopFlag(lower)) break;															// Lower child is not 'top layer'? Finish child swapping and break the loop
+			 this.SwapChilds(current, lower);																// Lower child has 'top layer' overlay, bring lower to top via swapping current with lower
+			 continue;
+	        }
+	     break;
 	    }
-    }
+ }
 
+ // Function brings the child to top layer
+ BringUpChildNew(id)
+ {
+  while (true)
+	    {
+	     const current = this.childs[id];																	// Fix current child
+	     const zid = current.zindex;																		// and its z-index
+	     const upper = this.zindexes[zid + 1] ? this.childs[this.zindexes[zid + 1]] : null;					// also the upper child from the current
+	     const lower = (zid > 1 && this.zindexes[zid - 1]) ? this.childs[this.zindexes[zid - 1]] : null;	// and lower one from the curren
+		 if (!upper || (this.IsOnTopFlag(upper) && !this.IsOnTopFlag(current))) break;						// Upper child is undefined or upper is 'top layer' with current is not? Finish
+		 this.SwapChilds(upper, current);																	// Otherwise bring current child to upper layer via swapping curren and upper one
+	    }
+ }
+
+ // Check child 'top layer' overlay
+ IsOnTopFlag(child)
+ {
+  return (child && (child.props.overlay === 'ALWAYSONTOP' || child.props.overlay === 'MODAL' || child.props.overlay === 'NONSTICKY'));
+ }
+
+ // Check child 'modal' overlay
+ IsModal()
+ {
+  return this.props.overlay === 'MODAL';
+ }
+
+ // Check child 'nonsticky' overlay
+ IsNonsticky()
+ {
+  return this.props.overlay === 'NONSTICKY';
+ }
+
+ // Function swaps two child layers
+ SwapChilds(upper, lower)
+ {
+  if (!upper || !lower) return;				// Return for any child undefined
+  const zid = upper.zindex;					// Fix upper child z-index
+  upper.ChangeZIndex(0, lower.zindex);		// Set upper child z-index to lower child z-index
+  lower.ChangeZIndex(0, zid);				// Set lower child z-index to upper child z-index
+  this.zindexes[upper.zindex] = upper.id;	// Change zindexes array - assign upper child id to upper zindex element 
+  this.zindexes[lower.zindex] = lower.id;	// and lower child id to lower zindex element 
+ }
+ 
+ // Child control properties:
  // initevent: any non undefined value calls <callbackfunction> 
  // captureevent: event the capture starts at. Since the capture is started - no other captures allowed, so any other childs mouse/keyboards events are ignored. The capture starts at this event, area match (if exists) and DOM elements array match
- // keycode: key code for keyboard <captureevent> and <releaseevent>
+ // button: event.code ('Escape, 'KeyZ'..) for keyboard events and event.button (0 - left btn, 1 - middle btn, 2 - right btn, 3 - fourth btn, 4 - fifth btn) for mouse events
  // modifier: key flag to match together with mouse/keyboard <captureevent> for next keys: CTRL (0b1), ALT (0b10), SHIFT (0b100) and META (0b1000)
  // processevent: event the current capture handles via <callbackfunction> call
  // releaseevent: event the capture is released on. Since the capture is released - any other childs mouse/keyboards events become available. Capture is released at this event occur or <outofarearelease> true value (see below)
  // area: child element DOM relative rectangle coordinates x1,y1,x2,y2 the mouse cursor in to start the capture
  // outofarearelease: true value releases the cature in case of mouse coordinates out of defined area 
- // elements: array of DOM elements the capture starts at together with 'area' and 'capturestart'. For empty array child <elementDom> is used. Two-level nested array is allowed (for pushing elements with its childs DOM elements, for a example)
- // callbackfunction: for all defined capture stages <callbackfunction> call is perfomed - callbackfunction(event). For native control (fullscreen toggle, close, ecs btn..) predefined functions are used. String type prop generates appropriate event instead of call
+ // elements: array of DOM elements the capture starts at together with 'area' and 'capturestart'. Two-level nested array is allowed (for pushing elements with its childs DOM elements, for a example)
+ // childcall: for all defined capture stages <childcall> function (if exist) call is perfomed. String type prop perfomes that string another control name function call
+ // controlcall: in case of no 'childcall' function result for all defined capture stages <controlcall> function (if exist) call is perfomed. For native control (fullscreen toggle, close, ecs btn..) predefined functions are used. String type prop perfomes that string another control name function call
  // data: current control specific data, used for callback inner behaviour and/or background icon (see below)
- // iconon|iconoff: url used as a background image with area coordinates, iconon/iconoff depends on <data> truthy/falsy vlaue and refreshed at capture/relese events automatically
+ // iconon|iconoff: url used as a background image with area coordinates, iconon/iconoff depends on <data> truthy/falsy values and refreshed at capture/relese events automatically
  // cursor: document cursor style on <area> hover
  // child: child object inited at child insert. Property is defined automatically at child insert.
- // parentcontrol: control property name to retreive callback, state and icon props
- static NewHandler(event)
- {
-  let child, childchain, rect;
 
-  // First phase - preventDefault for all except keyboard and mouse 'click' (to keep native radio/checkbox elements working) events
+ // Full screen child control
+ static FullScreenControl(userevent, control, phase)
+ {
+  if (phase === 'capture') return;																												// No full screen toggle for 'capture' phase
+  if (phase !== 'init') control.child.elementDOM.classList.add('smooth');																		// Animate full screen toggle for non-init phase (init phase initially displays child at 'full screen' state)
+  const style = control.child.elementDOM.style;
+  if (control.data)																																// Full screen state toggles to initial size
+	 {
+	  [ style.top, style.left, style.width, style.height ] = [ control.data.top, control.data.left, control.data.width, control.data.height ];
+	  delete control.data;
+	 }
+   else																																			// Initial size state toggles to full screen
+	 {
+	  control.data = { top: style.top, left: style.left, width: style.width, height: style.height };
+	  [ style.top, style.left, style.width, style.height ] = ['0%', '0%', '100%', '100%'];														// Full screen child DOM element size. Previous variant: [] = control.child.parentchild === app ? ['0%', '0%', '100%', '100%'] : ['1%', '1%', '98%', '98%'];
+	 }
+ }
+ 
+ // Rsizing child control
+ static ResizeControl(userevent, control, phase)
+ {
+  if (!control.data) control.data = { resizingElement: control.child.elementDOM };																				// DOM element to change its width and height
+  if (phase === 'capture')
+	 {
+	  [ control.data.x, control.data.y, control.data.rect ] = [ userevent.clientX, userevent.clientY, control.data.resizingElement.getBoundingClientRect() ];	// For 'capture' phase fix only mouse cursor coordinates and resizing element rectangle to calculate width and height at mouse move ('process' phase)
+	  return;
+	 }
+  if (control.child.props.control['fullscreenicon'].data) return;																								// Block resizing for childs at 'full screen' state
+  if (control.cursor !== 'n-resize') control.data.resizingElement.style.width = (userevent.clientX - control.data.x + control.data.rect.width) + 'px';			// Otherwise change child DOM element width for non vertical resizng control
+  if (control.cursor !== 'e-resize') control.data.resizingElement.style.height = (userevent.clientY - control.data.y + control.data.rect.height) + 'px';		// and child DOM element height for non horizontal resizng control
+ }
+ 
+ // Dragging child control
+ static DragControl(userevent, control, phase)
+ {
+  if (phase === 'capture')																															// For 'capture' phase fix only relative mouse cursor coordinate offsets to calculate its left/right position at mouse move ('process' phase)
+	 {
+	  control.data.offsetx = userevent.clientX - control.child.elementDOM.offsetLeft + ElementScrollX(control.child.elementDOM.parentNode);
+	  control.data.offsety = userevent.clientY - control.child.elementDOM.offsetTop + ElementScrollY(control.child.elementDOM.parentNode);
+	  return;
+	 }
+  if (control.child.props.control['fullscreenicon'].data) return;																					// Block dragging for childs at 'full screen' state
+  control.child.elementDOM.style.left = (userevent.clientX - control.data.offsetx + ElementScrollX(control.child.elementDOM.parentNode)) + 'px';	// Otherwise change element position relatively to changed cursor coordinates
+  control.child.elementDOM.style.top = (userevent.clientY - control.data.offsety + ElementScrollY(control.child.elementDOM.parentNode)) + 'px';
+ }
+ 
+ // Pushing some child DOM elements control
+ static PushControl(userevent, control, phase)
+ {
+  switch (phase)
+		 {
+		  case 'capture':
+			   for (const element of control.elements)
+				   {
+					const elements = Array.isArray(element) ? element : [element];
+					for (const id in elements) if (elements[id] === userevent.target) return (control.data = elements)[0].classList.add('buttonpush');	// At 'capture' phase calculate main element (to displace it at pushing) and 'push' it via adding corresponded class
+				   }
+			   break;
+		  case 'process':																																// Calculate main element and its childs hover and 'push' main one at success
+			   for (const id in control.data) if (control.data[id] === userevent.target) return control.data[0].classList.add('buttonpush');
+		  case 'release':
+			   control.data[0].classList.remove('buttonpush');																							// release main element otherwise via removing corresponded class
+		 }
+ }
+ 
+ static EventListener(event)
+ {
+  // First step - var init and event preventDefault call for all except keyboard and mouse 'click' (to keep native radio/checkbox elements working) events
+  let child, childclientrect, resetcursor = true;
   if (['keydown', 'keyup', 'click'].indexOf(event.type) === -1)	event.preventDefault();
 
-  // Second phase is for mouse events - get event.target first restered DOM element child and bring the child to top for 'mousedown' event in case of no 'modal' focus. For recaptured focus by other modal child with current modal captured - release capture with no callback call
-  if (['keydown', 'keyup'].indexOf(event.type) === -1 && (child = GetDOMElementChild(GetFirstRegisteredDOMElement(event.target))))
-  if (['mousedown', 'click', 'dblclick'].indexOf(event.type) === -1 || !IsModalFocusMismatch(child, event.type === 'mousedown' ? true : false))
-	 {
-	  rect = child.elementDOM.getBoundingClientRect();
-  	  if ('mousedown' === event.type) ProcessChildEvent(child, { type: 'BRINGTOTOP' });
-	 }
-   else
-	 {
-	  if (!app.control || app.control.child !== child) return;
-	  document.body.style.cursor = 'auto';
-	  delete app.control;
-	  return;
-	 }
-	
-  // Third phase - check for any captured control and if true - handle 'release' event first and in case of no match - 'process' event then. Make return at the end
-  if (app.control)
-	 {
-	  if (ControlEventMatchUserEvent(app.control, event, 'release') || (app.control.outofarearelease && app.control.area && !MouseCursorMatchRectArea(event.clientX, event.clientY, rect, app.control.area)))
-		 {
-		  if (typeof app.control.callback === 'function') app.control.callback(event, 'release');
-		  if (typeof app.control.callback === 'string' && app.control.child.props.control[app.control.callback] === 'function') app.control.child.props.control[app.control.callback](event, 'release');
-		  document.body.style.cursor = 'auto';
-		  delete app.control;
-		  return;
-		 }
-	  if (app.control.processevent === event.type || (app.control.outofarearelease && app.control.area && MouseCursorMatchRectArea(event.clientX, event.clientY, rect, app.control.area)))
-		 {
-		  if (typeof app.control.callback === 'function') app.control.callback(event, 'release');
-		  if (typeof app.control.callback === 'string' && app.control.child.props.control[app.control.callback] === 'function') app.control.child.props.control[app.control.callback](event, 'release');
-		 }
-	  return;
-	 }
-	 
-  // Next phase - create child chain to pass incoming event
+  // Second step is for mouse events - get event.target first registered DOM element child and bring it to top for 'mousedown' event in case of no other child 'modal' focus
+  // For recaptured focus by other modal child with current modal captured (popup childs for a example) - release capture with no callback call
   if (['keydown', 'keyup'].indexOf(event.type) === -1)
 	 {
-	  childchain = child ? [child] : [];
-	 }
-   else
-	 {
-	  childchain = [child = app];														// Create array with the app as a 1st array element
-	  while (child.activeid) childchain.unshift(child = child.childs[child.activeid]);	// Create downstrem active childs chain from app root child
-	 }
-
-  // Last phase - proccel all child chain to handle <captureevent>, <processevent> and <eventrelease> with calling <callbackfunction> for appropriate event match
-  for (child of childchain)
-  for (const prop in child.props.control)
-	  {
-	   const control = child.props.control[prop];
-	   if (control.area && MouseCursorMatchRectArea(event.clientX, event.clientY, rect, app.control.area))
-		  {
-			//cursor;
-		  }
-	   if (control.captureevent === event.type && (!control.area || MouseCursorMatchRectArea(event.clientX, event.clientY, rect, app.control.area)) && (!control.elements || TargetMatchElements(event.target, control)))
-		  {
-		   app.control = control;
-		   // set cursor if exist
-		   // Callback
-		  }
-	  if (app.control.releaseevent === event.type || (app.control.outofarearelease && app.control.area && !MouseCursorMatchRectArea(event.clientX, event.clientY, rect, app.control.area)))
+	  child = GetDOMElementChild(GetFirstRegisteredDOMElement(event.target));
+	  if (event.type !== 'mousemove')
+	  if (IsModalFocusMismatch(child?.elementDOM, event.type === 'mousedown' ? true : false))	// Detect other modal child focus and blink modal in case of 'mousedown' event, so 'click' and 'dblclick' events are excluded
 		 {
-		  if (typeof app.control.callback === 'function') app.control.callback(event, 'release');
-		  if (typeof app.control.callback === 'string' && app.control.child.props.control[app.control.callback] === 'function') app.control.child.props.control[app.control.callback](event, 'release');
-		  document.body.style.cursor = 'auto';
+		  if (!app.control || app.control.child !== child) return;								// Any captured control?
+		  document.body.style.cursor = 'auto';													// Reset cursor
+		  delete app.control;																	// and release child control
 		  return;
 		 }
-	   if (HasOwnHandler(child)) ProcessChildEvent(child, child.Handler(event)); // Then child specific in case of no child-management action
+	  childclientrect = child?.elementDOM.getBoundingClientRect();								// No modal focus captured, so call child DOM element client rectangle
+  	  if ('mousedown' === event.type) ProcessChildEvent(child, { type: 'BRINGTOTOP' });			// and bring clicked child to top
+	 }
+	
+  // Third step - check for any captured control and if true - check for 'release' event first and in case of no match - 'process' event then. Make return at the end
+  if (app.control)
+	 {
+	  ChangeMouseCursor(app.control, event, childclientrect, resetcursor);				// Change cursor
+	  if (ControlEventMatchUserEvent(app.control, event, 'release') !== false || ControlAreaMatchMouseCursor(app.control, event, 'release', childclientrect) === false)
+		 {
+		  CallControlHandler(app.control, event, 'release');							// Call control and if needed child callback. And then handle callback result
+		  delete app.control;															// and release captured control
+		  return;
+		 }
+	  if (ControlEventMatchUserEvent(app.control, event, 'process') !== false)			// Captured control in 'process' phase?
+		 {
+		  CallControlHandler(app.control, event, 'process');							// Call control and if needed child callback. And then handle callback result
+		  return;
+		 }
+	  return;																			// Return anyway for captured control
+	 }
+
+  // Next step - no any control captured, so define child for keyboard event (child for mouse events was defined above) to pass incoming event to
+  if (['keydown', 'keyup'].indexOf(event.type) !== -1 && (child = app))
+	 while (child.activeid) child = child.childs[child.activeid];
+
+  // Last step - proccess all child controls for capture and release events. Child iteration from lower ones to upper is possible for keyboards events only.
+  for (const prop in child.props.control)																															// Then iterate all controls of a current child
+	  {
+	   const control = child.props.control[prop];
+	   ChangeMouseCursor(control, event, childclientrect, resetcursor);																								// Change cursor if changed
+	   if (ControlEventMatchUserEvent(control, event, 'capture') !== false && ControlAreaMatchMouseCursor(control, event, 'capture', childclientrect) !== false && ControlElementsMatchEventTarget(control, event) !== false)
+		  {																																							// Check control event, mouse cursor is in control area and clicked element match of control DOM elements for 'capture' phase. Control is considered captures in case of all cases match
+		   app.control = control;																																	// Fix captured control
+		   CallControlHandler(control, event, 'capture');																											// and call control and if needed child callback. And then handle callback result
+		   return;
+		  }
+	   if (ControlEventMatchUserEvent(control, event, 'release') !== false || ControlAreaMatchMouseCursor(control, event, 'release', childclientrect) === false)	// Check match case for 'rlease' phase
+	   	  {
+		   CallControlHandler(control, event, 'release');																											// Call control and if needed child callback. And then handle callback result
+		   return;
+		  }
+	   resetcursor = false;
 	  }
  }
-
-static EventHandler(event)
-	{
-	 let target, child;
-	 app.eventcounter ++;
-	
-	 switch (event.type)
-		{
-		 case 'keydown':
-		 case 'keyup':
-			  if (app.captured.child) break; // Disallow any key events while any child captured
-			  child = [target = app]; // Create array with the app as a 1st array element and var 'target' linked to that 1st element (app)
-			  while (target.activeid) child.push(target = target.childs[target.activeid]); // Create downstrem active childs chain from app root child
-	
-			  for (let id = child.length - 1; id >= 0; id--) // Dispatch key event to all childs in the chain from lowest acive to the root app and break in case of any child event
-			  {
-				   if ((target = child[id]?.Handler(event)) && !ProcessChildEvent(child[id], target)) break;
-				   if (HasOwnHandler(child[id]) && (target = Object.getPrototypeOf(Object.getPrototypeOf(child[id])).Handler.call(child[id], event)) && !ProcessChildEvent(child[id], target)) break; 
-				   // Handle keydown for childs with own handlers only, cause no keydown event default handle
-			  }
-			  break;
-	
-		 case 'mousedown': // event.which values: 0 - no mouse button pushed, 1 - left button, 2 - middle button, 3 - right (context) button
-			  if (event.which !== 1 && event.which !== 3) return event.preventDefault(); // Break for non left/right mouse btn click
-			  if (!(child = GetTargetedChild(target = GetFirstRegisteredChild(event.target)))) break; // Break in case of no targeted child
-	
-			  if (app.captured.child) // Simultaneous two mouse buttons click event occured (another mouse down event has been already registered on captured child)
-				 {
-				  if (app.captured.action) break; // Already registered event has some child-management action? Break
-				  if (child !== app.captured.child) break; // Another mouse btn is down on other than captured child? Break
-				  event = { type: 'mousedownuncap', target: event.target }; // Otherwise generate two-mouse-btns-click event
-				 }
-			   else
-				 {
-				  if (IsModalFocusMismatch(target, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-				  RemoveAllNonStickyChilds(child); // Remove all childs with nonsticky overlay
-				 }
-	
-			  ProcessChildEvent(child, Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event)); // Process child-management behaviour first
-			  if (!app.captured.action && HasOwnHandler(child)) ProcessChildEvent(child, child.Handler(event)); // Then child specific in case of no child-management action
-			  break;
-	
-		 case 'mouseup':
-			  event.preventDefault();
-			  if (event.which !== 1 && event.which !== 3) return; // Break for non left/right mouse btn release
-			  if (!app.captured.child) break; // No captured child? Break
-			  if (!app.captured.child.elementDOM && (app.captured = {})) break; // Captured child element DOM doesn't exist? Break
-	
-			  // Any mouse btn is released on another child than captured one?
-			  if ((child = GetTargetedChild(target = GetFirstRegisteredChild(event.target))) !== app.captured.child)
-				 {
-				  if (event.which === app.captured.which) app.captured = {}; // Mouse btn release event occurs on captured btn? Release captured object
-				  break; // And then break anyway
-				 }
-	
-			  // Mouse btn release event occurs on captured btn? If not - non captured btn is released while captured btn is stil down
-			  if (event.which === app.captured.which)
-				 {
-				  if (app.captured.action === 'cmpushing' && app.captured.pushed) app.captured.target.classList.remove('buttonpush'); // Release captured-child pushed DOM element
-				  if (IsModalFocusMismatch(child.elementDOM, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-			  ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
-				  app.captured = {}; // Release captured object
-				 }
-			   else
-				 {
-				  if (app.captured.action) break; // Already registered event has some child-management action at another btn released? Break
-				  if (IsModalFocusMismatch(child.elementDOM, true)) return event.preventDefault(); // Does modal focus conflict exist? Break
-				  event = { type: 'mouseupuncap', target: event.target }; // Otherwise generate two-mouse-btns-release event
-			  ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
-				 }
-			  break;
-	
-		 case 'click':
-		 case 'dblclick':
-			  if (event.type === 'dblclick') event.preventDefault();	// No preventDefault for 'click' event to keep radio/checkbox elements working
-			  if (app.captured.child) break; // Any child is captured (another btn double click)? Break
-			  if (!(child = GetTargetedChild(target = GetFirstRegisteredChild(event.target)))) break; // Break in case of no targeted child
-			  if (IsModalFocusMismatch(child.elementDOM)) break;
-			  ProcessChildEvent(child, HasOwnHandler(child) ? Object.getPrototypeOf(Object.getPrototypeOf(child)).Handler.call(child, event) || child.Handler(event) : child.Handler(event)); // Process child-management behaviour first, then child specific in case of no child-management event
-			  break;
-	
-		 case 'mousemove':
-			  // Set default cursor first, then others if needed
-			  document.body.style.cursor = 'auto';
-	
-			  // Modal child pops up at cursor moving on captured element? Break with returning pushed element released and free captured element
-			  if (app.captured.child && IsModalFocusMismatch(app.captured.child.elementDOM))
-				 {
-				  if (app.captured.pushed) app.captured.target.classList.remove('buttonpush');
-				  app.captured = {};
-				  break;
-				 }
-	
-			  // Process captured child action (default case - no capture/action)
-			  switch (app.captured.action)
-				 {
-				  case 'cmresizing':
-					   app.captured.target.style.width = (event.clientX - app.captured.x + app.captured.rect.width) + 'px';
-					   app.captured.target.style.height = (event.clientY - app.captured.y + app.captured.rect.height) + 'px';
-					   document.body.style.cursor = 'nw-resize';
-					   break;
-				  case 'cmdragging':
-					//lg(app.captured.child.elementDOM.getBoundingClientRect(), window.scrollY);
-					   app.captured.child.elementDOM.style.left = (event.clientX - app.captured.offsetx + ElementScrollX(app.captured.child.elementDOM.parentNode)) + 'px';
-					   app.captured.child.elementDOM.style.top = (event.clientY - app.captured.offsety + ElementScrollY(app.captured.child.elementDOM.parentNode)) + 'px';
-					   break;
-				  case 'cmpushing':
-					   if (app.captured.target === app.captured.child.IsPushable(event.target))
-						  {
-						   if (!app.captured.pushed && (app.captured.pushed = true)) app.captured.target.classList.add('buttonpush');
-						  }
-						else
-						  {
-						   if (app.captured.pushed && !(app.captured.pushed = false)) app.captured.target.classList.remove('buttonpush');
-						  }
-					   break;
-				  default:
-					   GetChildAreaMouseCursorPosition(child = GetTargetedChild(GetFirstRegisteredChild(event.target)), event);
-				 }
-			  break;
-		}
-	}
-		
 }

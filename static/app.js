@@ -19,37 +19,42 @@ class App extends Interface
 				 ".modalfilter": { "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
 				}
 
+ // Creating application! Add all mouse/keyboard event listeners here and init event counter
  constructor(...args)
-	    {
-	     super(...args);
-		 this.captured = {};
-		 this.eventcounter = 0;
-	     document.addEventListener('keydown', Interface.EventHandler);
-	     document.addEventListener('keyup', Interface.EventHandler);
-	     document.addEventListener('mousedown', Interface.EventHandler);
-	     document.addEventListener('dblclick', Interface.EventHandler);
-	     document.addEventListener('mouseup', Interface.EventHandler);
-	     document.addEventListener('mousemove', Interface.EventHandler);
-	     document.addEventListener('click', Interface.EventHandler);
-	     document.addEventListener('contextmenu', (event) => event.preventDefault());
-	    }
+ {
+  super(...args);
+  this.eventcounter = 0;
+  document.addEventListener('keydown', Interface.EventListener);
+  document.addEventListener('keyup', Interface.EventListener);
+  document.addEventListener('mousedown', Interface.EventListener);
+  document.addEventListener('dblclick', Interface.EventListener);
+  document.addEventListener('mouseup', Interface.EventListener);
+  document.addEventListener('mousemove', Interface.EventListener);
+  document.addEventListener('click', Interface.EventListener);
+  document.addEventListener('contextmenu', (event) => event.preventDefault());
+ }
 
+ // Override main application child activation styling to exclude any effects for document.body
  StyleActiveChild()
-	    {
-	    }
+ {
+ }
 
+ // Main application own handler to context menu and new connection create 
  Handler(event)
-    {
-     switch (event.type)
-	    {
-	     case 'mouseup':
-		  if (event.which === 3) new ContextMenu([['New connection'], ['Help']], this, event);
-		  break;
-	     case 'dblclick':
-		  		break;
-	     case 'CONTEXTMENU':
-			if (event.data[0] === 'New connection') new Connection(null, this, {flags: CMCLOSE | CMFULLSCREEN | NODOWNLINKNONSTICKYCHILDS, effect: 'slideright', position: 'CASCADE' }, {class: 'defaultbox', style: `background-color: #343e54;}`});
-		  break;
-	    }
-    }
+ {
+  switch (event.type)
+	     {
+	      case 'mouseup':
+		  	   new ContextMenu([['New connection'], ['Help']], this, event);
+		  	   break;
+	      case 'CONTEXTMENU':
+			   switch (event.data[0])	// Switch context item name (event data zero index)
+			   		  {
+					   case 'New connection':
+			   				new Connection(null, this);	// Args: data
+							break;
+					  }
+		  	   break;
+	     }
+ }
 }

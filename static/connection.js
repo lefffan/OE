@@ -1,4 +1,4 @@
-const SOCKETADDR = 'ws://127.0.0.1:8002';
+const SOCKETADDRES            = 'ws://127.0.0.1:8002';
 
 class Connection extends Interface
 {
@@ -9,10 +9,13 @@ class Connection extends Interface
 
  constructor(...args)
  {
-  super(...args);
-  this.dragableElements.push(this.elementDOM);
-  this.dblclickableElements.push(this.elementDOM);
-  this.resizingElement = this.elementDOM;
+  const props = { flags: NODOWNLINKNONSTICKYCHILDS,
+                  effect: 'slideright',
+                  position: 'CASCADE',
+                  control: { closeicon: {}, fullscreenicon: { init: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
+                };
+  super(...args, CONNECTIONPROPS, { class: 'defaultbox', style: 'background-color: #343e54;' });
+  props.control.push
   this.eventid = 0;
   this.eventqueue = {};
   this.CreateWebSocket();
@@ -20,7 +23,7 @@ class Connection extends Interface
 
  CreateWebSocket()
  {
-  this.socket = new WebSocket(SOCKETADDR);
+  this.socket = new WebSocket(SOCKETADDRES);
   this.socket.onopen = () => this.OnOpenSocket();
   this.socket.onclose = () => this.OnCloseSocket();
   this.socket.onerror = () => this.OnCloseSocket();
@@ -29,32 +32,36 @@ class Connection extends Interface
 
  OnOpenSocket()
  {
-  this.sidebar = new SideBar(undefined, this);
+  this.sidebar = new SideBar(null, this);
  }
 
  OnCloseSocket()
  {
-  lg('Socket is closed');
-  for (const i = 1; i < this.childs.length - 1; i ++) this.childs[i].Handler({ type: 'SOCKETCLOSE' });
+  for (const child of this.childs) if (child !== this && child.Handler) ProcessChildEvent(child, child.Handler({ type: 'SOCKETCLOSE' }));
  }
 
  Handler(event)
  {
   switch (event.type)
-	 {
-	  case 'mouseup':
-	       if (event.which === 3) new ContextMenu([['Test Dialog'], ['Help']], this, event);
-	       break;
-	  case 'CONTEXTMENU':
-	       this.CallController({type: 'Test Dialog'});
-	       break;
-	  case 'SIDEBARSET':
-	       this.sidebar.Handler(event);
-	       break;
-	  case 'DIALOG':
-	       new DialogBox(event.data, this, {flags: CMCLOSE | CMFULLSCREEN | CLOSEESC, effect: 'rise', position: 'CENTER'}, {class: 'dialogbox selectnone'});
-	       break;
-	 }
+	    {
+	     case 'mouseup':
+	          new ContextMenu([['Test Dialog'], ['Help']], this, event);
+	          break;
+	     case 'CONTEXTMENU':
+			switch (event.data[0])	// Switch context item name (event data zero index)
+				  {
+				   case 'Test Dialog':
+                            this.CallController({type: 'Test Dialog'});
+					   break;
+				  }
+	          break;
+	     case 'SIDEBARSET':
+	          this.sidebar.Handler(event);
+	          break;
+	     case 'DIALOG':
+	          new DialogBox(event.data, this, { effect: 'rise', position: 'CENTER' }, { class: 'dialogbox selectnone' });
+	          break;
+	    }
  }
 
  CallController(event)

@@ -400,9 +400,12 @@ class DialogBox extends Interface
  constructor(...args)
  {
   // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
+  args[2].control = { closeicon: {}, fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} };
   args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
   args[3]['data-element'] = '_-1';
   super(...args);
+  this.props.control.default.childcall = this.Handler.bind(this);
+  this.props.control.push.childcall = this.Handler.bind(this);
 
   // Set callback to pass dialog data
   this.DialogDataCallback = args[4];
@@ -504,16 +507,23 @@ EvalElementExpression(e)
 			 case 'button':
 				  if (e.flag.indexOf('-') === -1)
 					 {
-					  this.pushableElements.push([element, element].concat([...element.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set btn element (with all childs in) pushable
+					  //this.pushableElements.push([element, element].concat([...element.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set btn element (with all childs in) pushable
+					  this.props.control.push.elements.push([element].concat([...element.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable
 					 }
 				   else
 					 {
-					  for (const i in this.pushableElements)
-						  if (this.pushableElements[i][0] === element) 
-							 {
-							  delete this.pushableElements[i];
+					  for (const id in this.props.control.push.elements)
+						  if (this.props.control.push.elements[i][0] === element)
+						     {
+							  delete this.props.control.push.elements[i];
 							  break;
 							 }
+					  //for (const i in this.pushableElements)
+						  //if (this.pushableElements[i][0] === element) 
+							 //{
+							  //delete this.pushableElements[i];
+							  //break;
+							 //}
 					 }
 				  break;
 		    }
@@ -768,7 +778,7 @@ EvalElementExpression(e)
      }
 
   // Set dialog box contentwrapper var to simplify dialog content and footer btns management
-  this.pushableElements = [];
+  //this.pushableElements = [];
   this.contentwrapper = this.elementDOM.querySelector('.boxcontentwrapper');
   this.footer = this.elementDOM.querySelector('.footer');
   this.padbar = this.elementDOM.querySelector('.padbar');
@@ -777,7 +787,8 @@ EvalElementExpression(e)
 	   let id;
 	   [id, button] = GetEventTargetInterfaceElement(button);																									// Define button id to retreive btn GUI element below
 	   const e = this.allelements[id];
-	   if (e.flag.indexOf('-') === -1) this.pushableElements.push([button, button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set queried btn element (with all childs in) pushable. For enabled btns only
+	   //if (e.flag.indexOf('-') === -1) this.pushableElements.push([button, button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set queried btn element (with all childs in) pushable. For enabled btns only
+	   if (e.flag.indexOf('-') === -1) this.props.control.push.elements.push([button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set queried btn element (with all childs in) pushable. For enabled btns only
 	   if (this.autoapplybuttonelement !== undefined && +id === this.autoapplybuttonelement.id) this.autoapplybuttonDOMelement = button;						// The btn is auto apply? Set <autoapplybuttonDOMelement> to use it for timer refresh
 	  }
 
