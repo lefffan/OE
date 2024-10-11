@@ -24,16 +24,16 @@ const ICONURLFULLSCREENTURNON   = SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105,
 const ICONURLFULLSCREENTURNOFF  = SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
 const ICONURLCLOSE              = SVGUrlHeader() + SVGPath('M2 2L10 10M10 2L2 10', 'RGB(227,125,87)', '2') + ' ' + SVGUrlFooter();
 const CHILDCONTROLTEMPLATES     = {
-                                   fullscreenicon: { captureevent: 'mousedown', processevent: '', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
-                                   fullscreendblclick: { captureevent: '', processevent: '', releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
-                                   closeicon: { captureevent: 'mousedown', processevent: '', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [() => { type: 'KILLME' }] }, 
-                                   closeesc: { captureevent: 'keydown', processevent: '', releaseevent: 'keyup', button: 'Escape', callback: [() => { type: 'KILLME' }] }, 
+                                   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+                                   fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
+                                   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
+                                   closeesc: { captureevent: 'keydown', releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
                                    resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
                                    resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
                                    resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
                                    push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
                                    drag: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
-                                   default: { captureevent: '', processevent: '', callback: [] }, 
+                                   default: { callback: [] }, 
                                   }
 
 function lg(...data)

@@ -101,7 +101,7 @@ function RemoveAllNonStickyChilds(child, callparent = true, excludeid)
 // Function detects if mouse cursor is in child control area (x1, y1, x2, y2)
 function ControlAreaMatchMouseCursor(control, userevent, phase, childclientrect)
 {
- if (!control.area || !childclientrect || (phase === 'release' && !control.outofarearelease)) return;					// Return undefined for undefined control area or non mouse events (undefined childrect) or 'release' phase falsy outofarearelease flag
+ if (!control.area || !childclientrect) return;																			// Return undefined for undefined control area or non mouse events (undefined childrect)
  const absolutearea = { x1: childclientrect.x + control.area.x1 + (control.area.x1 < 0 ? childclientrect.width : 0),	// Area negative coordinates indicate right/bottom edge margins
 						y1: childclientrect.y + control.area.y1 + (control.area.y1 < 0 ? childclientrect.height : 0),
 						x2: childclientrect.x + control.area.x2 + (control.area.x2 < 0 ? childclientrect.width : 0),
@@ -109,7 +109,7 @@ function ControlAreaMatchMouseCursor(control, userevent, phase, childclientrect)
   					  };
  if (absolutearea.x1 > absolutearea.x2) [absolutearea.x1, absolutearea.x2] = [absolutearea.x2, absolutearea.x1];		// Swap x1 and x2 if x2 lower than x1
  if (absolutearea.y1 > absolutearea.y2) [absolutearea.y1, absolutearea.y2] = [absolutearea.y2, absolutearea.y1];
- return userevent.clientX >= absolutearea.x1 && userevent.clientX <= absolutearea.x2 && userevent.clientY >= absolutearea.y1 && userevent.clientX <= absolutearea.y2 ? true : false;	// Return mouse cursor coordiantes inside specified area expression result
+ return userevent.clientX >= absolutearea.x1 && userevent.clientX <= absolutearea.x2 && userevent.clientY >= absolutearea.y1 && userevent.clientY <= absolutearea.y2 ? true : false;	// Return mouse cursor coordiantes inside specified area expression result
 }
 
 // Function checks control event matches user keyboard/maoiuse event
@@ -144,22 +144,15 @@ function ControlElementsMatchEventTarget(control, userevent, phase)
 function CallControlHandler(control, userevent, phase)
 {
  for (const callback of control.callback)
-	 if (typeof callback === 'function') ProcessChildEvent(control.child, callback(userevent, control, phase));
+	 if (typeof callback === 'function') phase === 'init' ? setTimeout(callback, 0, userevent, control, phase) : ProcessChildEvent(control.child, callback(userevent, control, phase));
 }
 
 // Function changes mouse cursor depending control area hover and then DOM elements match
-function ChangeMouseCursor(control, userevent, childclientrect, resetcursor)
+function ChangeMouseCursor(control, userevent, childclientrect)
 {
  if (['keydown', 'keyup'].indexOf(userevent.type) !== -1 || typeof control.cursor !== 'string') return;
- switch (ControlAreaMatchMouseCursor(control, userevent, '', childclientrect))
-		{
-		 case true: 
-			  return document.body.style.cursor = control.cursor;
-		 case undefined:
- 			  if (ControlElementsMatchEventTarget(control, userevent) === true) return document.body.style.cursor = control.cursor;
-		 case false:
-			  return resetcursor ? document.body.style.cursor = 'auto' : undefined;
-		}
+ if (ControlAreaMatchMouseCursor(control, userevent, '', childclientrect) === true || ControlElementsMatchEventTarget(control, userevent) === true) return document.body.style.cursor = control.cursor;
+ document.body.style.cursor = 'auto';
 }
 
 class Interface
@@ -175,8 +168,6 @@ class Interface
 	  {
 	   const control = this.props.control[name];
 	   if (typeof control.area !== 'object' || typeof control.icon !== 'string') continue;																											// Collect controls with icon urls and areas to display then as a background
-	   if (control.area.x1 > control.area.x2) [ control.area.x1, control.area.x2 ] = [ control.area.x2, control.area.x1 ];
-	   if (control.area.y1 > control.area.y2) [ control.area.y1, control.area.y2 ] = [ control.area.y2, control.area.y1 ];
  	   if (prevcontrol && !(control.area.x2 < prevcontrol.area.x1 || control.area.x1 > prevcontrol.area.x2 || control.area.y2 < prevcontrol.area.y1 || control.area.y1 > prevcontrol.area.y2))		// Check icon areas overlapping from 2nd control and overlap with previous control
 		  switch (this.props.controlicondirection)
 				 {
@@ -206,17 +197,22 @@ class Interface
 
   for (const name in this.props.control)												// Iterate all child controls to adjust their props
   	  {
-	   if (name in CHILDCONTROLTEMPLATES)
-		  {
-		   if (!Array.isArray(this.props.control[name].callback)) this.props.control[name].callback = CHILDCONTROLTEMPLATES[name].callback.concat([]);	// Set native control callback array for current control in cae of non-array type
-	   	   this.props.control[name] = Object.assign(JSON.parse(JSON.stringify(CHILDCONTROLTEMPLATES[name])), this.props.control[name]);					// Otherwise check control name for existing template and copy it if exist. Child control props overwrite template props
-		   if (name === 'default') this.props.control[name].callback.push(this.Handler.bind(this));
-		  }
-	   const control = this.props.control[name];
-	   control.child = this;																															// Set control child
+	   const control = this.props.control[name];																										// Fix child control
 	   if (!Array.isArray(control.callback)) control.callback = [];																						// Empty callback array for non-array
 
-	   if ('initevent' in control) CallControlHandler(control, control['initevent'], 'init');															// For control 'initevent' control <callback> function call is perfomed
+	   if (name in CHILDCONTROLTEMPLATES) for (const prop in CHILDCONTROLTEMPLATES[name])																// Contol name is predefined control template? Iterate template control props
+		  {
+		   if (prop === 'callback' && (control.callback = control.callback.concat(CHILDCONTROLTEMPLATES[name][prop]))) continue;						// Add template control functions
+		   if (prop in control) continue;
+		   control[prop] = typeof CHILDCONTROLTEMPLATES[name][prop] === 'object' ? JSON.parse(JSON.stringify(CHILDCONTROLTEMPLATES[name][prop])) : CHILDCONTROLTEMPLATES[name][prop];	// and copy template control property if current control one doesn't exist
+		  }
+	   if (name === 'default') control.callback.push(this.Handler.bind(this));																			// Add specific child handler for 'default' template control
+
+	   control.child = this;																															// Set control child
+	   control.name = name;																																// and control name for diag
+	   if (control.area && control.area.x1 > control.area.x2) [ control.area.x1, control.area.x2 ] = [ control.area.x2, control.area.x1 ];				// Swap area coordiantes if needed
+	   if (control.area && control.area.y1 > control.area.y2) [ control.area.y1, control.area.y2 ] = [ control.area.y2, control.area.y1 ];
+	   if ('initevent' in control) CallControlHandler(control, control['initevent'], 'init');															// and perform control <callback> function call for 'initevent'
 	  }
  }
 
@@ -231,15 +227,16 @@ class Interface
 	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1}
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
+		 if (!this.props.control) this.props.control = {};
 		 if (['right', 'bottom', 'top'].indexOf(this.props.controlicondirection) === -1) this.props.controlicondirection = 'left';											// Set icon offset direction in case of overlapped areas
 		 if (this.props.controliconmargin !== 'number') this.props.controliconmargin = 4;																					// and icon margin
-		 this.AdjustInterfaceControls();
 
 	     // DOM element attributes
 		 this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body;	// Set DOM element to document.body in case of no parent child defined
 	     this.attributes = (args[3] && typeof args[3] === 'object') ? args[3] : {};
 	     this.attributes['data-child'] = '';																// Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
 	     for (const name in this.attributes) this.elementDOM.setAttribute(name, this.attributes[name]);
+		 this.AdjustInterfaceControls();
 		 this.RefreshControlIcons();
 
 	     // Other child settings
@@ -249,6 +246,7 @@ class Interface
 	     this.maxchildid = 0;																				// Child max id ever been inserted
 
 	     // Stop constructor for root child (app) that has no parent. Root element is always document.body
+		 lg ('Next child is inserted:', this);
 	     if (!this.parentchild) return;
 
 	     // Set scc filter for all childs with overlay 'MODAL' mode
@@ -336,6 +334,7 @@ class Interface
 		 	{
 			 document.body.style.cursor = 'auto';
 			 CallControlHandler(control, null, '');
+			 lg(`Control ${app.control.name} is released!`);
 			 delete app.control;
 			}
 		 if (lower && !this.IsOnTopFlag(current) && this.IsOnTopFlag(lower))								// Lower child is 'top layer' and current is not? Swap it
@@ -354,6 +353,7 @@ class Interface
   if (app.control?.child === this.childs[id])																												// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';
+	  lg(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
   clearTimeout(this.childs[id].buttontimeoutid);																											// Clear child timeouts
@@ -427,15 +427,21 @@ class Interface
  // buttons: event.buttons (0 - no any btn, 1 - left btn, 2 - right btn, 4 - middle btn, 8 - 4th btn, 16 - 5th btn) for mouse events
  // modifier: key flag to match together with mouse/keyboard <captureevent> for next keys: CTRL (0b1), ALT (0b10), SHIFT (0b100) and META (0b1000)
  // processevent: event the current capture handles via <callbackfunction> call
- // releaseevent: event the capture is released on. Since the capture is released - any other childs mouse/keyboards events become available. Capture is released at this event occur or <outofarearelease> true value (see below)
+ // releaseevent: event the capture is released on. Since the capture is released - any other childs mouse/keyboards events become available
  // area: child element DOM relative rectangle coordinates x1,y1,x2,y2 the mouse cursor in to start the capture
- // outofarearelease: true value releases the cature in case of mouse coordinates out of defined area 
  // elements: array of DOM elements the capture starts at together with 'area' and 'capturestart'. Two-level nested array is allowed (for pushing elements with its childs DOM elements, for a example)
  // callback: for all defined control phases - <callback> array functions (if exist) call is perfomed.
  // icon: image url used as a background image with area coordinates
  // cursor: document cursor style on <area> hover
  // child: child object inited at child insert. Property is defined automatically at child insert.
+ // name: control name
  // <any prop name>: some control specific data. Used for callback inner behaviour
+
+ // Close child control
+ static CloseControl(userevent, control, phase)
+ {
+  if (phase === 'release') return { type: 'KILLME' };
+ }
 
  // Full screen child control
  static FullScreenControl(userevent, control, phase)
@@ -451,12 +457,20 @@ class Interface
 	  [ style.top, style.left, style.width, style.height ] = [ control.data.top, control.data.left, control.data.width, control.data.height ];
 	  delete control.data;
 	  if (iconrefresh) control.icon = ICONURLFULLSCREENTURNON;
+	  if (control.child.props.control.drag) control.child.props.control.drag.disabled = false;
+	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = false;
+	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = false;
+	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = false;
 	 }
    else																																			// Initial size state toggles to full screen
 	 {
 	  control.data = { top: style.top, left: style.left, width: style.width, height: style.height };
 	  [ style.top, style.left, style.width, style.height ] = ['0%', '0%', '100%', '100%'];														// Full screen child DOM element size. Previous variant: [] = control.child.parentchild === app ? ['0%', '0%', '100%', '100%'] : ['1%', '1%', '98%', '98%'];
 	  if (iconrefresh) control.icon = ICONURLFULLSCREENTURNOFF;
+	  if (control.child.props.control.drag) control.child.props.control.drag.disabled = true;
+	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = true;
+	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = true;
+	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = true;
 	 }
   if (phase !== 'init' && iconrefresh) control.child.RefreshControlIcons();
  }
@@ -471,7 +485,6 @@ class Interface
 	  [ control.data.x, control.data.y, control.data.rect ] = [ userevent.clientX, userevent.clientY, control.data.resizingElement.getBoundingClientRect() ];	// For 'capture' phase fix only mouse cursor coordinates and resizing element rectangle to calculate width and height at mouse move ('process' phase)
 	  return;
 	 }
-  if (control.child.props.control['fullscreenicon'].data) return;																								// Block resizing for childs at 'full screen' state
   if (control.cursor !== 'n-resize') control.data.resizingElement.style.width = (userevent.clientX - control.data.x + control.data.rect.width) + 'px';			// Otherwise change child DOM element width for non vertical resizng control
   if (control.cursor !== 'e-resize') control.data.resizingElement.style.height = (userevent.clientY - control.data.y + control.data.rect.height) + 'px';		// and child DOM element height for non horizontal resizng control
  }
@@ -487,7 +500,6 @@ class Interface
 	  control.data.offsety = userevent.clientY - control.child.elementDOM.offsetTop + ElementScrollY(control.child.elementDOM.parentNode);
 	  return;
 	 }
-  if (control.child.props.control['fullscreenicon'].data) return;																					// Block dragging for childs at 'full screen' state
   control.child.elementDOM.style.left = (userevent.clientX - control.data.offsetx + ElementScrollX(control.child.elementDOM.parentNode)) + 'px';	// Otherwise change element position relatively to changed cursor coordinates
   control.child.elementDOM.style.top = (userevent.clientY - control.data.offsety + ElementScrollY(control.child.elementDOM.parentNode)) + 'px';
  }
@@ -514,7 +526,7 @@ class Interface
  static EventListener(event)
  {
   // First step - var init and event preventDefault call for all except keyboard and mouse 'click' (to keep native radio/checkbox elements working) events
-  let child, childclientrect, modalchild, resetcursor = true;
+  let child, childclientrect, modalchild;
   if (['keydown', 'keyup', 'click'].indexOf(event.type) === -1)	event.preventDefault();
 
   // Second step - get event targeted child (and its rectangle) via event.target DOM element for mouse events. In case of keyboard events - lowest active child is used to pass them to
@@ -539,39 +551,55 @@ class Interface
   // Next step - check for any captured control and if true - check for 'release' event first and in case of no match - 'process' event then. Make return at the end
   if (app.control)
 	 {
-	  ChangeMouseCursor(app.control, event, childclientrect, resetcursor);				// Change cursor
-	  if (ControlEventMatchUserEvent(app.control, event, 'release') !== false || ControlAreaMatchMouseCursor(app.control, event, 'release', childclientrect) === false)
+	  if (ControlEventMatchUserEvent(app.control, event, 'release') !== false)
 		 {
-		  CallControlHandler(app.control, event, 'release');							// Call control and if needed child callback. And then handle callback result
+		  lg(`Control ${app.control.name} is released!`);
+		  SetMouseCursorContolsHover(app.control.child, event, childclientrect);		// Check all controls mouse cursor hover match and modify cursor for mouse moving	
+		  if (ControlAreaMatchMouseCursor(app.control, event, 'release', childclientrect) !== false)
+			 CallControlHandler(app.control, event, 'release');							// Call control handler
 		  delete app.control;															// and release captured control
 		  return;
 		 }
-	  if (ControlEventMatchUserEvent(app.control, event, 'process') !== false)			// Captured control in 'process' phase?
+	  if (ControlEventMatchUserEvent(app.control, event, 'process') === true)			// Captured control in 'process' phase?
 		 {
-		  CallControlHandler(app.control, event, 'process');							// Call control and if needed child callback. And then handle callback result
+		  CallControlHandler(app.control, event, 'process');							// Call control handler
 		  return;
 		 }
 	  return;																			// Return anyway for captured control
 	 }
 
-  // Last step - proccess all child controls for capture and release events for no modal child focus captured
+  // Another step - return for modal child exist or check mouse cursor child controls hover
   if (modalchild) return;
-  for (const prop in child.props.control)																															// Then iterate all controls of a current child
+  if (event.type === 'mousemove') SetMouseCursorContolsHover(child, event, childclientrect);																		// Check all controls mouse cursor hover match and modify cursor for mouse moving
+
+  // Last step - proccess all child controls for capture and release events for no modal child focus captured
+  for (const prop in child.props.control)																															// Iterate all controls of a current child to check capture/release phases
 	  {
 	   const control = child.props.control[prop];
-	   ChangeMouseCursor(control, event, childclientrect, resetcursor);																								// Change cursor if changed
-	   if (ControlEventMatchUserEvent(control, event, 'capture') !== false && ControlAreaMatchMouseCursor(control, event, 'capture', childclientrect) !== false && ControlElementsMatchEventTarget(control, event) !== false)
+	   if (control.disabled) continue;
+	   if (ControlEventMatchUserEvent(control, event, 'capture') === true && ControlAreaMatchMouseCursor(control, event, 'capture', childclientrect) !== false && ControlElementsMatchEventTarget(control, event) !== false)
 		  {																																							// Check control event, mouse cursor is in control area and clicked element match of control DOM elements for 'capture' phase. Control is considered captures in case of all cases match
+		   lg(`Control ${prop} is captured!`);
 		   app.control = control;																																	// Fix captured control
-		   CallControlHandler(control, event, 'capture');																											// and call control and if needed child callback. And then handle callback result
+		   if ('cursor' in control) document.body.style.cursor = control.cursor;																					// Set control cursor
+		   CallControlHandler(control, event, 'capture');																											// Call control handler
 		   return;
 		  }
-	   if (ControlEventMatchUserEvent(control, event, 'release') !== false || ControlAreaMatchMouseCursor(control, event, 'release', childclientrect) === false)	// Check match case for 'rlease' phase
+	   if (ControlEventMatchUserEvent(control, event, 'capture') === undefined && ControlEventMatchUserEvent(control, event, 'release') !== false)					// Check match case for 'release' phase only for non-existing 'capture' phase
 	   	  {
-		   CallControlHandler(control, event, 'release');																											// Call control and if needed child callback. And then handle callback result
+		   lg(`Control ${control.name} is captured and released!`);
+		   CallControlHandler(control, event, 'release');																											// Call control handler
 		   return;
 		  }
-	   resetcursor = false;
 	  }
  }
 }
+
+ // Check all controls mouse cursor hover match and modify cursor
+ function SetMouseCursorContolsHover(child, event, childclientrect)
+ {
+  let isChanged;
+  for (const prop in child.props.control)																															// Iterate all controls of a child to set cursor hover match
+		if (!child.props.control[prop].disabled && (isChanged = ChangeMouseCursor(child.props.control[prop], event, childclientrect))) break;						// Modify cursor for enabled controls
+  if (!isChanged) document.body.style.cursor = 'auto';																												// Set default cursor for no any cursor changed
+ }

@@ -12,7 +12,7 @@ class Connection extends Interface
   const props = { flags: NODOWNLINKNONSTICKYCHILDS,
                   effect: 'slideright',
                   position: 'CASCADE',
-                  control: { closeicon: {}, fullscreenicon: { init: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
+                  control: { closeesc: {}, closeicon: {}, fullscreenicon: { initevent: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
                 };
   const attributes = { class: 'defaultbox',
                        style: 'background-color: #343e54;'
