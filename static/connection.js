@@ -14,8 +14,10 @@ class Connection extends Interface
                   position: 'CASCADE',
                   control: { closeicon: {}, fullscreenicon: { init: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
                 };
-  super(...args, CONNECTIONPROPS, { class: 'defaultbox', style: 'background-color: #343e54;' });
-  props.control.push
+  const attributes = { class: 'defaultbox',
+                       style: 'background-color: #343e54;'
+                     };
+  super(...args, props, attributes);
   this.eventid = 0;
   this.eventqueue = {};
   this.CreateWebSocket();

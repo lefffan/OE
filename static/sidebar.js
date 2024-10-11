@@ -172,11 +172,9 @@ class SideBar extends Interface
 
  constructor(data, parentchild) // (data, parentchild, props, attributes)
  {
-  super(data, parentchild, { }, {class: 'defaultbox sidebar selectnone' });
+  super(data, parentchild, { control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown' } } }, { class: 'defaultbox sidebar selectnone' });
   this.elementDOM.style.left = '50px';
   this.elementDOM.style.top  = '50px';
-  this.dragableElements.push(this.elementDOM);
-  this.resizingElement = this.elementDOM;
   this.od = [];
   this.tree = [{ sort: '', type: 'folder', wrap: false, name: 'Root folder', id: 0 }];
   this.folderid = 0;
@@ -237,27 +235,3 @@ SideBar.style['.databasewrappedempty'] = {
      "padding": `0px 10px;`,
 };
 
-function SVGUrlHeader(viewwidth = 24, viewheight = 24)
-{
- return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
-}
-
-function SVGUrlFooter()
-{
- return `%3C/svg%3E");`;
-}
-
-function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4')
-{
- const disp = Math.round(strength/2);
- x += disp;
- y += disp;
- h -= disp * 2;
- w -= disp * 2;
- return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' /%3E`;
-}
-
-function SVGPath(path, color, width)
-{
- return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
-}

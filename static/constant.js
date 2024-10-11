@@ -20,17 +20,20 @@ const nicecolors				= [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210
 const style 					= document.createElement('style'); // Style default user GUI and append style DOM element to the document head
 let app;
 
+const ICONURLFULLSCREENTURNON   = SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
+const ICONURLFULLSCREENTURNOFF  = SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
+const ICONURLCLOSE              = SVGUrlHeader() + SVGPath('M2 2L10 10M10 2L2 10', 'RGB(227,125,87)', '2') + ' ' + SVGUrlFooter();
 const CHILDCONTROLTEMPLATES     = {
-                                   fullscreenicon: { captureevent: 'mousedown', processevent: '', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, iconon: '', iconoff: '', cursor: 'pointer', controlcall: Interface.FullScreenControl }, 
-                                   fullscreendblclick: { captureevent: '', processevent: '', releaseevent: 'dblclick', controlcall: 'fullscreenicon' }, 
-                                   closeicon: { captureevent: 'mousedown', processevent: '', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, iconoff: '', controlcall: () => { type: 'KILLME' }, cursor: 'pointer' }, 
-                                   closeesc: { captureevent: 'keydown', processevent: '', releaseevent: 'keyup', button: 'Escape', controlcall: 'closeicon' }, 
-                                   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', controlcall: Interface.ResizeControl }, 
-                                   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', controlcall: 'resize' }, 
-                                   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', controlcall: 'resize' }, 
-                                   push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', controlcall: Interface.PushControl }, 
-                                   drag: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', controlcall: Interface.DragControl }, 
-                                   default: { captureevent: '', processevent: '' }, 
+                                   fullscreenicon: { captureevent: 'mousedown', processevent: '', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+                                   fullscreendblclick: { captureevent: '', processevent: '', releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
+                                   closeicon: { captureevent: 'mousedown', processevent: '', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [() => { type: 'KILLME' }] }, 
+                                   closeesc: { captureevent: 'keydown', processevent: '', releaseevent: 'keyup', button: 'Escape', callback: [() => { type: 'KILLME' }] }, 
+                                   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
+                                   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
+                                   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
+                                   push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
+                                   drag: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
+                                   default: { captureevent: '', processevent: '', callback: [] }, 
                                   }
 
 function lg(...data)
@@ -126,4 +129,29 @@ function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-styles-
      }
 
  return inner;
+}
+
+function SVGUrlHeader(viewwidth = '12', viewheight = '12')
+{
+ return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
+}
+
+function SVGUrlFooter()
+{
+ return `%3C/svg%3E")`;
+}
+
+function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4')
+{
+ const disp = Math.round(strength/2);
+ x += disp;
+ y += disp;
+ h -= disp * 2;
+ w -= disp * 2;
+ return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
+}
+
+function SVGPath(path, color, width)
+{
+ return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
 }

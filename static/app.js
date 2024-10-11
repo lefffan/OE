@@ -20,9 +20,9 @@ class App extends Interface
 				}
 
  // Creating application! Add all mouse/keyboard event listeners here and init event counter
- constructor(...args)
+ constructor()
  {
-  super(...args);
+  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } } }, { style: `background-color: ${nicecolors[7]};` });
   this.eventcounter = 0;
   document.addEventListener('keydown', Interface.EventListener);
   document.addEventListener('keyup', Interface.EventListener);
@@ -51,7 +51,7 @@ class App extends Interface
 			   switch (event.data[0])	// Switch context item name (event data zero index)
 			   		  {
 					   case 'New connection':
-			   				new Connection(null, this);	// Args: data
+			   				new Connection(null, this);	// Args: data, parent
 							break;
 					  }
 		  	   break;
