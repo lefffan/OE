@@ -1,7 +1,9 @@
-// Todo1 - TimeScaleDB
+// Todo0 - TimeScaleDB
 //			https://github.com/timescale/timescaledb/blob/main/tsl/README.md
 //			https://docs.timescale.com/self-hosted/latest/install/installation-windows/
 //			https://www.timescale.com
+// Todo2 - setTimeout for inactive pad: https://stackoverflow.com/questions/6032429/chrome-timeouts-interval-suspended-in-background-tabs
+// Todo2 - JS tutorial
 
 /*
             'element3' => ['type' => 'radio', 'head' => 'Template', 'data' => '+Table|Tree|Map|', 'help' => "Select object view type from 'table' (displays objects in a form of a table),<br>'scheme' (displays object hierarchy built on object selection link name),<br>'map' (displays objects on the geographic map)"],
@@ -25,41 +27,6 @@
             'element6' => ['type' => 'checkbox', 'data' => 'Log rule message|', 'line' => '', 'help' => '']
 */
 
-
-// add hint it database name
-// 'Edit Object Database Structure'
-const DBCONFDIALOGHINTDBNAME = `Enter new database name full path in next format: folder1/../folderN/dbname. 
-All specified folders (if exist) are created automatically in a sidebar db hierarchy. 
-Leading slash is not necessary, last seprated name is always treated as a database name, 
-others before - as a folders. Empty folders are ignored.`;
-
-const DBCONFDIALOGHINTKEYLIST = `Database key list is an optional list of some text data associated with the specified key. 
-Each key may be used for informative purposes or 
-for usual constant variable in any of database configuration settings via js style quoted expression \${<key name>}. 
-For a example, key name 'Description' may have some text (key value) that describes some useful database info.`;
-
-const DBCONFDIALOGHINTPATHLIST = `Each application dialog has its JSON format structure, 
-so this database configuration dialog JSON can be splited to interface elements 
-(each json prop represents interface element, see 'Dialog' help section) 
-to apply some restrictions to (via interface element pad/profile path). 
-Example: path /Element with 'readonly' restriction type for the user '!root' denies any changes for all users except root`;
-
-const DBCONFDIALOGHINTUSERLIST = `User/group list (one by line) to apply the restriction to. 
-Char '!' reverses the result of the match, so line '!root' matches all users (or groups) except root. 
-Thus to match absolutely all users use '!!' - this record matches all users except user '!', 
-but username (or group) '!' is not allowed, so the list is true for all. 
-The list is looked up for the users/groups one by one - when a match is found, 
-the restriction type corresponding to the specified path is performed. 
-No match - all dialog interface elements of the pad/profile path are writable`;
-
-const DBCONFDIALOGHINTELEMENTNAME = `Element name is used as a default element header text on object view element header. 
-To remove element set its name, description and all handlers empty.'`;
-
-const DBCONFDIALOGHINTELEMENTDESCRIPTION = `Element description is displayed as a hint on object view element header navigation for default. 
-Describe here element usage and its possible values.`;
-
-const DBCONFDIALOGHINTELEMENTUNIQ = `Unique element type rejects equal values set for any database objects, 
-so element JSON property 'value' for all objects is unique. Element type cannot be changed after creation.`;
 
 const DBCONFDIALOGHINTELEMENTHANDLERMODE = `JSON handler output is treated depending on its "cmd" property. 
 In case of non JSON output - the data is automatically wraped (default mode) to the JSON "SET" handler command: 
@@ -90,36 +57,49 @@ const DBCONFDIALOGHINTVIEWTEMPLATE = `Select view template
 or 'Map' (objects are placed on the map via 'geo' element property)`;
 
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'CHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
+const pizda = `Specified handler profile will be used for any database element
+(see 'Element pad' pad) for all defined client events as a default one (in case of no any other hanlder exist)`;
 
 const testdata = {
-		  10: { type: 'title', path: 'Database|+-', data: 'New Database Configuration' },
-		  11: { type: 'text', path: 'Database', head: 'Database name', hint: DBCONFDIALOGHINTDBNAME, data: '', flag: '+Enter new database name' },
-		  12: { type: 'select', path: 'Database', head: 'Default event profile for all database elements', hint: `Specified handler profile will be used for any database element (see 'Element pad' pad) for all defined client events as a default one (in case of no any other hanlder exist)`, data: 'None/Content editable/Chat', flag: '*' },
+		  10: { type: 'title', path: 'Database', data: 'New Database Configuration' },
+		  11: { type: 'text', path: 'Database', head: 'Database name', data: '', flag: '%Enter new database name', hint: `Enter new database name full path in next format: folder1/../folderN/dbname. 
+Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last seprated name is always treated as a database name, others before - as a folders. Empty folders are ignored.` },
+/**/		  12: { type: 'select', path: 'Database', head: 'Default event profile for all database elements', data: 'None/Content editable/Chat', flag: '*', hint: `Specified event profile will be applied to any database 
+element for all defined client events as a default one` },
 
-		  13: { type: 'text', path: 'Database/New macros||Macros list|' + DBCONFDIALOGHINTKEYLIST, head: 'Macros name', hint: ``, data: '', expr: '/sdd/14' },
-		  14: { type: 'textarea', path: 'Database/New macros', data: 'sdd', head: 'Macros value', flag: '' },
-		  15: { type: 'textarea', path: 'Database/New macros', data: 'hui', head: 'Macros hint', flag: '*' },
+		  13: { type: 'textarea', head: 'Macros value', hint: '', data: '', path: `Database/New macros|+%Enter new macros name|Macros list|Database macros list is an optional list of some text data associated with the specified macros. 
+Each one may be used both for informative purposes and for any constant definition. You may use these constants in any database configuration settings via js style quoted expression \${<macros name>}. 
+For a example, macros name 'Description' may have some text that describes some useful database info` },
+		  14: { type: 'textarea', path: 'Database/New macros', data: '', head: 'Macros description', flag: '*' },
 
-		  16: { type: 'text', path: 'Database|+/New path|+-!|Path list', head: 'Database configuration pad/profile path', hint: DBCONFDIALOGHINTPATHLIST, data: '' },
-		  17: { type: 'radio', path: 'Database/New path|!', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '', expr: '/sdd/14' },
-		  18: { type: 'textarea', path: 'Database/New path|!', head: 'User/group list', hint: DBCONFDIALOGHINTUSERLIST, data: '' },
+		  16: { type: 'text', path: 'Database/New path|!+%Enter new path name|Path list', head: 'Database configuration structure profile path', hint: `Each application dialog has its JSON format structure, 
+so this database configuration dialog JSON can be splited to interface elements	(each json property represents dialog interface element, see 'Dialog' help section) 
+to apply some restrictions to (via interface element profile path). Example: path </Element> with 'readonly' restriction type for the user '!root' denies any changes in 'Element' pad for all users except root`, data: '' },
+		  17: { type: 'radio', path: 'Database/New path|!%Enter new path name', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '' },
+		  18: { type: 'textarea', path: 'Database/New path|!%Enter new path name', head: 'User/group list', hint: `User/group list (one by line) to apply the restriction to. 
+Char '!' reverses the result of match, so line '!root' matches all users (or groups) except root. 
+Thus to match absolutely all users use '!!' - this record matches all users except user '!', 
+but username (or group) '!' is not allowed, so the list match is true for all. 
+The list is looked up for the users/groups one by one and when a match is found, 
+the restriction type corresponding to the specified path is performed. 
+No match - all dialog interface elements of the pad/profile path are writable`, data: '' },
 
-		  20: { type: 'textarea', path: 'Element/id1|+|Element profile', head: 'Name', hint: DBCONFDIALOGHINTELEMENTNAME, data: '', flag: '+Enter element name', expr: '/^hui/20' },
-		  21: { type: 'textarea', path: 'Element/id1', head: 'Description', hint: DBCONFDIALOGHINTELEMENTDESCRIPTION, data: '', flag: '*' },
-		  22: { type: 'checkbox', path: 'Element/id1', head: 'Element type', hint: DBCONFDIALOGHINTELEMENTUNIQ, data: 'unique', flag: '*', expr: '/!unique/22' },
-		  23: { type: 'select', path: 'Element/id1', head: 'Element default handler profile', hint: `Specified handler profile will be used for all defined client events as a default one (in case of no custom hanlder exist)`, data: 'None/Content editable/Chat', flag: '' },
-		  24: { type: 'select', path: 'Element/id1', head: 'Element current handler profile', hint: `Specified handler profile will be used for all defined client events as a default one (in case of no custom hanlder exist)`, data: 'None/Test/Chat', flag: '*', expr: '/^hui/20' },
+		  20: { type: 'textarea', path: 'Element/id1|+%|Element profile', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
+		  21: { type: 'textarea', path: 'Element/id1', head: 'Description', hint: `Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values`, data: '', flag: '*%Enter element description' },
+		  22: { type: 'checkbox', path: 'Element/id1', head: 'Element type', hint: `Unique element type set implies unique 'value' property among all object in database, so duplacated values are exluded. Element type cannot be changed after element creation`, data: 'unique', flag: '*' },
+		  23: { type: 'select', path: 'Element/id1', head: 'Element default handler profile', hint: `Specified handler profile is used for all defined client events as a default one in case of no appropriate event defined in custom hanlder profile)`, data: 'None/Content editable/Chat', flag: '' },
+		  24: { type: 'select', path: 'Element/id1', head: 'Element custom handler profile', hint: `Specified handler profile is used for all defined client events`, data: 'None/Content editable/Chat', flag: '*' },
 
 		  30: { type: 'select', path: 'Event/New event profile|+-|Event profile list', head: 'Client event', hint: DBCONFDIALOGHINTELEMENTHANDLEREVENT, data: CLIENTEVENTS.join('/') },
 		  31: { type: 'checkbox', path: 'Event/New event profile', head: 'Modifier keys', data: 'Ctrl/Alt/Shift/Meta' },
 		  32: { type: 'select', path: 'Event/New event profile', head: 'Select event hanlder', hint: DBCONFDIALOGHINTELEMENTHANDLERCMD, data: 'Custom command line/Custom JSON/Predefined handler - Curl/System handler - SNMP', flag: '' },
 		  33: { type: 'textarea', path: 'Event/New event profile', data: '', flag: '*' },
 
-		  34: { type: 'radio', path: 'Event/New event profile', head: 'Handler stderr output', data: 'Wrap/Debug/!Ignore' },
+		  34: { type: 'radio', path: 'Event/New event profile', head: 'Handler stderr output', data: 'Set/Message/!Ignore' },
 		  35: { type: 'checkbox', path: 'Event/New event profile', data: 'Log' },
-		  36: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output with (incorrect JSON)', data: 'Wrap/Debug/!Ignore' },
+		  36: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output (incorrect JSON cmd)', data: 'Set/Message/!Ignore' },
 		  37: { type: 'checkbox', path: 'Event/New event profile', data: 'Log' },
-		  38: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output (correct JSON)', data: '!Apply/Debug/Ignore' },
+		  38: { type: 'radio', path: 'Event/New event profile', head: 'Handler stdout output (correct JSON cmd)', data: '!Apply/Ignore' },
 		  39: { type: 'checkbox', path: 'Event/New event profile', data: 'Log', flag: '*' },
 
 		  40: { type: 'text', path: '!View/id1', head: 'Name', hint: DBCONFDIALOGHINTVIEWNAME, data: '', flag: '+Enter view name' },
@@ -131,7 +111,7 @@ const testdata = {
 		  46: { type: 'textarea', path: 'View/id1', head: 'Object selection input args', hint: '', data: '', flag: '*' },
 		  47: { type: 'radio', path: 'View/id1', head: 'Template', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: 'Table/Tree/Map' },
 		  48: { type: 'textarea', path: 'View/id1', head: 'Layout', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: '', flag: '*' },
-		  _50: { type: 'button', path: 'Element', data: 'CREATE', expr: '/sdd/14', flag: '+++++++++++++++++++++++++++++' }
+		  _50: { type: 'button', path: 'Element', data: 'CREATE', expr: '/sdd/14', flag: '-+++++++++' }
 		 };
 
 // View pad:
@@ -144,7 +124,7 @@ const testdata = {
 //    	Layout - Element layout (don't forget built-in dinamyc macroses [user, *, **..)
 //		 	 	 Template type (table tree map)
 //	    Appearance profile (in system user props) -	Position (fit sidebar, cascade, random, always on top)
-//     											Window size (full screen, fit the view, fix width height;
+//     											Window size (full screen, fit the view, fix width height; NEW BROWSER PAD for new view in a new pad in read only mode)
 //     											Window props (sizeable, fullsceenable, movable, closable, escable)
 //     											Behaviour (auto refresh interval) 0/incorrect/undefined - never
 //     											Bring to top on event (new data, delete data, change data, every N sec)
@@ -178,7 +158,7 @@ function lg(...data)
 // Todo1 (deffered todo)
 // Todo2 (questionable todo) - correct server create due to https://ru.stackoverflow.com/questions/1144243/Как-написать-сервер-который-отдаёт-файлы-из-папки
 
-staticdocs = { '/app.js': '/static/app.js', '/connection.js': '/static/connection.js', '/contextmenu.js': '/static/contextmenu.js', '/dialogbox.js': '/static/dialogbox.js', '/' : '/static/index.html', '/index.js': '/static/index.js', '/interface.js': '/static/interface.js', '/window.js': '/static/window.js' };
+staticdocs = { '/app.js': '/static/app.js', '/connection.js': '/static/connection.js', '/contextmenu.js': '/static/contextmenu.js', '/dialogbox.js': '/static/dialogbox.js', '/' : '/static/index.html', '/interface.js': '/static/interface.js', '/window.js': '/static/window.js' };
 
 http.createServer((req, res) => {
 if (req.method === 'GET' && staticdocs[req.url])

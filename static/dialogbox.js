@@ -1,4 +1,3 @@
-// Todo2 - Change cmnofullscreen and application icon
 // Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
 // Todo2 - Multuiple flag * creates rounded area arount GUI element. 
 // Todo2 - Review all css props, its content props, some for builtin conf (index.html), some for configurable GUI via user customization
@@ -21,18 +20,18 @@ const CHECKEDOPTIONPREFIX				= '!';
 const EMPTYOPTIONTEXT					= ' ';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
-const macros							= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
+const DIALOGBOXMACROSSTYLE				= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
  
 // Todo2 - function 'CheckSyntaxForHelp' is unused for a while. Use it later to complete 'dialog' help section then remove it
 function CheckSyntaxForHelp(e, prop)
 {
  if (!e || typeof e !== 'object') return;		// Return for non-object element
- if (prop.indexOf(' ') !== -1) return;			// Check element prop name syntax for space chars and return if exist
+ if (prop.indexOf(' ') !== -1) return;			// Check element prop name syntax for space chars and return 'syntax check failed' if exist
  if (typeof e.flag !== 'string') e.flag = '';	// Flag string is mandatory
  if (typeof e.path !== 'string') e.path = '';	// Path string is mandatory
 
- // Dialog data is an object of interface elements list. Every element has its one mandatory property 'type': 'title|select|multiple|checkbox|radio|textarea|text|password|table|button'
- // Props 'path' and 'flag' are mandatory too, but created empty if not exist.
+ // Dialog data is an object of interface element list. Every element has its one mandatory property 'type': 'title|select|multiple|checkbox|radio|textarea|text|password|table|button'
+ // Props 'path' and 'flag' are mandatory too, but created empty if absent.
  // All interface elements are grouped by 'path' prop with next format: <profile1(pad) name>[/<profile2 name>/../<profileN name>]
  // Each <profile name> consists of its name itself, profile flag, header and hint divided by '|' char: name|flag|header|hint
  // Single option profile selection bar is hidden until the profile head (or hint) is set. Multiple options - selection bar is always displayed.
@@ -98,7 +97,6 @@ function CheckSyntaxForHelp(e, prop)
 			  //			2) Btn property name without leading '_' just makes no action, so no call-controller action btns with interactive flag make no sense cause no dialog kill even made.
 			  //        Number of '+' (<=300) number of seconds, number '+' chars more than 300 are interpreted as a number of minutes: 299 chars - 299 seconds, 300 chars - 300 seconds (5 min), 301 chars - 6 minutes, 302 chars - 7 miuntes, etc..
 			  //			Once the auto-apply button appeares in the profile bundle the auto-apply feature is turned on and does exist regardless of button current profile appearance.
-			  //			Example: flag string '+-+' sets 121 second timer.
 			  //        profile-specific(*) flag displays buttons for this profile only and hide all other buttons. Non-specific btns are displayed in case of no any profile-specific ones.
 			  // expr - See text type description. In case of true expr expression the button becomes grey.
 			  if ((typeof e.data === 'string' && e.data) || /\+|\-/.test(e.flag))	// Button is visible or auto-apply?
@@ -290,34 +288,34 @@ class DialogBox extends Interface
 	// dialog box global css props
 	".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
 	// dialog box title
-	".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": `bold .9em ${macros.FONT};`, "padding": "5px;" },
+	".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "padding": "5px;" },
 	// dialog box pad
-	".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `.9em ${macros.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
 	// dialog box active pad
-	".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${macros.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
 	// dialog box pad bar
 	".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 0 0;" },
 	// dialog box divider
 	".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
 	// dialog box button
-	".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${macros.BUTTON_PADDING};`, "margin": "10px;", "border-radius": "5px;", "font": `bold 12px ${macros.FONT};`, "color": "white;" },
+	".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${DIALOGBOXMACROSSTYLE.BUTTON_PADDING};`, "margin": "10px 10px 13px 10px;", "border-radius": "5px;", "font": `bold 12px ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "white;" },
 	// dialog box button and pad hover
 	".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
 	// dialog box element headers
-	".element-headers": { "margin": `${macros.HEADER_MARGIN};`, "font": `.9em ${macros.FONT};`, "color": "#555;", "text-shadow": "none;" },
+	".element-headers": { "margin": `${DIALOGBOXMACROSSTYLE.HEADER_MARGIN};`, "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "text-shadow": "none;" },
 	// dialog box help icon
-	".hint-icon": { "padding": "1px;", "font": `1em Arial Narrow, ${macros.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
+	".hint-icon": { "padding": "1px;", "font": `1em Arial Narrow, ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
 	// dialog box help icon hover
-	".hint-icon:hover": { "padding": "1px;", "font": `bold 1em ${macros.FONT};`, "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
+	".hint-icon:hover": { "padding": "1px;", "font": `bold 1em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
 	// dialog box table
-	".boxtable": { "font": `.8em ${macros.FONT};`, "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
+	".boxtable": { "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
 	// dialog box table cell
 	".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
 	// dialog box readonly elements css filter
 	".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion." },
 	//------------------------------------------------------------
 	// dialog box select
-	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${macros.FONT};`, "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;", "effect": "rise", "_effect": "Select fall-down option list " + EFFECTSHINT },
+	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;", "effect": "rise", "_effect": "Select fall-down option list " + EFFECTSHINT },
 	// dialog box select option
 	".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
 	// dialog box select option hover
@@ -325,12 +323,12 @@ class DialogBox extends Interface
 	// dialog box select option selected
 	".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
 	// Profile selection additional style
-	".profileselectionstyle": { "font": `bold .8em ${macros.FONT};`, "border-radius": "4px;" },
+	".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "4px;" },
 	// Expanded selection
 	".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
 	//------------------------------------------------------------
 	// dialog box radio
-	"input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${macros.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
+	"input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
 	// dialog box radio checked
 	"input[type=radio]:checked::after": { "content": "", "color": "white;" },
 	// dialog box radio checked background
@@ -339,20 +337,20 @@ class DialogBox extends Interface
 	"input[type=radio] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
 	//------------------------------------------------------------
 	// dialog box checkbox
-	"input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${macros.ELEMENT_MARGIN};`, "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
+	"input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
 	// dialog box checkbox checked
 	"input[type=checkbox]:checked::after": { "content": "", "color": "white;" },
 	// dialog box checkbox checked background
 	"input[type=checkbox]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
 	// dialog box checkbox label
-	"input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${macros.FONT};`, "margin": "0px 10px 0px 0px;" },
+	"input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": "0px 10px 0px 0px;" },
 	//------------------------------------------------------------
 	// dialog box input text
-	"input[type=text]": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "300px;" },
+	"input[type=text]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
 	// dialog box input password
-	"input[type=password]": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "300px;" },
+	"input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
 	// dialog box input textarea
-	"textarea": { "margin": `0px ${macros.SIDE_MARGIN} ${macros.ELEMENT_MARGIN} ${macros.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${macros.FONT};`, "width": "90%;", "min-width": "300px;" },
+	"textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
  };
 
  InitDialogData()
@@ -393,19 +391,16 @@ class DialogBox extends Interface
 
  destructor()
  {
-  super.destructor();
-  clearTimeout(this.autoapplybuttontimeoutid);
+  super.destructor();	// old version: clearTimeout(this.autoapplybuttontimeoutid);
  }
 
  constructor(...args)
  {
   // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
-  args[2].control = { closeicon: {}, fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} };
+  args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
   args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
   args[3]['data-element'] = '_-1';
   super(...args);
-  this.props.control.default.childcall = this.Handler.bind(this);
-  this.props.control.push.childcall = this.Handler.bind(this);
 
   // Set callback to pass dialog data
   this.DialogDataCallback = args[4];
@@ -507,7 +502,6 @@ EvalElementExpression(e)
 			 case 'button':
 				  if (e.flag.indexOf('-') === -1)
 					 {
-					  //this.pushableElements.push([element, element].concat([...element.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set btn element (with all childs in) pushable
 					  this.props.control.push.elements.push([element].concat([...element.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable
 					 }
 				   else
@@ -518,12 +512,6 @@ EvalElementExpression(e)
 							  delete this.props.control.push.elements[i];
 							  break;
 							 }
-					  //for (const i in this.pushableElements)
-						  //if (this.pushableElements[i][0] === element) 
-							 //{
-							  //delete this.pushableElements[i];
-							  //break;
-							 //}
 					 }
 				  break;
 		    }
@@ -638,7 +626,7 @@ EvalElementExpression(e)
   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
 	 {
 	  if (typeof e.data !== 'string') return '';																									// Text data is undefined (non string)? Return empty
-	  if (e.flag.indexOf('+') !== -1) placeholder = ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('+') + 1), TAGATTRIBUTEENCODEMAP)}"`;// Placholder attribute for text elements
+	  if (e.flag.indexOf('%') !== -1) placeholder = ` placeholder="${AdjustString(e.flag.substr(e.flag.indexOf('%') + 1), TAGATTRIBUTEENCODEMAP)}"`;// Placholder attribute for text elements
 	 }
   if (ELEMENTSELECTABLETYPES.indexOf(e.type) !== -1)
 	 {
@@ -719,23 +707,23 @@ EvalElementExpression(e)
 	 }
    else
      {
-	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000);	 						// Restart timer function otherwise
+	  this.autoapplybuttontimeoutid = setTimeout(() => this.ButtonTimer(), 1000); 							// Restart timer function otherwise
 	 }
   if (this.autoapplybuttonDOMelement) this.autoapplybuttonDOMelement.innerHTML = `${AdjustString(this.autoapplybuttonelement.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}${GetTimerString(this.autoapplybuttonelement)}`;
  }
 
  ShowDialogBox()
  {
-  if (!this.profile.length) return (this.dragableElements = [this.elementDOM]);											// No valid dialog content? Adjusted dialog box size, set drag capability and return
-  this.currenttitleid = undefined;																						// Init title id to store current active profile title
-  this.currentbuttonids = [];																							// Init empty array to store all active profile bundle specific button ids
+  delete this.currenttitleid;																								// Init title id to store current active profile title
+  this.currentbuttonids = [];																								// Init empty array to store all active profile bundle specific button ids
+  if (!this.profile.length) return delete this.props.control.drag.elements;													// No valid dialog content? Delete box draggable elements (title) and return
   let e;
 
   // Define dialog box content inner HTML code via root (pad) profile recursive passing through. Additionally calculate current title element and buttons list
   let content = `<div class="boxcontentwrapper">${this.GetCurrentProfileHTML(this.profile[GetElementOptionByChecked(this.allelements[0].options)[3]], true)}</div>`;
 
   // Define title inner HTML via current or default one
-  let title = this.GetElementContentHTML(this.allelements[this.currenttitlei === undefined ? this.defaulttitleid : this.currenttitleid]);
+  let title = this.GetElementContentHTML(this.allelements[this.currenttitleid === undefined ? this.defaulttitleid : this.currenttitleid]);
 
   // Define padbar inner HTML
   let padbar = this.GetElementContentHTML(this.allelements[0]);
@@ -763,37 +751,32 @@ EvalElementExpression(e)
   //  Set dialog box DOM element inner html
   this.elementDOM.innerHTML = title + padbar + content + footer;
 
-  // Set some parent interface props for the title DOM element if exist, otherwise for dialog box DOM element
-  if (title = this.elementDOM.querySelector('.title'))
-     {
-      this.dragableElements = [title].concat([...title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]);		// Set title with all child elements dragable
-      this.dblclickableElements = [title].concat([...title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]);	// Set title with all child elements double clickable
-      this.RefreshCMIcon(title);																					// Set child management icon to the title element
-     }
-   else
-     {
-      this.dragableElements = [this.elementDOM];																	// Set dialog box DOM element dragable
-      this.dblclickableElements = [this.elementDOM];																// Set dialog box DOM element double clickable
-      this.RefreshCMIcon(this.elementDOM);																			// Set child management icon to the dialog box DOM element
-     }
-
-  // Set dialog box contentwrapper var to simplify dialog content and footer btns management
-  //this.pushableElements = [];
+  // Fix dialog box sections
+  this.title = this.elementDOM.querySelector('.title')
+  this.padbar = this.elementDOM.querySelector('.padbar');
   this.contentwrapper = this.elementDOM.querySelector('.boxcontentwrapper');
   this.footer = this.elementDOM.querySelector('.footer');
-  this.padbar = this.elementDOM.querySelector('.padbar');
+
+  // Set 'fullscreendblclick' and 'drag' controls <elements> property
+  if (this.props.control.fullscreendblclick || this.props.control.fullscreenicon || this.props.control.drag || this.props.control.closeicon)
+	 {
+	  const elements = this.title ? [this.title].concat([...this.title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]) : [this.elementDOM];					// Calculate title (if exist) with all its children elements. Or child main DOM element
+	  if (this.props.control.fullscreenicon) this.props.control.fullscreenicon.elements = [elements[0]];															// and set 1st element for fullscreen icon,
+	  if (this.props.control.closeicon) this.props.control.closeicon.elements = [elements[0]];																		// set 1st element for close icon,
+	  if (this.props.control.fullscreendblclick) this.props.control.fullscreendblclick.elements = elements;															// set <elements> array clickable for 'full screen'	feature
+	  if (this.props.control.drag) this.props.control.drag.elements = elements;																						// and set them dragable
+	  this.RefreshControlIcons();
+	 }
+
+  // Select all dialog btns for 'push' control and get 'autoapply' one
   for (let button of this.footer.querySelectorAll('.button'))
 	  {
 	   let id;
-	   [id, button] = GetEventTargetInterfaceElement(button);																									// Define button id to retreive btn GUI element below
+	   [id, button] = GetEventTargetInterfaceElement(button);																										// Define button id to retreive btn GUI element below
 	   const e = this.allelements[id];
-	   //if (e.flag.indexOf('-') === -1) this.pushableElements.push([button, button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set queried btn element (with all childs in) pushable. For enabled btns only
 	   if (e.flag.indexOf('-') === -1) this.props.control.push.elements.push([button].concat([...button.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]));	// Set queried btn element (with all childs in) pushable. For enabled btns only
-	   if (this.autoapplybuttonelement !== undefined && +id === this.autoapplybuttonelement.id) this.autoapplybuttonDOMelement = button;						// The btn is auto apply? Set <autoapplybuttonDOMelement> to use it for timer refresh
+	   if (this.autoapplybuttonelement !== undefined && +id === this.autoapplybuttonelement.id) this.autoapplybuttonDOMelement = button;							// The btn is auto apply? Set <autoapplybuttonDOMelement> to use it for timer refresh
 	  }
-
-  // Set dialog box of itself as a resizing element
-  this.resizingElement = this.elementDOM;
 
   // Set focus to the first found text element
   setTimeout(this.SetFirstTextElementFocus.bind(this), 1);
@@ -874,22 +857,68 @@ EvalElementExpression(e)
  {
   if (!this.elementDOM) return;
   for (const element of this.elementDOM.querySelectorAll('input[type=password], input[type=text], textarea'))
-		  if (!element.readOnly) return element.focus();
+	  if (!element.readOnly) return element.focus();
+ }
+
+ // Clone all input profile GUI elements except 'title' and 'button' types
+ CloneCurrentProfileElements(profile, newprofilename, pathnestedindex)
+ {
+  if (!Array.isArray(profile)) return;
+  for (const id of profile) 
+	  {
+	   if (Array.isArray(id) && !this.CloneCurrentProfileElements(id, newprofilename, pathnestedindex)) continue;
+	   let e = this.allelements[id];
+	   if (!e || e.type === 'title' || e.type === 'button' || e.selectionid !== undefined) continue;
+	   this.propmaxindex++;
+	   const path = e.path.split(SELECTABLEOPTIONSDIVIDER);
+	   path[pathnestedindex] = newprofilename;
+	   const re = new RegExp(`^!|\\${PROFILEFIELDSDIVIDER}.*`, 'g');
+	   for (const i in path) if (i < pathnestedindex) path[i] = path[i].replace(re, '');
+	   e = Object.assign({}, e, { path: path.join(SELECTABLEOPTIONSDIVIDER) });
+	   for (const prop in e)
+		   if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete e[prop];							// Clear element from unnecessary props
+	   this.PushInterfaceElement(this.data[this.propmaxindex] = e, this.propmaxindex + '');
+	   delete e.expr;
+	   delete e.affect;
+	   if (e.options) CorrectCheckedOptions(e.options, e.type);
+	  }
+ }
+
+ // Handle 'clone' button
+ ProcessCloneButton()
+ {
+  const activeprofileoption = GetElementOptionByChecked(this.profilecloning.e.options);																		// Get active profile option in selectable element
+  const cloningprofilename = activeprofileoption[0];																										// Get profile name to clone. To compare with input name below
+  const newprofile = {};																																	// Init new profile object
+  const re = new RegExp(`\\${SELECTABLEOPTIONSDIVIDER}`, 'g');
+  [newprofile.name, newprofile.flag, newprofile.head, newprofile.hint] = this.profilecloning.input.value.replaceAll(re, '').split(PROFILEFIELDSDIVIDER, 4);	// Parse input element to get new profile name/flag/head/hint
+  if (newprofile.name[0] === CHECKEDOPTIONPREFIX) newprofile.name = newprofile.name.substring(1);															// Check profile name 1st char to get prfile active status
+  for (const option of this.profilecloning.e.options)
+  	  if (option[0] === newprofile.name)
+		 return new DialogBox(...MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error'));							// Cloning profile name matches new profile name? Return
+  newprofile.flag = (newprofile.flag || '').replaceAll(/!/g, '');																							// Remove selection-id '!' chars
+  newprofile.flag = newprofile.flag.padStart(this.profilecloning.e.selectionid + newprofile.flag.length, '!');												// Add cloning profile selection id to the new profile flag to match cloning selection id
+  if (newprofile.flag) newprofile.flag = '|' + newprofile.flag;
+  newprofile.head = newprofile.head === undefined ? '' : `|${newprofile.head}`;
+  newprofile.hint = newprofile.hint === undefined ? '' : `|${newprofile.hint}`;
+  this.CloneCurrentProfileElements(this.profilecloning.e.profile[activeprofileoption[3]], newprofile.name + newprofile.flag + newprofile.head + newprofile.hint, this.profilecloning.e.path.split(SELECTABLEOPTIONSDIVIDER).length - 1);
+  for (const e of this.allelements) if (e.options && e.selectionid !== undefined) CorrectCheckedOptions(e.options, e.type);									// New profile user selectable elements are all with corrected checked options (see last line of function CloneCurrentProfileElements). But not service selectable elements (such as profile selection) in just created profile. So correct their checked optoins.
+  return this.profilecloning.e.id;
  }
 
  RemoveProfileCloneInput()
  {
-  this.profilecloning.isDeleted = true;
-  if (this.profilecloning.e.id !== 0) this.profilecloning.wrapdiv.parentNode.firstChild.style.display = 'block';
-  this.profilecloning.input.removeEventListener('blur', this.Handler.bind(this)); 
-  this.profilecloning.wrapdiv.remove();
+  this.profilecloning.isDeleted = true;																					// Set profilecloning object 'isDeleted' flag to true
+  if (this.profilecloning.e.id !== 0) this.profilecloning.wrapdiv.parentNode.firstChild.style.display = 'block';		// For non-pad prfile clone display back 'select' DOM element
+  this.profilecloning.input.removeEventListener('blur', this.Handler.bind(this));										// Remove event listener from 'input' DOM element
+  this.profilecloning.wrapdiv.remove();																					// Remove input string DOM elements
   this.profilecloning.input.remove();
   if (this.profilecloning.e.id === 0)
   	 {
 	  this.padbar.outerHTML = this.GetElementContentHTML(this.allelements[0]);											// Cloning dialog pad? Refresh pad bar
   	  this.padbar = this.elementDOM.querySelector('.padbar');
 	 }
-  delete this.profilecloning;
+  delete this.profilecloning;																							// Delete profilecloning object
  }
 
  // Inheritance function that is called on mouse/keyboard events on dialog box
@@ -901,43 +930,47 @@ EvalElementExpression(e)
 
   switch (event.type)
          {
-	  	  case 'blur':																									// 
-			   if (this.profilecloning)
+	  	  case 'blur':
+			   if (this.profilecloning && !this.profilecloning.isDeleted)
 				  {
-				   if (this.profilecloning.isDeleted) break;
-				   this.ProcessCloneButton();
+				   const profileelement = this.allelements[this.ProcessCloneButton()];
 				   this.RemoveProfileCloneInput();
-				   break;
+				   if (ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
+				  }
+			   return {};
+	  	  case 'keydown':																									// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
+	       	   if (event.code === 'Escape' && this.profilecloning)
+				  {
+				   this.RemoveProfileCloneInput();
+				   return {};
 				  }
 			   break;
 	  	  case 'keyup':																									// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
-	       	   if (event.keyCode === 27)
-				  {
-				   if (!this.profilecloning) break;
-				   this.RemoveProfileCloneInput();
-				   return { type: 'NONE' };
-				  }
-			   if (event.keyCode === 13)
+			   if (event.code === 'Enter' || event.code === 'NumpadEnter')
 		  		  {
 				   if (this.profilecloning)
 					  {
-					   this.ProcessCloneButton();
-						this.RemoveProfileCloneInput();
-					   break;
+					   const profileelement = this.allelements[this.ProcessCloneButton()];
+					   this.RemoveProfileCloneInput();
+					   if (ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
+					   return {};
 					  }
-				   if (e.type !== 'text' || e.flag.indexOf('-') !== -1) break;											// For 'text' type and no readonly elements only
-				   for (id of this.callbuttonids)																		// Go through all callable btns and apply first non readonly one
-					   if ((e = this.allelements[id]).flag.indexOf('-') === -1 && !this.ButtonApply(e)) break;
-				   break;
+				   if (e.type === 'text' && e.flag.indexOf('-') === -1)													// For 'text' type and no readonly elements only
+				   	  {
+					   for (id of this.callbuttonids)																	// Go through all callable btns and apply first non readonly one
+					   	   if (this.ButtonApply(this.allelements[id])) return {};
+					  }
 		       	  }
-	       	   if (event.keyCode === 37 || event.keyCode === 39)
+	       	   if (event.code === 'ArrowLeft' && event.altKey && event.shiftKey)
 		  		  {
-				   if (!event.altKey || !event.shiftKey) break;															// No Alt/Ctrl hold? Break
-				   if (!ShiftElementOption(this.allelements[0].options, event.keyCode === 37 ? -1 : 1, true)) break;	// Option hasn't been changed? Break;
-				   this.ShowDialogBox();
-				   break;
+				   if (!ShiftElementOption(this.allelements[0].options, -1, true)) this.ShowDialogBox();				// Option has been changed? Refresh dialog content with a new active profile
+				   return {};
 		       	  }
-			   break;
+			   if (event.code === 'ArrowRight' && event.altKey && event.shiftKey)
+				  {
+				   if (!ShiftElementOption(this.allelements[0].options, 1, true)) this.ShowDialogBox();					// Option has been changed? Refresh dialog content with a new active profile
+				   return {};
+				  }
 		  case 'input':
 			   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
 				  {
@@ -963,14 +996,16 @@ EvalElementExpression(e)
 				   break;
 				  }
 			   break;
-		  case 'mouseupuncap':
-			   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;												// Sort order change for selectable element types only
-			   if (event.target.classList.contains('itemadd')) break;													// and for non profile clone icon click
-			   if (event.target.classList.contains('itemremove')) break;												// and for non profile remove icon click
-			   this.ChangeElementSortOrder(e, target);																	// Right with left btn held change sort order
-		   	   break;
 	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (event.which === 3) break;																			// Process right btn down event first, all code out of this 'if' case is left-btn event related
+			   if (event.button === 0 && event.buttons === 3)															// Left button down with right button hold?
+				  {
+			   	   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;											// Sort order change for selectable element types only
+			   	   if (event.target.classList.contains('itemadd')) break;												// and for non profile clone icon click
+			   	   if (event.target.classList.contains('itemremove')) break;											// and for non profile remove icon click
+			   	   this.ChangeElementSortOrder(e, target);																// Right with left btn held change sort order
+				   break;
+				  }
+			   if (event.button === 0 && event.buttons === 1)															// Left button down with no any other button hold?
 		       switch (e.type)
 				  	  {
 					   case 'multiple':
@@ -1002,7 +1037,7 @@ EvalElementExpression(e)
 									target.firstChild.appendChild(this.profilecloning.wrapdiv);
 								   }
 								this.profilecloning.input.classList.add('newprofileinput');
-								this.profilecloning.input.setAttribute('placeholder', 'Enter profile name');
+								this.profilecloning.input.setAttribute('placeholder', e.flag.indexOf('%') === -1 ? 'Enter profile name' : AdjustString(e.flag.substr(e.flag.indexOf('%') + 1), TAGATTRIBUTEENCODEMAP));
 								setTimeout(() => this.profilecloning.input.focus(), 0);
 								break;
 							   }
@@ -1050,52 +1085,7 @@ EvalElementExpression(e)
   target.outerHTML = this.GetElementContentHTML(e);
   if (e.id === 0) this.padbar = this.elementDOM.querySelector('.padbar');
  }
-
- // Clone all input profile GUI elements except 'title' and 'button' types
- CloneCurrentProfileElements(profile, newprofilename, pathnestedindex)
- {
-  if (!Array.isArray(profile)) return;
-  for (const id of profile) 
-	  {
-	   if (Array.isArray(id) && !this.CloneCurrentProfileElements(id, newprofilename, pathnestedindex)) continue;
-	   let e = this.allelements[id];
-	   if (!e || e.type === 'title' || e.type === 'button' || e.selectionid !== undefined) continue;
-	   this.propmaxindex++;
-	   const path = e.path.split(SELECTABLEOPTIONSDIVIDER);
-	   path[pathnestedindex] = newprofilename;
-	   const re = new RegExp(`^!|\\${PROFILEFIELDSDIVIDER}.*`, 'g');
-	   for (const i in path) if (i < pathnestedindex) path[i] = path[i].replace(re, '');
-	   e = Object.assign({}, e, { path: path.join(SELECTABLEOPTIONSDIVIDER) });
-	   for (const prop in e)
-		   if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete e[prop];							// Clear element from unnecessary props
-	   this.PushInterfaceElement(this.data[this.propmaxindex] = e, this.propmaxindex + '');
-	   delete e.expr;
-	   delete e.affect;
-	   if (e.options) CorrectCheckedOptions(e.options, e.type);
-	  }
- }
-
- // Handle 'clone' button
- ProcessCloneButton()
- {
-  const activeprofileoption = GetElementOptionByChecked(this.profilecloning.e.options);																		// Get active profile option in selectable element
-  const cloningprofilename = activeprofileoption[0];																										// Get profile name to clone. To compare with input name below
-  const newprofile = {};																																	// Init new profile object
-  const re = new RegExp(`\\${SELECTABLEOPTIONSDIVIDER}`, 'g');
-  [newprofile.name, newprofile.flag, newprofile.head, newprofile.hint] = this.profilecloning.input.value.replaceAll(re, '').split(PROFILEFIELDSDIVIDER, 4);	// Parse input element to get new profile name/flag/head/hint
-  if (newprofile.name[0] === CHECKEDOPTIONPREFIX) newprofile.name = newprofile.name.substring(1);															// Check profile name 1st char to get prfile active status
-  for (const option of this.profilecloning.e.options)
-  	  if (option[0] === newprofile.name)
-		 return new DialogBox(...MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error'));							// Cloning profile name matches new profile name? Return
-  newprofile.flag = (newprofile.flag || '').replaceAll(/!/g, '');																							// Remove selection-id '!' chars
-  newprofile.flag = newprofile.flag.padStart(this.profilecloning.e.selectionid + newprofile.flag.length, '!');												// Add cloning profile selection id to the new profile flag to match cloning selection id
-  if (newprofile.flag) newprofile.flag = '|' + newprofile.flag;
-  newprofile.head = newprofile.head === undefined ? '' : `|${newprofile.head}`;
-  newprofile.hint = newprofile.hint === undefined ? '' : `|${newprofile.hint}`;
-  this.CloneCurrentProfileElements(this.profilecloning.e.profile[activeprofileoption[3]], newprofile.name + newprofile.flag + newprofile.head + newprofile.hint, this.profilecloning.e.path.split(SELECTABLEOPTIONSDIVIDER).length - 1);
-  for (const e of this.allelements) if (e.options && e.selectionid !== undefined) CorrectCheckedOptions(e.options, e.type);									// New profile user selectable elements are all with corrected checked options (see last line of function CloneCurrentProfileElements). But not service selectable elements (such as profile selection) in just created profile. So correct their checked optoins.
- }
-
+ 
  // Remove all input profile GUI elements
  RemoveCurrentProfileElements(profile)
  {
@@ -1140,16 +1130,18 @@ EvalElementExpression(e)
 
  ButtonApply(e)
  {
-  if (e.flag.indexOf('-') !== -1) return;													// Do nothing for 'readonly' (disabled) btns
+  if (e?.flag.indexOf('-') !== -1) return;													// Do nothing for 'readonly' (disabled) btns
   if (this.callbuttonids.indexOf(e.id) !== -1 && this.DialogDataCallback)					// Applied btn id is controller callable? Save all dialog data and call the controller
      {
 	  this.ClearDialogDataFromServiceProps();												// Delete unnecessary element props
   	  this.ModifyElementPathActiveProfiles();												// Modify all user element paths depending on active profile bundles
 	  this.DialogDataCallback(this.data);													// Call back function to process dialog data or lg('Calling controller with data', this.data);
      }
-  if (this.allelements[e.id].flag.indexOf('!') !== -1) return;								// Button is interactive? Return
-  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])
-	 this.parentchild.KillChild(this.dropdownlist.id);										// Othewise kill drop-down list if exist
-  this.parentchild.KillChild(this.id);														// and dialog box of itself
+  if (this.allelements[e.id].flag.indexOf('!') === -1)										// Button is not interactive? Kill drop-down list if exist and dialog box of itself
+  	 {
+	  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id]) this.parentchild.KillChild(this.dropdownlist.id);
+  	  this.parentchild.KillChild(this.id);
+ 	 }
+  return true;
  }
 }

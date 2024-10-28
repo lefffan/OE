@@ -1,4 +1,4 @@
-const SOCKETADDRES            = 'ws://127.0.0.1:8002';
+const SOCKETADDRES = 'ws://127.0.0.1:8002';
 
 class Connection extends Interface
 {
@@ -12,7 +12,7 @@ class Connection extends Interface
   const props = { flags: NODOWNLINKNONSTICKYCHILDS,
                   effect: 'slideright',
                   position: 'CASCADE',
-                  control: { closeesc: {}, closeicon: {}, fullscreenicon: { initevent: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
+                  control: { closeicon: {}, fullscreenicon: { initevent: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
                 };
   const attributes = { class: 'defaultbox',
                        style: 'background-color: #343e54;'

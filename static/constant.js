@@ -11,28 +11,23 @@ const REFRESHMININTERVAL		= 50;
 const ELEMENTPUSHOFFSET			= 3;
 const ACTIVECHILDSHADOW			= '4px 4px 5px #111';
 
-const WIDTHOFAREAFORRESIZING	= 13;
-const HEIGHTOFAREAFORRESIZING	= 13;
-const CLOSEICONAREAWIDTH		= 12;
-const CLOSEICONAREAHEIGHT		= 12;
-
 const nicecolors				= [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
 const style 					= document.createElement('style'); // Style default user GUI and append style DOM element to the document head
 let app;
 
 const ICONURLFULLSCREENTURNON   = SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
 const ICONURLFULLSCREENTURNOFF  = SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
-const ICONURLCLOSE              = SVGUrlHeader() + SVGPath('M2 2L10 10M10 2L2 10', 'RGB(227,125,87)', '2') + ' ' + SVGUrlFooter();
+const ICONURLCLOSE              = SVGUrlHeader() + SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + SVGUrlFooter();
 const CHILDCONTROLTEMPLATES     = {
-                                   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+                                   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
                                    fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
-                                   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -12, y1: 0, x2: -1, y2: 11},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
+                                   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
                                    closeesc: { captureevent: 'keydown', releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
                                    resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
                                    resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
                                    resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
                                    push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
-                                   drag: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
+                                   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
                                    default: { callback: [] }, 
                                   }
 

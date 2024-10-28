@@ -34,7 +34,7 @@ class ContextMenu extends Interface
        if (typeof data[item] === 'string') inner += data[item] ? `<div class="greycontextmenuitem">${data[item]}</div>` : '<div class="contextmenuitemdivider"></div>';   // Create inactive context menu item. Empty item is considered as a context menu divider line also
       }
   if (!inner || !event) return;                                                                                                                                                // Context menu inner html is empty or undefined event? Return
-  super(data, parentchild, { effect: 'rise', overlay: 'NONSTICKY', control: { default: { releaseevent: 'mouseup|keydown|keyup' } } }, { class: 'contextmenu selectnone' });    // Args: data, parentchild, props, attributes
+  super(data, parentchild, { effect: 'rise', overlay: 'NONSTICKY', control: { closeesc: {}, default: { releaseevent: 'mouseup|keydown|keyup' } } }, { class: 'contextmenu selectnone' });    // Args: data, parentchild, props, attributes
   this.elementDOM.innerHTML = inner;
 
   // Context menu position 

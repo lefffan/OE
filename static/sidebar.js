@@ -2,10 +2,13 @@
 // Todo0 - predefined all classes: view0-100
 // Todo0 - sorting
 // Todo0 - wrapping
-// Todo0 - comment
+// Todo0 - insert comments for all code
 // Todo0 - footnote
 // Todo0 - SIDEBARDELETE
 // Todo0 - context menu
+// Todo0 - search among folders, views and dbs
+// Todo0 - Escape chars '<>' (or may be others) in OV/OD names
+
 class SideBar extends Interface
 {
  static style = {
@@ -172,7 +175,7 @@ class SideBar extends Interface
 
  constructor(data, parentchild) // (data, parentchild, props, attributes)
  {
-  super(data, parentchild, { control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown' } } }, { class: 'defaultbox sidebar selectnone' });
+  super(data, parentchild, { overlay: 'ALWAYSONTOP', control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown' } } }, { class: 'defaultbox sidebar selectnone' });
   this.elementDOM.style.left = '50px';
   this.elementDOM.style.top  = '50px';
   this.od = [];
