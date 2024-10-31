@@ -62,74 +62,80 @@ class Application extends Interface
 
 window.onload = function () { app = new Application(); }
 
-
-// Some mrtg and other database features for Megacom appliance
+// Megacom appliance information systems
 // Todo - discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
 // Todo - add startel nodes
 // Todo - discuss wich tabs to create as they are in our current mrtg. Left/right/N-Z/Fiziki?
 // Todo - Discuss megacom user/groups and their rights
-// Todo - Link names for usual uplink, mpls uplink, switchport/vlps uplink, rezerv uplink..
-// Todo - Chats like in mattermost?
-// Todo - Host/node elements: 1-100 ports, 101 hostname, 102 hardware, 103 location, 104 ip, 105 Status. Should hardware-mac, node-number and checked-by-soa element be added?
-// Todo - Ctrl+F12 - uplink tree from current object (any element)
-// Todo - Alt+F12 - downlink tree from current object (any element)
-// Todo - Shift+Ctrl+F12 - Map tree up from current object (any element)
-// Todo - Shift+Alt+F12 - Map tree down from current object (any element)
-// Todo - ALT+S - point to point tree (any element)
-// Todo - ALT+H - history (any element)
-// Todo - ALT+L - downlink tree client list (any element)
-// Todo - F2, KEYPRESS - edit value for L2 only (any element)
-// Todo - DEL - delete content via confirmation (any element)
-// Todo - DBLCLICK - edit card dialog box for tehuchet, info, contacts, names, loaction.. (location element)
-// Todo - DBLCLICK with ctrl|alt|shift for UPLOAD, DOWNLOAD, UNLOAD and ctrl+alt for GALLERY (location element)
-// Todo - F12 port diagnostic - client grafic in realtime, and mrtg grafics (port element)
-// Todo - INS edit hint, style and snmpindex (port element)
-// Todo - DBLCLICK - edit card dialog box (port type selection[free|client|service|uplink|downlink]: free[description becpmes empty], client[zayavka-ip-speed-licevoi-name-address], service[description only], up|down[description+link property]) (port element)
-// Todo - F12 host diagnostic - switch with port list with their links up or down (non-port element)
-// Todo - INS hint, style + snmpgroup, for hardware element only (non-port element)
+// Todo - Megacon MRTG System
+//		  Link names for usual uplink, mpls uplink, switchport/vlps uplink, rezerv uplink..
+// 		  Create MRTG OD with at least one view that shows nodes with zero clients, one client, etc..
+// 		  Host/node elements: 1-100 ports (type uplink,downlink,free,service,client), 101 hostname or/and description, 102 hardware, 103 location, 104 ip, 105 Status(up/down).
+//		  Should hardware-mac, node-number and checked-by-soa element be added?
+// 		  diagnostic (pings, grafiki, port config, port errors, asr speed, mac, mac-vendor, cable diag, checkhost, name from billing), in node tree create mac search function for every switch in a tree
+//		  For client port type display client name from billing
+//		  Button to destruct client conf,int et 1/0/2,shut, no fl c, no band c,  sw mode acc,  sw acc vl 666,  speed aut, end,wr
+//		  ping <switch ip>, on port ping <client ip>
+//		  Ctrl+F12 - uplink tree from current object (any element)
+//		  Alt+F12 - downlink tree from current object (any element)
+//		  Shift+Ctrl+F12 - Map tree up from current object (any element)
+//		  Shift+Alt+F12 - Map tree down from current object (any element)
+//		  ALT+S - point to point tree (any element)
+//		  ALT+H - history (any element)
+//		  ALT+L - downlink tree client list (any element)
+//		  F2, KEYPRESS - edit value for L2 only (any element)
+//		  DEL - delete content via confirmation (any element)
+//		  DBLCLICK - edit card dialog box for tehuchet, info, contacts, names, loaction.. (location element)
+//		  DBLCLICK with ctrl|alt|shift for UPLOAD, DOWNLOAD, UNLOAD and ctrl+alt for GALLERY (location element)
+//		  F12 port diagnostic - client grafic in realtime, and mrtg grafics (port element)
+//		  INS edit hint, style and snmpindex (port element)
+//		  DBLCLICK - edit card dialog box (port type selection[free|client|service|uplink|downlink]: free[description becpmes empty], client[zayavka-ip-speed-licevoi-name-address], service[description only], up|down[description+link property]) (port element)
+//		  F12 host diagnostic - switch with port list with their links up or down (non-port element)
+//		  INS hint, style + snmpgroup, for hardware element only (non-port element)
 // Todo - Create corp chat with source code pass, image pass and some popular messanges features to make comfortable user dialogs. Apply emodzi pass also and see new features of mattermost (or other corp chat) new version
-// Todo - Create orp addrbook, stuff list with foto, tel, dolzhnost. Tabel. Stuff vacations (otpusk). Grafik raboty
+// Todo - Create corp addrbook, stuff list with foto, tel, dolzhnost. Tabel. Stuff vacations (otpusk). Grafik raboty
+// Todo - Setki.xls (ip, name from TABELS, name from BILLING, mac for buhgalters and FSB, comment), tech uchet, Wiki
 // Todo - Union some request apps (like Helpdesk or CRM) where one zayavka for helpdesk, podkluchenie, otkl, expluataciya.
 //	      Develop helpdesk - how does object selection should calculate expired orders/requests? Versions date difference is more than three days?
-// Todo - . MRTG
-// Todo - . Zabbix (See how zabbix is install to have point of view of that kind of applications)
-// Todo - . ACS
-// Todo - . Any accounting system (may be billing)
-// Todo - 0. Voting
-// Todo - . Any statistic/analitycs
-// Todo - . Setki.xls
-// Todo - . Tech uchet
-// Todo - . Wiki
-// Todo - . Operation Journal:
-    Switch ip, switch description, switch location,
-    60 ports (description), for every port: type (uplink,downlink,free,service,client),
-    diagnostic (pings, grafiki, port config, port errors, asr speed, mac, mac-vendor, checkhost, name from billing) and convert all this info to pdf in a new tab, if port type is 'client', then display client name from billing
-    In INFO scheme find mac on every switch in OV
-    In setki - ip, name from TABELS, name from BILLING, mac (for buhgalters and FSB)
-    Button to destruct client conf,int et 1/0/2,shut, no fl c, no band c,  sw mode acc,  sw acc vl 666,  speed aut, end,wr
-    see client mac, cable length, errors and all other data the switch allows to monitor
-    ping <switch ip>, on port ping <client ip>
-16. Paraga mail functional
-17. Ask Hramcova analitiku po helpdesku
-18. See functions on Slava's management system
-19. First stage: oper+slavina, setki, tech uchet, HD, adrbook
-20. Second stage: zabbix, CRM, corp chat, wiki
+//		  Ask Slava for HD analitycs
+//		  Group some orders to one parent to have opportunity to close/change(status) all childs orders via one parent order. Or one order may have multiple clients?
+//		  Order/requests reassignment to one person/department(otdel)
+//		  Client order/requests history
+//		  Automatic preload client data (switch, port, ip, geo addr, contacts) at order/request creation
+// Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
+// Todo - Paraga mail functional  
 
 // Application architecture
+// Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
 // Todo - all db operations via one function
+// Todo - problems of deploying - can i use postgre db on commerisal base? 
 // Todo - db readonly replicas?
 // Todo - app containers via docker?
 // Todo - Make logs and handlers manager accessable in 'System Manage' context menu
 // Todo - Application global users allowed all. For a example - root user.
-// Todo - 
-// Todo - 
+// Todo - Name application database tables: data_odid, uniq_odid and head_odid to ease transfering object databases with its structures! https://postgrespro.ru/docs/postgresql/14/reference
+// Todo - Multiple user instance is allowed via checked option in user properties settings
+// Todo - At the end of app stable version make new customization
+// Todo - add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality
+// Todo - Use another user (instead of root) with priv granted to 'OEDB' database only and Unicode for MySQL https://mathiasbynens.be/notes/mysql-utf8mb4 http://phpfaq.ru/mysql/charset
+// Todo - socket rate limit: https://javascript.info/websocket#rate-limiting
+// Todo - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
+// Todo - All db operations (except handlers and db config) should use the connection via user with read-only permissions
+// Todo - index columns: alter table data_1 add index (`lastversion`);
+// Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
+// Todo - helpdesk/jira/CRM example in Help context menu
+// Todo - Favicon change to show unread msges presence
+// Todo - Shortcut key calls OV to open at sidebar focus
+// Todo - another native object element like 'datetime' is 'timestamp' to fix TSDB data changes
+// Todo - Every user defined element (eid1, eid2..) has its external data like streams (cameras, streams), files (documents, audio, video, image) and TSDB (data is set via system call SET<TSDBID>])
+//		  App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props, streams, filesm TSDB
 
 // View
 // Todo - all view changes comes to clint side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.
 //		  Initiator client apply all changes for this odid/ovid, non-initiator client for this odid/ovid also apply changes (if user has appropriate permissions),
 //		  and for other ovids with this odid client side check matched object ids with their elements and add 'new notification' in a sidebar
-// Todo - regexp search should be implemented to all types of view including tree and map
-// Todo - In context menu description display Od and OV description from OV structure
+// Todo - regexp search should be implemented to all types of view including tree and map. Should js range be used instead of span highlighting in regexp search? Not only regexp search but search on mask with only one asterisk as a special char
+// Todo - In context menu description display Od and OV description from OV structure, application version, tel number for additional help tab 'Contacts' and mail functional - please contact us support@tabels.app
 // Todo - Build view via adding its elements (objects) with limited count, continuing later via settimout(callback, 0) just to not freeze user interface
 //		  Load/reload view process is divided into two stages - receving server data and parsing it to fit element layout. First stage displays loading circle at view item in a sidebar.
 //		  Data parsing second stage displays circle progress indicator of loaded data portions. Both stages are allowed to be cancelled via clicking inside the view rectangle. Should Esc key stop OV open process also?
@@ -137,7 +143,6 @@ window.onload = function () { app = new Application(); }
 //		  This mechanism allows to not only avoid page freeze, but immediate handle of any incoming CALL/TABLE/TREE message with a new data and droping (direct deleting via js) previous CALL message data from controller.
 //		  Insufficient memory error at big amount of OV data coming quickly for client browser not having time to handle that OV big growing data is solved.
 // Todo - Fix error while calling all hosts, then calling 'random 2 hosts' displays 'random 2 host' view, then 'all hosts' is displayed. Build incoming message broker.
-// Todo - warning as a start event at element layout
 // Todo - Voting view example
 //		  layout: {"oid":"3", "eid":"element id number for every voting", "y":"0", "x":"0", "value":"Голосовать"}
 //		  object selection: empty
@@ -149,6 +154,8 @@ window.onload = function () { app = new Application(); }
 //		  Event CONFIRMDIALOG handler:  php /usr/local/src/tabels/handlers/_.php <event> <data>
 //		  Display selected cells sum for 'number' cell type
 // Todo - Emodzi symbols as an element text causes db sql error. Should it be fixed?
+// Todo - OV description as a hint on taskbar OV navigation
+// Todo - Object selection input args dialog data defines macroses specified in object selection string. Undefined macroses are empty strings. Dialog data interface props are macros names. No macroses in object selection string - no dialog call at OV open.
 
 // Tree view
 // Todo - Point to point tree shouldn't be multipath? Second query in object selection (add it to the help/doc) should point to the second point of point-to-point tree. Another words: point to point scheme must be one way
@@ -169,117 +176,83 @@ window.onload = function () { app = new Application(); }
 // Todo - view content refresh starts just right after parsed incoming data table width/height is calculated.
 // Todo - Optimize x,y expressions: if x=n+1, then don't call eval, but plus 1 to n. Don't call eval function in case of constants x,y values also
 // Todo - Always develop table functional to some needful excel functions!
+// Todo - only this type of view allows new object creation. Release object creation via dialog to input all elements values
+// Todo - Export OV data to xls(via csv) or txt file
+// Todo - Fetch progress for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
+// Todo - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
+// Todo - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
+// Todo - GALLERY command shows all foto for default, otherwise - specified foto. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
+// 		  GALLERY displays all external data including streams, images, audio, video, TSDB
+//		  Make external source data settings via these kinds of systme calls UPLOAD, DOWNLOAD, UNLOAD for files, another cmd for TSDB (duration, unit of measurement) and another cmd for streams (timeshift, source, qulity)
+//		  All these external data may be embedded via custom tags to table cell <td>
+// Todo - macroses like in joe
+// Todo - Context menu Graph
+// Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event
+// Todo - Downloading big files don't show progress indicator. Check it
+// Todo - What if non table area selecting when dragging starts from 'no table area' and ends at 'table area'? One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
+// Todo - Sort by header click for look like default element layout when header line at the top, bottom, left, right
+// Todo - Autonavigate command for OV, for a example single mouse cell click edit the text in. Mouse single click emulate command (NONE|DBLCLICK|KEYPRESS) or new user event 'CLICK'? Usefull for chats
+// Todo - Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
+// Todo - element cell style based not only oid/eid combinations, but on element cell value (so empty style attr [style=""] hides the row or styles it by some color, for a example)
+// Todo - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711
+// Todo - Pagination is not implemented, should it be usable via OV dirs with page ranges per view in this dir or via next portion of objects displayed by reaching screen bottom at scrolling (object portion number should be set in user customization misc configuration)?
+// Todo - Every element has its default event profile defined is 'system' user settings. Event profile is a list of user events and its executed handlers. All handlers for any event may have dialog data to pre-configure script input args. 
+//		  These args can be changed either in 'system' user settings or element event handler section. 'Dialog' args in element event handler do not affect to predefined handler and are specific for this element event only. To reset this dialog args data change handler and then get it back - predefined handler with its args will be set
+// 		  In case of default event profile specified the user event is handle by element event handler and in case of absent one - by default profile event handler
+//		  Example: create 'chat' or 'excel' event profile and set 'excel' as a default one for needful elements. Then these element interaction will act as an excel manner with KEYPRESS and F2 editing cell, DEL deleting cell text and etc..
+// Todo - Functions to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 
 // Controller and event handlers
 // Todo - Handler cmd line macroses (replacements) - <oid>, <eid>, <date>, <OD>, <OV>, <ODid>, <OVid>
 // Todo - Single/Multipile select as a native handler that allows to select predefined values
 // Todo - Negative queue value (the scheduler sleep for) in msec on crontab line
+// Todo - Task manager restrict call (or/and call with no task delete option) for the user in his property settings and send only active handler list instead of their wrapeed dialog structure
+// Todo - Every use event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds. The record in event/message queue is removed after the handler responce or timeout occur
+//        Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, so controller call is not perfomed until response or timeout
+// Todo - Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog
+// Todo - Single OV click: OV is already open ? bring OV to top or refresh if already on top : open in a current view or in a new view if no any view exist.
+//		  Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
+// Todo - UPDATE handler command (in a addition to SET/RESET) creates new object version only in case of at least one user-defined element changed
+// Todo - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
+// Todo - System call 'NEWOBJECT' (to create object by user handlers) and 'COPY' to copy data to the buffer
+// Todo - Event command line are not single line, but multiple. Controller runs first line handler, gets its data, other lines handlers may run in detached mode or may be used as a comments
+// Todo - Release CHANGE event subscribing feature to allow non-native object (another words - object subscribes for CHANGE event of other object in DB) elements react on
+// Todo - Controller dialog message: how to escape divider char '/'? Via '\/'?
+// Todo - event 'VIEWREFRESH' occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event
+// Todo - How to call dialog to add new object instead of retreiving element data from vitrual object (id=-1)
+// Todo - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects
+// Todo - Discover new object:
+//		  Object selection: SELECT NONE
+//		  Define handler for any one element for event SCHEDULE 
+//		  In case of no any object selected in object selection process  the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
+//		 		The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
+//		  So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
 
-IV-----------------------------------------------Application concept:
-###########  when a rule is rejected for the event CHANGE - old element data is set rewriting the case that data is overwriten in element layout 'value' prop
-###########  deprecate view.php via pcntl_fork
-###########  data_id, uniq_id and head_id! (to easy the way to transfer object databases wuth its structures!
-  regexp search as start event emulates ctrl+shift+f at OV open
-  hiderow/hidecolumn - regexp feature with flag i for all cells in rows/columns match successful case
-###########  add rule action 'do nothing' (for log only goal and some db sql actions)
-###########  Second and all next queries for non Tree view types are queries in previous query tables
-  regexp search - range js instead of span highlighting
-  Paste file or image to object element (or drag and drop to the corresponded cell)
-###########  Release 'view in a new tab' via call cmd, for example to show user object versions apparently main view in a new tab      https://question-it.com/questions/1384714/otkryt-novuju-vkladku-okno-i-napisat-v-nee-chto-nibud
-  Downloading big files don't show progress bar downloading process, so how to show it?
-  Fetch progress for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
-  Application version in System description, tel number for additional help tab 'Contacts' and mail functional - please contact us support@tabels.app
-  Export OV data to xls/txt file
-  autocomplete feature after handler edit command. Autocomplete data may be retrieved from other OD, for example, client list or street list.
-  what about edit after edit command, for a example wrong text to confirm and edit command called once again?
-###########  GALLERY shows all foto for default, otherwise - specified foto
-    Show image properties (like resolution) in GALLERY mode
-  not only regexp search but search on mask with only one asterisk as a special char
-  macroses like in joe
-  one/multiple user instance
-###########  virt cell depends on oid,eid
-  Context menu Graph
-###########  Task manager: restrict call (and call with no task delete option) of task manager for some users in user props, and use ps ax with client side handling instead of dialog generation by taskmanager.php for more quicker processing!
-  At the end of app stable version make new customization
-  Any cell has attached files. Cell text is displayed for default, but:
-    if image prop is set - display image with text below
-    if audio prop is set - display player like in whatsup
-    if stream(video) prop is set - display stream from camera (like forpost) or video file playing
-  sql request in 'Element Layout' section in 'value' prop should select among its view object selection but not from all objects! (see models piechart among switches with one or zero active clients)
-  add in system description something like 'it has a 'game' style interace color but offers a powerful functionality'
-V-----------------------------------------------Back-end:
-  Optimize mysql to highload app:
-    use one function to operate sql commands in order to migrate to another database type - not related, for a example, or mysql instead of maria db
-    index columns: alter table data_1 add index (`lastversion`);
-    unbuffered queries and partial OV output mysql_unbuffered_query()
-    https://www.sqlstyle.guide/ru/
-  Problems of deploying - can i use maria db on commerisal base? 
-  Use another user (instead of root) with priv granted to 'OEDB' database only and Unicode for MySQL https://mathiasbynens.be/notes/mysql-utf8mb4 http://phpfaq.ru/mysql/charset
-  secure php.ini and can socket number be more than 1024?
-  What time and bytes limit should be set to php script execution
-  Secure database and sources to avoid assignment of my intellectual property. Incuded php files should be on unaccessable for user and not application dir. Restrict function dir from observing at the browser.
-  socket rate limit https://javascript.info/websocket#rate-limiting
-  To prevent user DDOS by user pressing F2 (for a example) user handler should be executed as a apparent apps and only once by one user?
-  Secure: check origin header to be http or https to 192.168.9.39,
-	The point here is, you have to check your websocket activity and determine rate limit: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
-###########  divide core.php to make separate php file to be included in wrapper.php to make wrapper execution more faster
-  See how zabbix is installed to have a point of view of serious application
-###########  Big amount of users generates apparent DB records in queueviewcall function while user INIT or DELETE,
-###########    so add/delete objects in a view with 10000 users attached will generate 10000 records (record pre user) to call the view to be refreshed, its too slowly
-###########  All db operations (except handlers in wrapper.php, db config) should use the connection via user with read-only permissions to OE9. Or use rollBack at the end of read-only operation?
-###########  Use pcntl_fork in schedulerwrapper.php in order to share var scope end exlude per handler db connection in wrapper.php
-###########  All internal database structure should be stored in RAM SQL tuning
-###########  backend files: const, connect, func, main
+// Element layout
+// Todo - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
+// hiderow/hidecolumn - regexp feature with flag i for all cells in rows/columns match successful case
+// Todo - virt cell depends on oid,eid
+// Todo - sql request in 'Element Layout' section in 'value' prop should select among its view object selection, but not from all objects! (see models piechart among switches with one or zero active clients)
 
-VI-----------------------------------------------Front-end:
-###########  exlude blinking while refreshing sidebar (dont refresh in case of no changes) and smooth OD expanded to the view list
-  non table area selecting - compare event mouse coordinate from drag x1,y1 and increase/decrease drag x2,y2 coordinate so
-  smooth scrolling for rows more than 500 - event preventdefault on scroll event plus settimeout (dispatch scrolling event, 100);
-  effects at navigating images in GALLERY just like in drive.ru
-  Sort by header click for look like default element layout when header line at the top, bottom, left, right
-  One or multiple cell selecting - buffer copy as text or/and as image (like excelc cells are copied into whatsup)
-  Autonavigate command for OV, for a example single mouse click on a cell edit the element. Mouse single click command: NONE|DBLCLICK|KEYPRESS. Usefull for chats
-  helpdesk/jira/CRM example in Help context menu
-  Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog
-  Chart for the next selection:
-    hui1 space
-    hui2 space
-    hui3 space
-    hui4 space
-    displays hui1 - 100%, and 0% for others, is it right?
-  element cell style based not only oid/eid combinations, but on element cell value (so empty style attr [style=""] hides the row or styles it by some color, for a example)
-  At new OD creation use apply button CREATE DATABASE instead of CREATE
-  Favicon change with number unread msges inside the rectangle
-  OD Dialog Box - OD icon, OV icon (or ov type  icons for table, tree and so on), OV shortcut key
-  Customize scrollbars via user customization and other non-css props (for a example 'animation appearance')
-  OV open:
-    Non opened OV - just OV click: open OV in a current child or in a new child (if no any child)
-    Non opened OV - context menu 'OPEN IN A NEW WINDOW': open OV in a new child (do not forget to limit max open views). Action is grey/absent for already opend OV
-    Opened OV - bring up the child and refresh OV (bad variant 2 - bring up the child for nonactive view and refresh for active view)
-  Opera bug with mouseup event at right mouse btn release while dragging while mouse guesters enabled.
-  Dialog box confirm flag on closeesc and close krestik, confirm close via misc prop for dialog btns
-  Save current view (OV) to pdf and xls (via csv)
+// Rules
+// Todo - when a rule is rejected for the event CHANGE - old element data is set. If element data is overwriten in element layout 'value' prop, the old element data is set anyway.
+// Todo - add rule action 'do nothing' (for log only goal and some db sql actions)
 
-VII-----------------------------------------------Controller:
-###########  prevent multiple call controller on one element from one user, example: multiple key press while server didn't respond the previous event
-###########  If last log message equals previous - don't log it, just increment previous log message counter
-###########  UPDATE handler command (in a addition to SET/RESET) that creates object version only in case of at least one user-defined element change
-  EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711     https://toster.ru/q/518758   http://qaru.site/questions/190792/limiting-number-of-characters-in-a-contenteditable-div
-  Non local server (cloud) implemented handlers
-  handler command to copy data to the buffer
-  handler commands are not single line, but multiple. Controller runs first line handler, gets its data, other lines handlers may run in detached mode or may be used as a comments
-  System call 'NEWOBJECT' (to create object by user handlers)
-  CHANGE event subscribing feature to allow non-native object (another words -  object subscribes for CHANGE event of other object) elements react on
-  Put all events to text log file in /var/log
-  Controller dialog message - how to escape divider char /? May be: \/
-VIII-----------------------------------------------Presentation:
-Y-combinator
-big amount of data with faaster and quick perfomance
-data is native
-data constructor
-voting
-keep last twoversions
-don't add objects more than 100
-readonly from mark to john, but not from john to mark
-to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!
-Pagination is not implemented, use OV dirs with page ranges per view in this dir. Should i use it or app concept is to out whole selection and manage object number by its object selection? should i use page output when next portion of objects are displayed by reaching screen bottom at scrolling? So implemet object-per-page (and other features around) in user customization misc configuration
+// Object selection  
+// Todo - second and all next queries (for non Tree view types only) do query in previous query results
+
+// Front-end
+// Todo - smooth scrolling for rows more than 500 - event preventdefault on scroll event plus settimeout (dispatch scrolling event, 100);
+// Todo - Customize scrollbars via user customization and other non-css props (for a example 'animation appearance')
+// Todo - Check opera bug mouseup event at right mouse btn release while dragging while mouse guesters enabled in opera settings
+
+// Presentation
+// Todo - Y-combinator
+// Todo - big amount of data with faaster and quick perfomance
+// Todo - data is native
+// Todo - data constructor
+// Todo - voting
+// Todo - keep last twoversions
+// Todo - don't add objects more than 100
+// Todo - cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
+// Todo - to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!

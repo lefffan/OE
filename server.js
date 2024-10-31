@@ -111,7 +111,7 @@ No match - all dialog interface elements of the pad/profile path are writable`, 
 		  46: { type: 'textarea', path: 'View/id1', head: 'Object selection input args', hint: '', data: '', flag: '*' },
 		  47: { type: 'radio', path: 'View/id1', head: 'Template', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: 'Table/Tree/Map' },
 		  48: { type: 'textarea', path: 'View/id1', head: 'Layout', hint: DBCONFDIALOGHINTVIEWTEMPLATE, data: '', flag: '*' },
-		  _50: { type: 'button', path: 'Element', data: 'CREATE', expr: '/sdd/14', flag: '-+++++++++' }
+		  _50: { type: 'button', path: 'Element', data: 'CREATE DATABASE', expr: '/sdd/14', flag: '-+++++++++' }
 		 };
 
 // View pad:
@@ -129,6 +129,7 @@ No match - all dialog interface elements of the pad/profile path are writable`, 
 //     											Behaviour (auto refresh interval) 0/incorrect/undefined - never
 //     											Bring to top on event (new data, delete data, change data, every N sec)
 //     											Auto open on event (new data, every N sec)
+//												Lifetime in sec
 //		Permissions
 
 // Element pad 
