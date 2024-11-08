@@ -5,6 +5,7 @@
 // Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
 // Todo2 - When two modal appears - lower box has grey filter and that filter doesn't go away after above box gone away
 // Todo2 - Should clickable elements react to 'click' event instead of 'mousedown' (like 'button' element for a example)?
+// Todo1 - Make universal 'flag' function to manage flags in one place
 
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
@@ -391,12 +392,13 @@ class DialogBox extends Interface
 
  destructor()
  {
-  super.destructor();	// old version: clearTimeout(this.autoapplybuttontimeoutid);
+  clearTimeout(this.autoapplybuttontimeoutid);
+  super.destructor();
  }
 
  constructor(...args)
  {
-  // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
+  // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes, callback)
   args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
   args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
   args[3]['data-element'] = '_-1';
@@ -635,8 +637,8 @@ EvalElementExpression(e)
 	  if (e.selectionid !== undefined)																												// Profile selection detected
 		 {
 		  if (e.options.length === 1 && !e.head && !e.hint) return '';																				// One single profile and no head/hint? Profile selection is hidden
-	  	  if (activeoption[4].indexOf('+') !== -1) add += '<div class="itemadd" title="Clone current profile">&nbsp&nbsp&nbsp&nbsp</div>';			// Define 'clone' icon for the active profile
-	  	  if (activeoption[4].indexOf('-') !== -1) add += '<div class="itemremove" title="Remove current profile">&nbsp&nbsp&nbsp&nbsp</div>';		// Define 'remove' icon for the active profile
+	  	  if (activeoption[4].indexOf('+') !== -1) add += '<div class="itemadd" title="Clone this dialog profile">&nbsp&nbsp&nbsp&nbsp</div>';			// Define 'clone' icon for the active profile
+	  	  if (activeoption[4].indexOf('-') !== -1) add += '<div class="itemremove" title="Remove this dialog profile">&nbsp&nbsp&nbsp&nbsp</div>';		// Define 'remove' icon for the active profile
 		 }
 	  SortSelectableElementData(e.options, e.flag);																									// Sort element option for selectable types
 	 }
@@ -895,7 +897,10 @@ EvalElementExpression(e)
   if (newprofile.name[0] === CHECKEDOPTIONPREFIX) newprofile.name = newprofile.name.substring(1);															// Check profile name 1st char to get prfile active status
   for (const option of this.profilecloning.e.options)
   	  if (option[0] === newprofile.name)
-		 return new DialogBox(...MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error'));							// Cloning profile name matches new profile name? Return
+		 {
+		  new DialogBox(...MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error'));								// Cloning profile name matches new profile name? Return
+		  return;
+		 }
   newprofile.flag = (newprofile.flag || '').replaceAll(/!/g, '');																							// Remove selection-id '!' chars
   newprofile.flag = newprofile.flag.padStart(this.profilecloning.e.selectionid + newprofile.flag.length, '!');												// Add cloning profile selection id to the new profile flag to match cloning selection id
   if (newprofile.flag) newprofile.flag = '|' + newprofile.flag;
@@ -935,7 +940,7 @@ EvalElementExpression(e)
 				  {
 				   const profileelement = this.allelements[this.ProcessCloneButton()];
 				   this.RemoveProfileCloneInput();
-				   if (ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
+				   if (profileelement && ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
 				  }
 			   return {};
 	  	  case 'keydown':																									// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
@@ -996,10 +1001,21 @@ EvalElementExpression(e)
 				   break;
 				  }
 			   break;
+		  case 'textchange':
+			   target.value = JSON.stringify(arguments[1]);
+			   break;
 	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
 			   if (event.button === 0 && event.buttons === 3)															// Left button down with right button hold?
 				  {
-			   	   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;											// Sort order change for selectable element types only
+			   	   if (e.type === 'text' || e.type === 'textarea') 
+					  {
+					   let dialogdata;
+					   try { dialogdata = JSON.parse(e.data); }
+					   catch { return; }
+					   new DialogBox(dialogdata, this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' }, this.Handler.bind(this, { type: 'textchange', target: event.target}));
+					   break;
+					  }
+				   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;											// Sort order change for selectable element types only
 			   	   if (event.target.classList.contains('itemadd')) break;												// and for non profile clone icon click
 			   	   if (event.target.classList.contains('itemremove')) break;											// and for non profile remove icon click
 			   	   this.ChangeElementSortOrder(e, target);																// Right with left btn held change sort order

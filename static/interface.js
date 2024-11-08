@@ -281,7 +281,7 @@ class Interface
 	     this.elementDOM.setAttribute('data-child', this.attributes['data-child'] = this.parentchild.attributes['data-child'] + '_' + this.id);
 	     this.parentchild.childs[this.id] = this;
 	     this.parentchild.zindexes.push(this.id);
-	     this.parentchild.ChangeActive(this.id);
+		 this.parentchild.ChangeActive(this.id);
 
 		 // Position the child
 		 switch (this.props.position)
@@ -331,7 +331,7 @@ class Interface
  ToggleActiveStatus()
  {
   this.StyleActiveChild(false);
-  setTimeout(() => this.StyleActiveChild, 4 * REFRESHMININTERVAL);
+  setTimeout(this.StyleActiveChild.bind(this), 4 * REFRESHMININTERVAL);
  }
 
  // Function activates child
@@ -339,6 +339,7 @@ class Interface
  {
   if (this.activeid === id) return;											// Active child is being activated again - return
   if (this.activeid) this.childs[this.activeid].StyleActiveChild(false);	// If old active child is not me, remove the old child styling (div element shadow)
+  this.preactiveid = this.activeid;											// Active child id is to be changing to id <id>, so set last active id to current active id <this.activeid>
   if (!(this.activeid = id)) return;										// If new active child is me - do nothing. Parent child will activate me in case
   this.childs[id].StyleActiveChild();										// Make new active child shadowed
   while (true)
@@ -373,14 +374,14 @@ class Interface
 	  lg(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
-  clearTimeout(this.childs[id].buttontimeoutid);																											// Clear child timeouts
   this.childs[id].removeonhide = true;																														// Set 'removeonhide' flag to kill the child on hide
   this.childs[id].Hide();																																	// Hide and kill the child
   this.zindexes.splice(this.childs[id].zindex, 1);																											// Remove appropriate child z-index element
   for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);								// and decrement all z-index values
-  this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();																						// Activate upper child (last z-index array element)
+  if (this.preactiveid === id) this.preactiveid = 0;																										// If killing child is last active, set it to child container (zero child id)
+  if (this.activeid === id) this.childs[this.activeid = this.preactiveid].StyleActiveChild();																// Activate last active child if killing child is active. Old code version activates top child: this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();
   this.childs[id].destructor();																																// Call child desctructir
-  delete this.childs[id];																																	// Delete child object
+  delete this.childs[id];	
   if (this.childs[this.activeid].props.overlay !== 'MODAL') for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');	// and reomve css style modal filter in case of killing child is 'MODAL' overlay
  }
 
@@ -587,8 +588,8 @@ class Interface
 	 }
 
   // Another step - return for modal child exist or check mouse cursor child controls hover
-  if (modalchild) return;
   if (event.type === 'mousemove') SetMouseCursorContolsHover(child, event, childclientrect);	// Check all controls mouse cursor hover match and modify cursor for mouse moving
+  if (modalchild) return;
 
   // Last step - proccess all child controls for capture and release events for no modal child focus captured
   for (const prop in child.props.control)														// Iterate all controls of a current child to check capture/release phases

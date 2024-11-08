@@ -13,7 +13,6 @@ const ACTIVECHILDSHADOW			= '4px 4px 5px #111';
 
 const nicecolors				= [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
 const style 					= document.createElement('style'); // Style default user GUI and append style DOM element to the document head
-let app;
 
 const ICONURLFULLSCREENTURNON   = SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
 const ICONURLFULLSCREENTURNOFF  = SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();

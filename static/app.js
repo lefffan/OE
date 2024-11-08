@@ -1,14 +1,9 @@
 // Todo2 - Change application icon
 // Todo2 - Custom cursor div via css style * {cursor: none;}
 // Todo0 - Sidebar
-// Todo0 - Shemsetdinov justify src arch via require/import + move index.js to app.js 
-// Todo0 - Pass through all dialog.js to check syntax and test every dialog feature one by one code line (don't forget to check table element type with its string data JSON type to convert to object)
-// Todo0 - Make code overview for all other sources, do it the way dialogbox.js is done
-// Todo0 - DB SQL handle for OD structure
-
-// Todo0 - Make new todo.txt that was done during EOS work
-// Todo0 - Флаги функция
-// Todo0 - Configure text area as a dialog
+// Todo0 - Make module based system, see Shemsetdinov justify src arch via require/import
+// Todo0 - Make code overview for all other sources, testing every feature (don't forget to check table element type with its string data JSON type to convert to object in dialogbox.js)
+// Todo0 - DB SQL handle for OD structure, see Shemsetdinov query builder
 
 class Application extends Interface
 {
@@ -59,7 +54,7 @@ class Application extends Interface
 	     }
  }
 }
-
+let app;
 window.onload = function () { app = new Application(); }
 
 // Megacom appliance information systems
@@ -207,24 +202,23 @@ window.onload = function () { app = new Application(); }
 // Todo - Single/Multipile select as a native handler that allows to select predefined values
 // Todo - Negative queue value (the scheduler sleep for) in msec on crontab line
 // Todo - Task manager restrict call (or/and call with no task delete option) for the user in his property settings and send only active handler list instead of their wrapeed dialog structure
-// Todo - Every use event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds. The record in event/message queue is removed after the handler responce or timeout occur
+// Todo - Every user event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds. The record in event/message queue is removed after the handler responce or timeout occur
 //        Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, so controller call is not perfomed until response or timeout
 // Todo - Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog
 // Todo - Single OV click: OV is already open ? bring OV to top or refresh if already on top : open in a current view or in a new view if no any view exist.
 //		  Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
 // Todo - UPDATE handler command (in a addition to SET/RESET) creates new object version only in case of at least one user-defined element changed
 // Todo - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
-// Todo - System call 'NEWOBJECT' (to create object by user handlers) and 'COPY' to copy data to the buffer
 // Todo - Event command line are not single line, but multiple. Controller runs first line handler, gets its data, other lines handlers may run in detached mode or may be used as a comments
 // Todo - Release CHANGE event subscribing feature to allow non-native object (another words - object subscribes for CHANGE event of other object in DB) elements react on
 // Todo - Controller dialog message: how to escape divider char '/'? Via '\/'?
 // Todo - event 'VIEWREFRESH' occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event
 // Todo - How to call dialog to add new object instead of retreiving element data from vitrual object (id=-1)
-// Todo - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects
+// Todo - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects. And 'COPY' to copy data to the buffer
 // Todo - Discover new object:
 //		  Object selection: SELECT NONE
 //		  Define handler for any one element for event SCHEDULE 
-//		  In case of no any object selected in object selection process  the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
+//		  In case of no any object selected in object selection process the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
 //		 		The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
 //		  So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
 
@@ -236,7 +230,11 @@ window.onload = function () { app = new Application(); }
 
 // Rules
 // Todo - when a rule is rejected for the event CHANGE - old element data is set. If element data is overwriten in element layout 'value' prop, the old element data is set anyway.
-// Todo - add rule action 'do nothing' (for log only goal and some db sql actions)
+// Todo - add rule action 'do nothing' (for log only goal and some db sql actions), serch is continued
+// Consider EVENTTYPE and EVENTDATA macroses in query rule SELECT statement
+// Add CHANGE event new sence, so it applies at any object change. It seems it is unneseccasry, jusy imply rules checking both for events and handler system calls
+// Add alias to SET system call (PUT ADD WRITE PUSH) to add specific rules to
+// Add macros {RULEQUERY} to have opportunity to log it + ${EVENT} + ${EVENT<event_prop>}, for a example ${EVENTDATA} submit event['data']
 
 // Object selection  
 // Todo - second and all next queries (for non Tree view types only) do query in previous query results
