@@ -1,3 +1,8 @@
+import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, EFFECTSHINT, lg, MessageBox } from './constant.js';
+import { app } from './application.js';
+import { Interface } from './interface.js';
+import { DropDownList } from './dropdownlist.js';
+
 // Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
 // Todo2 - Multuiple flag * creates rounded area arount GUI element. 
 // Todo2 - Review all css props, its content props, some for builtin conf (index.html), some for configurable GUI via user customization
@@ -7,6 +12,7 @@
 // Todo2 - Should clickable elements react to 'click' event instead of 'mousedown' (like 'button' element for a example)?
 // Todo1 - Make universal 'flag' function to manage flags in one place
 
+export const EMPTYOPTIONTEXT			= ' ';
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
 const ELEMENTSERVICEPROPS				= ['id', 'options', 'selectionid', 'timer', 'timerstart', 'eventcounter', 'affect', 'prop'];
@@ -18,7 +24,6 @@ const ELEMENTALLTYPES					= ['title', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTT
 const SELECTABLEOPTIONSDIVIDER			= '/';
 const PROFILEFIELDSDIVIDER				= '|';
 const CHECKEDOPTIONPREFIX				= '!';
-const EMPTYOPTIONTEXT					= ' ';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 const DIALOGBOXMACROSSTYLE				= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
@@ -174,7 +179,6 @@ function CreateElementOptionsData(options)
  if (!Array.isArray(options)) return '';																					// Return empty string for incorrect options
  let data = '';
  for (const option of options) data += `${SELECTABLEOPTIONSDIVIDER}${option[1] ? CHECKEDOPTIONPREFIX : ''}${option[0]}`;	// Collect data for each option
- delete options;																											// Delete array copy
  return data.substring(1);																									// And return result data without 1st divider char
 }
 
@@ -234,7 +238,7 @@ function GetElementOptionByName(options, name)
 }
 
 // Functions searches in options for the checked one and return corresponded option
-function GetElementOptionByChecked(options)
+export function GetElementOptionByChecked(options)
 {
  if (!Array.isArray(options)) return;									// Return undefined in case of non array type
 
@@ -283,7 +287,7 @@ function GetEventTargetInterfaceElement(target)
  return attribute ? [attribute.substr(attribute.indexOf('_') + 1), target] : [];	// Return result array with interface element id (string after char '_') and element target (wrapped DOM element)
 }
 
-class DialogBox extends Interface
+export class DialogBox extends Interface
 {
  static style = {
 	// dialog box global css props

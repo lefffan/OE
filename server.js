@@ -75,7 +75,7 @@ The list is looked up for the users/groups one by one and when a match is found,
 the restriction type corresponding to the specified path is performed. 
 No match - all dialog interface elements of the pad/profile path are writable`, data: '' },*/
 
-		  20: { type: 'textarea', path: 'Element/New element|+|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
+		  20: { type: 'textarea', path: 'Element/New element|+*|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
 		  21: { type: 'textarea', path: 'Element/New element', head: 'Description', hint: `Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values`, data: '', flag: '*%Enter element description' },
 		  22: { type: 'checkbox', path: 'Element/New element', head: 'Type', hint: `Unique element type set implies unique 'value' property among all objects in database, so duplacated values are exluded. Element type cannot be changed after element creation`, data: 'unique' },
 		  23: { type: 'select', path: 'Element/New element', head: 'Default event profile', hint: `Specify handler profile to use it for this element all defined client events as a default one (in case of no appropriate event defined below)`, data: 'None/Content editable/Chat', flag: '*' },
@@ -91,28 +91,29 @@ For the mouse and keyboards events select modifier keys, but note that some even
 		  34: { type: 'radio', path: `Element/New element/New event/Handler stdout (correct JSON)|!|Handler output processing|Select processing action for handler stdout and stderr output. For correct-JSON (with correct "cmd" property) 'Apply' option execute client side command "cmd". 
 See appropriate help section for details. 'Ignore' option does nothing and ignores any output. 
 'Set' option wraps handler output to the 'SET' system call: '{ "cmd": "SET", "data": "<handler output>"}'. 
-'Message' option displays handler output on client side message box`, data: '!Apply/Message/Ignore' },
+'Message' option displays handler output on client side message box`, data: '!Apply/Message/Ignore', flag: '*' },
 		  //35: { type: 'checkbox', path: 'Element/New element/New event/Handler stdout (correct JSON)|!', data: 'Log', flag: '*' },
-		  36: { type: 'radio', path: `Element/New element/New event/Handler stdout (incorrect JSON)|!|Handler output processing`, data: 'Set/Message/!Ignore' },
+		  36: { type: 'radio', path: `Element/New element/New event/Handler stdout (incorrect JSON)|!|Handler output processing`, data: 'Set/Message/!Ignore', flag: '*' },
 		  //37: { type: 'checkbox', path: 'Element/New element/New event/Handler stdout (incorrect JSON)|!', data: 'Log', flag: '*' },
-		  38: { type: 'radio', path: 'Element/New element/New event/Handler stderr|!|Handler output processing', data: 'Set/Message/!Ignore' },
+		  38: { type: 'radio', path: 'Element/New element/New event/Handler stderr|!|Handler output processing', data: 'Set/Message/!Ignore', flag: '*' },
 		  //39: { type: 'checkbox', path: 'Element/New element/New event/Handler stderr|!', data: 'Log', flag: '*' },
 
 		  40: { type: 'text', path: 'View/New view|+|View profile|Set view properties and clone this dialog profile to create new view/General', data: '', flag: '%Enter view name', head: 'Name', hint: `Enter here new view name to create or change existing one. 
 First '_' character in a view name string keeps unnecessary views off sidebar, so they can be called from element handlers only. Views hiding doesn't affect to its access rights` },
 		  41: { type: 'textarea', path: 'View/New view/General||View settings', head: 'Description', hint: `Describe here view purpose and usage`, data: '' },
-		  42: { type: 'select', path: 'View/New view/General', head: 'Shortcut key', hint: `Select key combination to call the view`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
+		  42: { type: 'checkbox', path: 'View/New view/General|', head: 'Hide from sidebar', hint: `The option keeps unnecessary views off sidebar. Hidden views may be called from event handlers and via shortcut keys yet`, data: 'Hide', flag: '*' },
+		  43: { type: 'select', path: 'View/New view/General', head: 'Shortcut key', hint: `Select key combination to call the view`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
 
 		  43: { type: 'textarea', path: 'View/New view/Selection', head: 'Selection query', hint: 'Object selection is a part of the sql query string, that selects objects for the view. Empty string selection - all objects, error selection - no objects. See appropriate help section for details', data: '' },
 		  44: { type: 'text', path: 'View/New view/Selection', head: 'Object selection property name', hint: '', data: 'value', },
 		  45: { type: 'text', path: 'View/New view/Selection', head: 'Object selection property max chars', hint: '', data: '', },
 		  46: { type: 'text', path: 'View/New view/Selection', head: 'Object selection link', hint: '', data: '', },
-		  47: { type: 'textarea', path: 'View/New view/Selection', head: 'Object selection input args', hint: '', data: '' },
+		  47: { type: 'textarea', path: 'View/New view/Selection', head: 'Object selection input args', hint: '', data: '', flag: '*' },
 
 		  47: { type: 'radio', path: 'View/New view/Layout', head: 'Template', hint: `Select object view template from 'Table' (this template displays objects with its elements in a form of a table, element JSON property 'value' is displayed by default), 
 'Tree' (displays the tree of objects acting as a nodes connected with each other via 'link' element property) or 
 'Map' (objects are placed on geographic map by 'geo' element property value)`, data: '!Table/Tree/Map' },
-		  48: { type: 'textarea', path: 'View/New view/Layout', head: 'Layout', hint: `Element layout defines what elements should be displayed and how for the selected template. Empty layout is a default behaviour, see appropriate help section for details.`, data: '' },
+		  48: { type: 'textarea', path: 'View/New view/Layout', head: 'Layout', hint: `Element layout defines what elements should be displayed and how for the selected template. Empty layout is a default behaviour, see appropriate help section for details.`, data: '', flag: '*' },
 
 		  50: { type: 'select', path: 'View/New view/Appearance', head: 'Start layout', data: 'sidebar fit/cascade/random/new pad', hint: 'Select view window position' },
 		  51: { type: 'radio', path: 'View/New view/Appearance', head: 'Size', data: '!Auto/Full screen/Fixed' },
@@ -121,10 +122,10 @@ First '_' character in a view name string keeps unnecessary views off sidebar, s
 		  54: { type: 'text', path: 'View/New view/Appearance', head: 'Auto refresh interval', data: '' },
 		  55: { type: 'checkbox', path: 'View/New view/Appearance', head: 'Bring to top on event', data: 'new data/data delete/data change' },
 		  56: { type: 'checkbox', path: 'View/New view/Appearance', head: `Auto open on event`, data: 'new data' },
-		  57: { type: 'text', path: 'View/New view/Appearance', head: 'Lifetime', data: '' },
+		  57: { type: 'text', path: 'View/New view/Appearance', head: 'Lifetime', data: '', flag: '*' },
 
 		  60: { type: 'textarea', path: 'View/New view/Permissions', head: `Read access restricted users/groups`, data: '' },
-		  61: { type: 'textarea', path: 'View/New view/Permissions', head: `Write access restricted users/groups`, data: '' },
+		  61: { type: 'textarea', path: 'View/New view/Permissions', head: `Write access restricted users/groups`, data: '', flag: '*' },
 
 		  71: { path: 'Rule/New rule|+|Rule profile name|Add new rule profile name. Rule profiles are tested in alphabetical order until the query is successful', type: 'textarea', head: 'Rule message', data: '', hint: `Rule message is a match case message displayed at client side dialog box and optionally logged. For non-empty messages only. Macroses are allowed`, flag: '*' }, 
 		  72: { path: 'Rule/New rule', type: 'select', head: 'Rule action', data: '!Accept/Reject/Pass', hint: `'Accept' action permits incoming event passes it to the controller, 'Reject' action cancels it, 'Pass' action does nothing and doesn't terminate the search continuing from the next rule, useful for event logging and rule disabling without removing` }, 
@@ -133,7 +134,7 @@ Rule query is a list of one by line truncated SQL query strings without a SELECT
 Non-empty and non-zero result of all query strings - the match is successful; any empty, error or zero char '0' result - no match. When a match is found, the action corresponding to the matching rule profile is performed, no any rule profile match - no any action made. 
 Query may contain any macroses such as user or system defined ones (${'${'}oid}, ${'${'}eid}, ${'${'}OD}, ${'${'}OV}, ${'${'}event}, ${'${'}modifier}, etc), so that rules may be applied to the specified events/objects/elements/views only, see 'macros' and 'Rules' help section for details. 
 Be aware of using rules for unspecified events, it may cause CPU overload due to every event query call. Examples: ` }, 
-		  74: { path: 'Rule/New rule', type: 'checkbox', data: 'Log rule message' }, 
+		  74: { path: 'Rule/New rule', type: 'checkbox', data: 'Log rule message', flag: '*' }, 
 
 		  _100: { type: 'button', path: 'Element', data: 'CREATE DATABASE' },
 		  z101: { head: 'background: rgb(227,125,87);', type: 'button', path: 'Element', data: 'CANCEL' }

@@ -1,3 +1,10 @@
+import { GetStyleInnerHTML } from './constant.js';
+import { Interface } from './interface.js';
+import { Connection } from './connection.js';
+import { DialogBox } from './dialogbox.js';
+import { ContextMenu } from './contextmenu.js';
+import { Sidebar } from './sidebar.js';
+
 // Todo2 - Change application icon
 // Todo2 - Custom cursor div via css style * {cursor: none;}
 // Todo0 - Sidebar
@@ -5,7 +12,7 @@
 // Todo0 - Make code overview for all other sources, testing every feature (don't forget to check table element type with its string data JSON type to convert to object in dialogbox.js)
 // Todo0 - DB SQL handle for OD structure, see Shemsetdinov query builder
 
-class Application extends Interface
+export class Application extends Interface
 {
  static style = {
  				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
@@ -16,10 +23,14 @@ class Application extends Interface
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
  constructor()
  {
-  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, ContextMenu.style, SideBar.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
+  const style = document.createElement('style');
+  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, ContextMenu.style, Sidebar.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
   document.head.appendChild(style);
-  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } } }, { style: `background-color: ${nicecolors[7]};` });
+  
+  const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
+  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } } }, { style: `background-color: ${NICECOLORS[7]};` });
   this.eventcounter = 0;
+
   document.addEventListener('keydown', Interface.EventListener);
   document.addEventListener('keyup', Interface.EventListener);
   document.addEventListener('mousedown', Interface.EventListener);
@@ -54,7 +65,8 @@ class Application extends Interface
 	     }
  }
 }
-let app;
+
+export let app;
 window.onload = function () { app = new Application(); }
 
 // Megacom appliance information systems
@@ -124,6 +136,7 @@ window.onload = function () { app = new Application(); }
 // Todo - another native object element like 'datetime' is 'timestamp' to fix TSDB data changes
 // Todo - Every user defined element (eid1, eid2..) has its external data like streams (cameras, streams), files (documents, audio, video, image) and TSDB (data is set via system call SET<TSDBID>])
 //		  App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props, streams, filesm TSDB
+// Todo - output OD info (view number, element number.. etc) in OD configuration dialog
 
 // View
 // Todo - all view changes comes to clint side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.

@@ -1,6 +1,8 @@
+import { Interface } from './interface.js';
+
 // Todo0 - handle context key menu creation
 
-class ContextMenu extends Interface
+export class ContextMenu extends Interface
 {
  static style = {
 		       ".contextmenu": { "background-color": "#F3F3F3;", "border": "solid 1px #dfdfdf;", "padding": "10px 0;", "border-radius": "2px;", "min-width": "200px;", "white-space": "nowrap;" },

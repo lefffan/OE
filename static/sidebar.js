@@ -1,3 +1,7 @@
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter } from './constant.js';
+import { Interface } from './interface.js';
+import { ContextMenu } from './contextmenu.js';
+
 // Todo0 - No sort icon for empty db
 // Todo0 - predefined all classes: view0-100
 // Todo0 - sorting
@@ -9,10 +13,10 @@
 // Todo0 - search among folders, views and dbs
 // Todo0 - Escape chars '<>' (or may be others) in OV/OD names
 
-class SideBar extends Interface
+export class Sidebar extends Interface
 {
  static style = {
-                 ".sidebar": { "border": "none;", "background-color": "rgb(15,85,149);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;" },
+                 ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;" },
                  ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
                  ".sidebar tr:hover": { "background-color": "#3568AF;", "cursor": "pointer;", "margin": "100px 100px;" },
                  ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
@@ -184,14 +188,14 @@ class SideBar extends Interface
  }
 }
 
-SideBar.style['.view0'] = {
+Sidebar.style['.view0'] = {
          "background-image": SVGUrlHeader() + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(1,110,1)') + SVGRect(2, 2, 18, 18, 3, 65, 'RGB(1,150,1)') + SVGUrlFooter(),
          "background-repeat": `no-repeat !important;`,
          "background-position": `center;`,
          "background-color": `transparent;`,
          "padding": `0px 10px;`,
 };
-SideBar.style['.viewonline'] = {
+Sidebar.style['.viewonline'] = {
      "background-image": SVGUrlHeader() + SVGRect(6, 6, 10, 10, 1, 105, 'RGB(185,122,87)', 'none', '2') + SVGUrlFooter(), //RGB(185,122,87) RGB(1,130,0)
      "background-repeat": `no-repeat !important;`,
      "background-position": `center;`,
@@ -199,14 +203,14 @@ SideBar.style['.viewonline'] = {
      "padding": `0px 10px;`,
 };
 
-SideBar.style['.folderwrapped'] = {
+Sidebar.style['.folderwrapped'] = {
      "background-image": SVGUrlHeader() + SVGRect(2, 2, 15, 15, 3, 105, 'RGB(77,129,7)', 'RGB(77,129,7)', '2') + SVGRect(6, 6, 15, 15, 2, 105, 'RGB(77,129,7)', 'none', '3') + SVGUrlFooter(),
      "background-repeat": `no-repeat !important;`,
      "background-position": `center;`,
      "background-color": `transparent;`,
      "padding": `0px 10px;`,
 };
-SideBar.style['.folderunwrapped'] = {
+Sidebar.style['.folderunwrapped'] = {
      "background-image": SVGUrlHeader() + SVGRect(0, 0, 18, 18, 2, 105, 'RGB(140,123,23)', 'none', '2') + SVGRect(4, 4, 18, 18, 2, '0 15 65', 'RGB(140,123,23)', 'none', '2') + SVGUrlFooter(),
      "background-repeat": `no-repeat !important;`,
      "background-position": `center;`,
@@ -214,7 +218,7 @@ SideBar.style['.folderunwrapped'] = {
      "padding": `0px 10px;`,
 };
 
-SideBar.style['.databaseunwrapped'] = {
+Sidebar.style['.databaseunwrapped'] = {
      "background-image": SVGUrlHeader() +  SVGPath('M6 12L18 12', 'rgb(1,130,1)', '6') + SVGUrlFooter(),
      "background-repeat": `no-repeat !important;`,
      "background-position": `center;`,
@@ -222,7 +226,7 @@ SideBar.style['.databaseunwrapped'] = {
      "padding": `0px 10px;`,
 };
 
-SideBar.style['.databasewrapped'] = {
+Sidebar.style['.databasewrapped'] = {
      "background-image": SVGUrlHeader() +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 5) + SVGUrlFooter(),
      "background-repeat": `no-repeat !important;`,
      "background-position": `center;`,
@@ -230,7 +234,7 @@ SideBar.style['.databasewrapped'] = {
      "padding": `0px 10px;`,
 };
 
-SideBar.style['.databasewrappedempty'] = {
+Sidebar.style['.databasewrappedempty'] = {
      "background-image": SVGUrlHeader() +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 5) + SVGUrlFooter(),
      "background-repeat": `no-repeat !important;`,
      "background-position": `center;`,

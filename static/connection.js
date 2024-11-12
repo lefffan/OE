@@ -1,6 +1,12 @@
+import { NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { Interface } from './interface.js';
+import { DialogBox } from './dialogbox.js';
+import { ContextMenu } from './contextmenu.js';
+import { Sidebar } from './sidebar.js';
+
 const SOCKETADDRES = 'ws://127.0.0.1:8002';
 
-class Connection extends Interface
+export class Connection extends Interface
 {
  destructor()
  {
@@ -34,7 +40,7 @@ class Connection extends Interface
 
  OnOpenSocket()
  {
-  this.sidebar = new SideBar(null, this);
+  this.sidebar = new Sidebar(null, this);
  }
 
  OnCloseSocket()

@@ -1,6 +1,11 @@
+import { AdjustString, HTMLINNERENCODEMAP } from './constant.js';
+import { app } from './application.js';
+import { Interface } from './interface.js';
+import { GetElementOptionByChecked, EMPTYOPTIONTEXT } from './dialogbox.js';
+
 // Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 
-class DropDownList extends Interface
+export class DropDownList extends Interface
 {
  constructor(options, dialogbox, selectdiv)
  {

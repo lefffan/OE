@@ -1,3 +1,6 @@
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { app } from './application.js';
+
 // Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
 // Todo1 - Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
 // Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available). Finish child controls (icons pos, dialog interaction)
@@ -7,6 +10,12 @@
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
 const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
+const ICONURLFULLSCREENTURNON 		= SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
+const ICONURLFULLSCREENTURNOFF		= SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
+const ICONURLCLOSE              	= SVGUrlHeader() + SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + SVGUrlFooter();
+const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
+const REFRESHMININTERVAL			= 50;
+const ELEMENTPUSHOFFSET				= 3;
 
 // Function processes child response event. Nested event prop (event.event) is passed to the parent child handler
 function ProcessChildEvent(child, event)
@@ -167,7 +176,7 @@ function SetMouseCursorContolsHover(child, event, childclientrect)
  if (!isChanged) document.body.style.cursor = 'auto';																						// Set default cursor for no any cursor changed
 }
 
-class Interface
+export class Interface
 {
  destructor()
  {
@@ -617,3 +626,17 @@ class Interface
 	  }
  }
 }
+
+const CHILDCONTROLTEMPLATES     = {
+	fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+	fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
+	closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
+	closeesc: { captureevent: 'keydown', releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
+	resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
+	resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
+	resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
+	push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
+	drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
+	default: { callback: [] }, 
+   }
+
