@@ -92,7 +92,7 @@ export class Sidebar extends Interface
           case 'CONTEXTMENU':
                if (event.data[0] === 'New Database') this.parentchild.CallController({type: 'New Database'});
                break;
-          case 'SIDEBARSET': // event = { type: 'SIDEBARSET', odid:, ov{ovid}{pathid}: }
+          case 'SIDEBARREFRESH': // event = { type: 'SIDEBARREFRESH', odid:, ov{ovid}{pathid}: }
                this.SideBarAdd(event.path, event.odid);
                for (const ovid in event.ov) 
                    for (const path in event.ov[ovid]) 

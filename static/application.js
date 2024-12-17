@@ -111,6 +111,7 @@ window.onload = function () { app = new Application(); }
 //		  Automatic preload client data (switch, port, ip, geo addr, contacts) at order/request creation
 // Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
 // Todo - Paraga mail functional  
+// Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata
 
 // Application architecture
 // Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
@@ -209,6 +210,7 @@ window.onload = function () { app = new Application(); }
 // 		  In case of default event profile specified the user event is handle by element event handler and in case of absent one - by default profile event handler
 //		  Example: create 'chat' or 'excel' event profile and set 'excel' as a default one for needful elements. Then these element interaction will act as an excel manner with KEYPRESS and F2 editing cell, DEL deleting cell text and etc..
 // Todo - Functions to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
+
 
 // Controller and event handlers
 // Todo - Handler cmd line macroses (replacements) - <oid>, <eid>, <date>, <OD>, <OV>, <ODid>, <OVid>

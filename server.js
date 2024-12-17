@@ -1,3 +1,9 @@
+const http = require('http');
+const fs = require('fs');
+const ws = require('ws');
+const { Pool } = require('pg');
+
+
 // Todo  (undefined todo status) - deploy production via nginx reverse proxy (balancier) and other features in youtube channel YfD: https://www.youtube.com/watch?v=77h-_SytDhM
 // Todo0 (necessary todo) - responce for necessary js files only!
 // Todo0 (necessary todo) - set secure server via https instead of http
@@ -12,10 +18,34 @@
 // Todo0 - auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
 // Todo0 - Postgres https://postgrespro.ru/docs/postgresql/14/sql-createtableas https://postgrespro.ru/windows https://stackoverflow.com/questions/64439597/ways-to-speed-up-update-postgres-to-handle-high-load-update-on-large-table-is-i https://www.crunchydata.com/blog/tuning-your-postgres-database-for-high-write-loads
 //			https://serverfault.com/questions/117708/managing-high-load-of-a-postgresql-database
-// Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
+// Todo0 - Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
+// Todo0 - NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
+// Todo0 - step1 (head_table: serial id, DIALOG JSON; uniq_table: serial id, value; data_table: serial id, date, user, version, eid1, eid1)
+// Todo0 - scrypt from openssl (passwords hashing)
+// npm install pg
 
 
+// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
+// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
+// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
 // +--------+                                            +------------+                                   +---------+                                     
+// |        |  case No Auth Token:  		    		 |            |                               ... |         |                
+// |        |  {type LOGIN, user, pass} (POST) -> 	 	 |            |                               ... |         |                
+// |        |                      <- {type TOKEN, auth} |            |                                   |         |                
+// |        |                        <- {type WRONGPASS} |            |                                   |         |                
+// |        |                                     		 |            |                                   |         |                
+// |        |  case Auth Token with no WS:        		 |            |                               ... |         |                
+// |        |  {type GETWS, auth} (POST) ->				 |            |                               ... |         |                
+// |        |                  <- {type SETWS, ip, port} |            |                                   |         |                
+// |        |        		 <- {type: 'UNAUTH|EXPIRED'} |            |                                   |         |                
+// |        |                                     		 |            |                                   |         |                
+// |        |  case Auth Token with WS: 	       		 |            |                               ... |         |                
+// |        |  {type <any-event>, auth} (WS)			 |            |                               ... |         |                
+// |        |        		 <- {type: 'UNAUTH|EXPIRED'} |            |                                   |         |                
+// |        |                                     		 |            |                                   |         |                
+// |        |  case Auth Token with/out WS:        		 |            |                                   |         |                
+// |        |  {type LOGOUT, auth}                		 |            |                               ... |         |                
+// |        |                                     		 |            |                               ... |         |                
 // |        | User events STEP1--->                      |            | User events STEP2--->             |         |                
 // |        |   Context menu (INIT|DELETE)               |            |   ---||---                        |         |                
 // |        |   Confirmation (CONFIRM|CONFIRMDIALOG)     |            | Controller event:                 |         |                
@@ -77,7 +107,7 @@ No match - all dialog interface elements of the pad/profile path are writable`, 
 
 		  20: { type: 'textarea', path: 'Element/New element|+*|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
 		  21: { type: 'textarea', path: 'Element/New element', head: 'Description', hint: `Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values`, data: '', flag: '*%Enter element description' },
-		  22: { type: 'checkbox', path: 'Element/New element', head: 'Type', hint: `Unique element type set implies unique 'value' property among all objects in database, so duplacated values are exluded. Element type cannot be changed after element creation`, data: 'unique' },
+		  22: { type: 'checkbox', path: 'Element/New element', head: 'Type', hint: `Unique element type forces specified element for all objects in database to contain uniq values (of element JSON "value" property) only, so duplicated values are excluded and cause an error. Element type cannot be changed after element creation`, data: 'unique' },
 		  23: { type: 'select', path: 'Element/New element', head: 'Default event profile', hint: `Specify handler profile to use it for this element all defined client events as a default one (in case of no appropriate event defined below)`, data: 'None/Content editable/Chat', flag: '*' },
 		  24: { type: 'select', path: 'Element/New element/New event|+-|Event', head: 'Select client event', hint: `Select client event and clone this dialog profile to create new event the handler below will be called on. 
 For the mouse and keyboards events select modifier keys, but note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved for service purposes and do not cancel default client side (browser) behaviour, so may never occur`, data: CLIENTEVENTS.join('/') },
@@ -140,9 +170,14 @@ Be aware of using rules for unspecified events, it may cause CPU overload due to
 		  z101: { head: 'background: rgb(227,125,87);', type: 'button', path: 'Element', data: 'CANCEL' }
 		 };
 
-const http = require(`http`);
-const fs = require(`fs`);
-const ws = require('ws');
+
+const pool = new Pool({
+	host: '127.0.0.1',
+	port: 5433,
+	database: 'OE',
+	user: 'postgres',
+	password: '123',
+});
 
 const wsclients = {};
 let wsclientindex = 0;
@@ -153,16 +188,36 @@ function lg(...data)
  console.log(...data);
 }
 
-staticdocs = { '/app.js': '/static/app.js', '/connection.js': '/static/connection.js', '/contextmenu.js': '/static/contextmenu.js', '/dialogbox.js': '/static/dialogbox.js', '/' : '/static/index.html', '/interface.js': '/static/interface.js', '/window.js': '/static/window.js' };
+const staticdocs = {
+			   '/application.js': '/static/application.js',
+			   '/connection.js': '/static/connection.js',
+			   '/constant.js': '/static/constant.js',
+			   '/contextmenu.js': '/static/contextmenu.js',
+			   '/dialogbox.js': '/static/dialogbox.js',
+			   '/dropdownlist.js': '/static/dropdownlist.js',
+			   '/' : '/static/index.html',
+			   '/interface.js': '/static/interface.js',
+			   '/sidebar.js': '/static/sidebar.js',
+			  };
 
-http.createServer((req, res) => {
-if (req.method === 'GET' && staticdocs[req.url])
-   {
- res.writeHeader(200, req.url === '/' ? {'Content-Type': 'text/html'} : {'Content-Type': 'application/javascript'});
- res.write(fs.readFileSync(__dirname + staticdocs[req.url], 'utf8'));
-//    res.end(404);
-//    return;
-   }
+http.createServer((req, res) =>
+{
+ switch (req.method)
+		{
+		 case 'GET':
+			  if (!staticdocs[req.url]) break;
+ 	 		  res.writeHeader(200, req.url === '/' ? {'Content-Type': 'text/html'} : {'Content-Type': 'application/javascript'});
+ 	 		  res.write(fs.readFileSync(__dirname + staticdocs[req.url], 'utf8'));
+			  res.end();
+			  return;
+		 case 'POST':
+			  if (req.url !== '/') break;
+ 	 		  res.writeHeader(200, {'Content-Type': 'text/html'});
+ 	 		  res.write('huimya');
+			  res.end();
+			  return;
+    	}
+ res.writeHeader(400);
  res.end();
 }).listen(8001);
 
@@ -185,7 +240,7 @@ function WSMessageProcess(msg)
 	      this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));
 	      break;
 	 case 'New Database':
-	      this.send(JSON.stringify({ type: 'SIDEBARSET', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}}));
+	      this.send(JSON.stringify({ type: 'SIDEBARREFRESH', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}}));
 	      break;
 	}
 }
@@ -203,3 +258,13 @@ function WSNewConnection(client)
  client.on('message', WSMessageProcess);
  client.on('error', WSError);
 }
+
+
+// CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
+// SELECT current_database(); SELECT current_schema(); SELECT current_user;
+// \l list databases
+// \dt [*.*] list tables [of all schemas]
+// CREATE TABLE IF NOT EXISTS uniq_1(); DROP TABLE uniq_1;
+// ALTER TABLE uniq_1 ADD COLUMN id2 INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY (START 3);
+// ALTER TABLE uniq_1 ADD COLUMN edi1 VARCHAR(50) UNIQUE;
+// CREATE INDEX CONCURRENTLY ON uniq_1 (eid1);

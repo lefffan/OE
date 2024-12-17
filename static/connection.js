@@ -1,4 +1,4 @@
-import { NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { NODOWNLINKNONSTICKYCHILDS, lg } from './constant.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
@@ -61,9 +61,12 @@ export class Connection extends Interface
 				   case 'Test Dialog':
                             this.CallController({type: 'Test Dialog'});
 					   break;
+				   case 'Help':
+                            Hujax("/", { method: 'POST', body: JSON.stringify({name: 'John'}), headers: { 'Content-Type': 'application/json; charset=UTF-8'} });
+					   break;
 				  }
 	          break;
-	     case 'SIDEBARSET':
+	     case 'SIDEBARREFRESH':
 	          this.sidebar.Handler(event);
 	          break;
 	     case 'DIALOG':
@@ -78,4 +81,11 @@ export class Connection extends Interface
   catch {}
   //if (this.socket.readyState === 3) this.CreateWebSocket();
  }
+}
+
+async function Hujax(url, options)
+{
+let response = await fetch(url, options);
+let result = await response.text();
+ lg(result);
 }
