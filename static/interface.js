@@ -5,7 +5,7 @@ import { app } from './application.js';
 // Todo1 - Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
 // Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available). Finish child controls (icons pos, dialog interaction)
 // Todo0 - vertical and horizontal scrollbar intersection is white background, fix it
-// Todo2 - Dragging child with right btn hold moved neighbor childs
+// Todo2 - Dragging child with right btn hold moves neighbor childs
 
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
