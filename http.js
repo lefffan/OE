@@ -19,23 +19,25 @@ const staticdocs = {
     '/sidebar.js': '/static/sidebar.js',
    };
 
-http.createServer((req, res) =>
+http.createServer(Connection).listen(8001);
+
+function Connection(req, res)
 {
-switch (req.method)
-{
-case 'GET':
-   if (!staticdocs[req.url]) break;
-     res.writeHeader(200, req.url === '/' ? {'Content-Type': 'text/html'} : {'Content-Type': 'application/javascript'});
-     res.write(fs.readFileSync(__dirname + staticdocs[req.url], 'utf8'));
-   res.end();
-   return;
-case 'POST':
-   if (req.url !== '/') break;
-     res.writeHeader(200, {'Content-Type': 'text/html'});
-     res.write('huimya');
-   res.end();
-   return;
+ switch (req.method)
+        {
+         case 'GET':
+              if (!staticdocs[req.url]) break;
+              res.writeHeader(200, req.url === '/' ? {'Content-Type': 'text/html'} : {'Content-Type': 'application/javascript'});
+              res.write(fs.readFileSync(__dirname + staticdocs[req.url], 'utf8'));
+              res.end();
+              return;
+         case 'POST':
+              if (req.url !== '/') break;
+              res.writeHeader(200, {'Content-Type': 'text/html'});
+              res.write('huimya');
+              res.end();
+              return;
+        }
+ res.writeHeader(400);
+ res.end();  
 }
-res.writeHeader(400);
-res.end();
-}).listen(8001);
