@@ -1,11 +1,11 @@
 // Todo  (undefined todo status) - deploy production via nginx reverse proxy (balancier) and other features in youtube channel YfD: https://www.youtube.com/watch?v=77h-_SytDhM
-// Todo0 (necessary todo) - responce for necessary js files only!
 // Todo0 (necessary todo) - set secure server via https instead of http
 // Todo1 (deffered todo)
 // Todo2 (questionable todo) - correct server create due to https://ru.stackoverflow.com/questions/1144243/Как-написать-сервер-который-отдаёт-файлы-из-папки
 
 import http from 'http';
 import fs from 'fs';
+import { GenerateRandomString, controller, lg } from './main.js';
 
 const staticdocs = {
     '/application.js': '/static/application.js',
@@ -26,18 +26,37 @@ function Connection(req, res)
  switch (req.method)
         {
          case 'GET':
-              if (!staticdocs[req.url]) break;
-              res.writeHeader(200, req.url === '/' ? {'Content-Type': 'text/html'} : {'Content-Type': 'application/javascript'});
-              res.write(fs.readFileSync(__dirname + staticdocs[req.url], 'utf8'));
-              res.end();
-              return;
+              if (staticdocs[req.url])
+                 {
+                  res.writeHeader(200, req.url === '/' ? {'Content-Type': 'text/html'} : {'Content-Type': 'application/javascript'});
+                  res.write(fs.readFileSync(import.meta.dirname + staticdocs[req.url], 'utf8'));
+                 }
+               else
+                 {
+                  res.writeHeader(400);
+                 }
+              res.end();  
+              break;
          case 'POST':
-              if (req.url !== '/') break;
-              res.writeHeader(200, {'Content-Type': 'text/html'});
-              res.write('huimya');
-              res.end();
-              return;
+              let postdata = '';
+              req.on('data', (chunk) => { postdata += chunk.toString(); }); 
+              req.on('end', () => { FromClient(postdata, res); }); 
+              break;
         }
- res.writeHeader(400);
- res.end();  
+}
+
+function FromClient(event, res)
+{
+ let response;
+ event = JSON.parse(event);
+ switch (event.type)
+        {
+         case 'LOGIN':
+              res.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
+              // Todo0 - Compare here user/pass from event.username and event.password from corresponded ones in DB. If match, send back event 'WEBSOCKET' for the client connect wss or login error: response = { type: 'LOGINERROR' };
+              response = { type: 'CREATEWEBSOCKET', username: event.username, userid: '0', protocol: 'ws', ip: '127.0.0.1', port: '8002', authcode: controller.AddClinetAuthCode(GenerateRandomString(12)) };
+              break;
+        }
+ res.write(JSON.stringify(response));
+ res.end()
 }

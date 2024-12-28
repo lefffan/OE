@@ -12,10 +12,6 @@
 // SELECT current_database(); SELECT current_schema(); SELECT current_user;
 // \l list databases
 // \dt [*.*] list tables [of all schemas]
-// CREATE TABLE IF NOT EXISTS uniq_1(); DROP TABLE uniq_1;
-// ALTER TABLE uniq_1 ADD COLUMN id2 INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY (START ${PRIMARYKEYSTARTVALUE});
-// ALTER TABLE uniq_1 ADD COLUMN edi1 VARCHAR(50) UNIQUE;
-// CREATE INDEX CONCURRENTLY ON uniq_1 (eid1);
 
 import pg from 'pg';
 const { Pool, Client }     = pg
@@ -111,7 +107,7 @@ export class DatabaseBroker
   return clause;
  }
  
- Then(Callback)
+ Then(Callback, mode)
  {
   let query = '';
 
@@ -143,7 +139,7 @@ export class DatabaseBroker
                    break;
                   }
           case 'WRITE':
-               // Change existing table row (WHERE clause is present for signs.length > 0) else insert new table row (WHERE clause is not present for zero signs.length)
+               // signs.length is more then zero, so WHERE clause is present, so updating existing row. Otherwise insert new table row (WHERE clause is not present for zero signs.length)
                if (this.signs.length)
                   {
                    query = `UPDATE ${this.table} SET ${this.Join(',', '=')} WHERE ${this.Join(' AND ')}`;

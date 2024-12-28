@@ -1,11 +1,79 @@
-// Todo0 - NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
-// Todo0 - Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
-// Todo0 - scrypt from openssl (passwords hashing)
-// Todo0 - auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
+// Todo0 - Secure wss https://www.npmjs.com/package/ws#external-https-server
+// Todo0 - Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
 
-import {} from './http.js';
-import {} from './wss.js';
-import {DatabaseBroker} from './databasebroker.js';
+import { WebSocketServer } from 'ws';
+import { DatabaseBroker } from './databasebroker.js';
+import { controller, testdata, lg } from './main.js';
+
+const wss = new WebSocketServer({ port: 8002 });
+wss.on('connection', WSNewConnection);
+ 
+function WSMessageProcess(msg)
+{
+ // msg - incoming message from the client side
+ // this - ws connection object that is passed first at websocket init and stored in <clients> map object. To send data back to the client side use this.send('...'),
+ msg = JSON.parse(msg);
+ lg(msg)
+ if (!msg || typeof msg !== 'object' || !msg['type']) return;
+ if (msg['type'] !== 'LOGIN' && !controller.clients.get(this).auth)
+    {
+     this.send(JSON.stringify({ type: 'LOGINERROR', data: 'Unauthorized access attempt detected, please relogin!' }));
+     this.terminate();
+     return;
+    }
+
+ switch (msg['type'])
+	    {
+	     case 'New Database':
+              //new DatabaseBroker().ShowTables().Then();
+	          this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));
+	          break;
+	     case 'SIDEBARREFRESH':
+	          this.send(JSON.stringify({ type: 'SIDEBARREFRESH', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}}));
+	          break;
+	     case 'LOGIN':
+              if (controller.clientauthcodes[msg.authcode + 'a'])
+                 {
+                  delete controller.clientauthcodes[msg.authcode];
+                  controller.clients.get(this).auth = true;
+	              this.send(JSON.stringify({ type: 'AUTHWEBSOCKET' }));
+                 }
+               else
+                 {
+                  this.send(JSON.stringify({ type: 'LOGINERROR', data: 'Unauthorized access attempt detected, please relogin!' }));
+                  this.terminate();
+                 }
+	          break;
+	    }
+}
+
+function WSError(err)
+{
+ console.error(err);
+}
+
+function WSNewConnection(client)
+{
+ controller.clients.set(client, { wsclient: client });
+ client.on('message', WSMessageProcess);
+ client.on('error', WSError);
+}
+
+export class Controller
+{
+ constructor()
+ {
+  this.clientauthcodes = {};
+  this.clients = new Map();
+ }
+
+ AddClinetAuthCode(string)
+ {
+  this.clientauthcodes[string] = {};
+  // Todo0 - do Settimeout to remove expired codes
+  return string;
+ }
+}
 
 // auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
 // auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
@@ -58,8 +126,3 @@ import {DatabaseBroker} from './databasebroker.js';
 // |        |                               DELETEOBJECT |            |                                   |         |                
 // |        |                                     		 |            |                                   |         |                
 // +--------+                         		             +------------+                                   +---------+                                     
-
-function lg(...data)
-{
- console.log(...data);
-}

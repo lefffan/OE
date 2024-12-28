@@ -4,7 +4,7 @@ import { ContextMenu } from './contextmenu.js';
 
 // Todo0 - No sort icon for empty db
 // Todo0 - predefined all classes: view0-100
-// Todo0 - sorting
+// Todo0 - sorting (create time, alphabetical, unreadable views)
 // Todo0 - wrapping
 // Todo0 - insert comments for all code
 // Todo0 - footnote
@@ -185,6 +185,7 @@ export class Sidebar extends Interface
   this.od = [];
   this.tree = [{ sort: '', type: 'folder', wrap: false, name: 'Root folder', id: 0 }];
   this.folderid = 0;
+  parentchild.CallController({ type: 'SIDEBARREFRESH' });
  }
 }
 

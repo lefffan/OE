@@ -1,11 +1,15 @@
-// Todo0 - secure wss https://www.npmjs.com/package/ws#external-https-server
+// Todo0 - NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
+// Todo0 - Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
+// Todo0 - scrypt from openssl (passwords hashing)
+// Todo0 - auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
 
-import { WebSocketServer } from 'ws';
-import {DatabaseBroker} from './databasebroker.js';
+import {} from './http.js';
+import {} from './controller.js';
+import { DatabaseBroker } from './databasebroker.js';
+import { Controller } from './controller.js';
 
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
-
-const testdata = {
+export const testdata = {
     11: { type: 'title', path: 'Database', data: 'New Database Configuration' },
     12: { type: 'text', path: 'Database', head: 'Database name', data: '', flag: '*%Enter new database name', hint: `Enter new database name full path in next format: folder1/../folderN/dbname. 
 Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last seprated name is always treated as a database name, others before - as a folders. Empty folders are ignored.` },
@@ -18,18 +22,6 @@ Folders are optional and created automatically in a sidebar db hierarchy. Leadin
 Each one may be used both for informative purposes and for any constant definition. You may use these constants in any database configuration settings via js style quoted expression \${<macros name>}. 
 For a example, macros name 'Description' may have some text that describes some useful database info` },
     19: { type: 'textarea', path: 'Database/New macros', data: '', head: 'Macros description', flag: '*' },
-    /*16: { type: 'text', path: 'Database/New path|!+%Enter new path name|Path list', head: 'Database configuration structure profile path', hint: `Each application dialog has its JSON format structure, 
-so this database configuration dialog JSON can be splited to interface elements (each json property represents dialog interface element, see 'Dialog' help section) 
-to apply some restrictions to (via interface element profile path). Example: path </Element> with 'readonly' restriction type for the user '!root' denies any changes in 'Element' pad for all users except root`, data: '' },
-    17: { type: 'radio', path: 'Database/New path|!%Enter new path name', head: 'Restriction type', data: 'hidden/readonly/!writable', flag: '' },
-    18: { type: 'textarea', path: 'Database/New path|!%Enter new path name', head: 'User/group list', hint: `User/group list (one by line) to apply the restriction to. 
-Char '!' reverses the result of match, so line '!root' matches all users (or groups) except root. 
-Thus to match absolutely all users use '!!' - this record matches all users except user '!', 
-but username (or group) '!' is not allowed, so the list match is true for all. 
-The list is looked up for the users/groups one by one and when a match is found, 
-the restriction type corresponding to the specified path is performed. 
-No match - all dialog interface elements of the pad/profile path are writable`, data: '' },*/
-
     20: { type: 'textarea', path: 'Element/New element|+*|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
     21: { type: 'textarea', path: 'Element/New element', head: 'Description', hint: `Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values`, data: '', flag: '*%Enter element description' },
     22: { type: 'checkbox', path: 'Element/New element', head: 'Type', hint: `Unique element type forces specified element for all objects in database to contain uniq values (of element JSON "value" property) only, so duplicated values are excluded and cause an error. Element type cannot be changed after element creation`, data: 'unique' },
@@ -94,40 +86,17 @@ Be aware of using rules for unspecified events, it may cause CPU overload due to
     _100: { type: 'button', path: 'Element', data: 'CREATE DATABASE' },
     z101: { head: 'background: rgb(227,125,87);', type: 'button', path: 'Element', data: 'CANCEL' }
    };
+const RANDOMSTRINGCHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const controller = new Controller();
 
-const clients = new Map();
-const wss = new WebSocketServer({ port: 8002 });
-wss.on('connection', WSNewConnection);
-
-function WSMessageProcess(msg)
+export function lg(...data)
 {
- // msg - incoming message from the client side
- // this - ws connection object that is passed first at websocket init and stored in <clients> map object. To send data back to the client side use this.send('...'),
-
- msg = JSON.parse(msg);
- if (!msg || typeof msg !== 'object' || !msg['type']) return;
- switch (msg['type'])
-	    {
-	     case 'Test Dialog':
-              //new DatabaseBroker("SELECT * FROM pg_tables WHERE schemaname = 'public'").Query();
-              //new DatabaseBroker('pg_tables').Method('SELECT').Fields('schemaname', 'public').Then();
-              new DatabaseBroker().ShowTables().Then();
-	          this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));
-	          break;
-	     case 'New Database':
-	          this.send(JSON.stringify({ type: 'SIDEBARREFRESH', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}}));
-	          break;
-	    }
+ console.log(...data);
 }
 
-function WSError(err)
+export function GenerateRandomString(length)
 {
- console.error(err);
-}
-
-function WSNewConnection(client)
-{
- clients.set(client, {});
- client.on('message', WSMessageProcess);
- client.on('error', WSError);
+ let randomstring = '';
+ for (let i = 0; i < length; i++) randomstring += RANDOMSTRINGCHARS[Math.floor(Math.random() * RANDOMSTRINGCHARS.length)];
+ return randomstring;
 }

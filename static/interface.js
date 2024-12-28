@@ -1,11 +1,12 @@
-import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
-import { app } from './application.js';
-
 // Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
 // Todo1 - Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
 // Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available). Finish child controls (icons pos, dialog interaction)
 // Todo0 - vertical and horizontal scrollbar intersection is white background, fix it
 // Todo2 - Dragging child with right btn hold moves neighbor childs
+// Todo1 - Control hint at cursor navigating ('close', 'fullscreen'..)
+
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { app } from './application.js';
 
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
