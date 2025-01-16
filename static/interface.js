@@ -1,9 +1,12 @@
 // Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
 // Todo1 - Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
-// Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available). Finish child controls (icons pos, dialog interaction)
-// Todo0 - vertical and horizontal scrollbar intersection is white background, fix it
+// Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available) and scale 'cm' icon. Finish child controls (icons pos, dialog interaction)
+// Todo0 - vertical and horizontal scrollbar intersection is white background, fix it. Set cursor at scrollbar priority to the child control. Set cursor child control priority to default child hanlder and div elements hover
 // Todo2 - Dragging child with right btn hold moves neighbor childs
 // Todo1 - Control hint at cursor navigating ('close', 'fullscreen'..)
+// Todo2 - requestIdleCallback for idle tasks
+// Todo0 - While resizing all animation is being applied and slowing GUI?
+// Todo2 - Change box minimize icon from low line to upper line
 
 import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';
@@ -11,6 +14,7 @@ import { app } from './application.js';
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
 const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
+const ICONURLMINIMIZESCREEN 		= SVGUrlHeader() + SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + SVGUrlFooter();
 const ICONURLFULLSCREENTURNON 		= SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
 const ICONURLFULLSCREENTURNOFF		= SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
 const ICONURLCLOSE              	= SVGUrlHeader() + SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + SVGUrlFooter();
@@ -471,6 +475,39 @@ export class Interface
   if (phase === 'release') return { type: 'KILLME' };
  }
 
+ // Minimize screen child control
+ static MinimizeScreenControl(userevent, control, phase)
+ {
+  if (phase !== 'init' && phase !== 'release') return;																							// No minimize screen toggle for 'capture' phase
+  if (phase === 'release') control.child.elementDOM.classList.add('smooth');																	
+  const style = control.child.elementDOM.style;
+
+  if (control.data)																																// Minimized screen state toggles to initial size
+	 {
+	  [ style.top, style.left, style.width, style.height ] = [ control.data.top, control.data.left, control.data.width, control.data.height ];
+	  delete control.data;
+	  if (control.child.props.control.default) control.child.props.control.default.disabled = false;
+	  if (control.child.props.control.push) control.child.props.control.push.disabled = false;
+	  if (control.child.props.control.fullscreendblclick) control.child.props.control.fullscreendblclick.disabled = false;
+	  if (control.child.props.control.fullscreenicon) control.child.props.control.fullscreenicon.disabled = false;
+	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = false;
+	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = false;
+	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = false;
+	 }
+   else																																			// Initial size state toggles to minimized screen
+	 {
+	  control.data = { top: style.top, left: style.left, width: style.width, height: style.height };
+	  [ style.top, style.left, style.width, style.height ] = [ style.top, style.left, '3%', '3%'];												// Todo2 - place child to something like "taskbar" of parent child bottom area
+	  if (control.child.props.control.default) control.child.props.control.default.disabled = true;
+	  if (control.child.props.control.push) control.child.props.control.push.disabled = true;
+	  if (control.child.props.control.fullscreendblclick) control.child.props.control.fullscreendblclick.disabled = true;
+	  if (control.child.props.control.fullscreenicon) control.child.props.control.fullscreenicon.disabled = true;
+	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = true;
+	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = true;
+	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = true;
+	 }
+ }
+
  // Full screen child control
  static FullScreenControl(userevent, control, phase)
  {
@@ -502,7 +539,7 @@ export class Interface
 	 }
   if (iconrefresh) control.child.RefreshControlIcons();
  }
- 
+  
  // Rsizing child control
  static ResizeControl(userevent, control, phase)
  {
@@ -628,16 +665,16 @@ export class Interface
  }
 }
 
-const CHILDCONTROLTEMPLATES     = {
-	fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
-	fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
-	closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
-	closeesc: { captureevent: 'keydown', releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
-	resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
-	resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
-	resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
-	push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
-	drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
-	default: { callback: [] }, 
-   }
-
+const CHILDCONTROLTEMPLATES     	= {
+									   minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 
+									   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+									   fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
+									   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
+									   closeesc: { captureevent: 'keydown', releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
+									   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
+									   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
+									   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
+									   push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
+									   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
+									   default: { callback: [] }, 
+									  };

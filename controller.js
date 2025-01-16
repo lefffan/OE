@@ -28,11 +28,12 @@ function WSMessageProcess(msg)
               //new DatabaseBroker().ShowTables().Then();
 	          this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));
 	          break;
-	     case 'SIDEBARREFRESH':
-	          this.send(JSON.stringify({ type: 'SIDEBARREFRESH', odid: 13, path: '/Система/Users', ov: { 1: ['test/view1a', 'view1b'], 2:['/hui/view2c', 'test/view2d']}}));
+	     case 'SIDEBARGET':
+	          this.send(JSON.stringify({ type: 'SIDEBARSET', odid: 13, path: 'hui/Система/Users', ov: { 1: ['zest/view1a', '/vvvvvvvvvvvvvvvvvvvvvvvvvie1b'], 2: ['/ahui1/View2c', 'test/view2d']}}));
+              this.send(JSON.stringify({ type: 'SIDEBARSET', odid: 12, path: 'Logs', ov: {1:['1/2qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq/3/4/5333333333333333333333333333333333333']} }));
 	          break;
 	     case 'LOGIN':
-              if (controller.clientauthcodes[msg.authcode + 'a'])
+              if (controller.clientauthcodes[msg.authcode])
                  {
                   delete controller.clientauthcodes[msg.authcode];
                   controller.clients.get(this).auth = true;

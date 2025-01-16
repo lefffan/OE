@@ -134,7 +134,7 @@ window.onload = function () { app = new Application(); }
 // Todo - helpdesk/jira/CRM example in Help context menu
 // Todo - Favicon change to show unread msges presence
 // Todo - Shortcut key calls OV to open at sidebar focus
-// Todo - another native object element like 'datetime' is 'timestamp' to fix TSDB data changes
+// Todo - another native object element like 'datetime' is 'timestamp' to fix TSDB data changes. Timestamp not only for TSDB, but for any objects - usefull for compare object creating time with current changes to calculate how many seconds/minutes have passed
 // Todo - Every user defined element (eid1, eid2..) has its external data like streams (cameras, streams), files (documents, audio, video, image) and TSDB (data is set via system call SET<TSDBID>])
 //		  App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props, streams, files, TSDB
 //		  Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download

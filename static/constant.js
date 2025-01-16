@@ -120,7 +120,7 @@ export function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '
  return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
 }
 
-export function SVGPath(path, color, width)
+export function SVGPath(path, color, width, elementtype = 'background')
 {
- return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
+ return elementtype === 'background' ? `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E` : `<path d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' />`;
 }

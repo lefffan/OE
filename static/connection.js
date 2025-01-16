@@ -114,7 +114,7 @@ export class Connection extends Interface
 	     case 'AUTHWEBSOCKET':
                this.sidebar = new Sidebar(null, this);
 	          break;
-	     case 'SIDEBARREFRESH':
+	     case 'SIDEBARSET':
 	          this.sidebar.Handler(event);
 	          break;
          }
@@ -141,8 +141,8 @@ export class Connection extends Interface
 // |        |       <- CREATEWEBSOCKET|LOGINERROR (POST)|            |                                   |         |                
 // |        |   LOGIN (WS) ->          		    		 |            |                                   |         |                
 // |        |                      <- AUTHWEBSOCKET (WS)|            |                                   |         |                
-// | Client |   SIDEBARREFRESH (WS) -> 		    		 | Controller |                                   | Handler |                
-// |        |                     <- SIDEBARREFRESH (WS)|            |                                   |         |                
+// | Client |   SIDEBARGET (WS) -> 		    		 | Controller |                                   | Handler |                
+// |        |                         <- SIDEBARSET (WS)|            |                                   |         |                
 // |        |                        		    		 |            |                                   |         |                
 // |        |                        		    		 |            |                                   |         |                
 // |        |                        		    		 |            |                                   |         |                

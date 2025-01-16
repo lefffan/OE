@@ -40,26 +40,34 @@
 		 position: absolute;
 		 overflow: auto;
 		 min-width: 10%;
-		 min-height: 10%;
+		 min-height: 3%;
 		 border-radius: 4px;
+		}
+		
+		.is-collapsed
+		{
+  		 height: 0;
 		}
 
 		::-webkit-scrollbar-thumb
 		{
 		 background-color: rgba(55, 119, 204, 0.3);
 		 border-radius: 4px;
+		 cursor: pointer !important;
 		}
 
 		::-webkit-scrollbar-track
 		{
 		 background: rgba(255, 255, 255, 0);
+		 cursor: pointer !important;
 		}
 
 		::-webkit-scrollbar
-		  {
-		   width: 7px;
-		   height: 7px;
-		  }
+		{
+		 width: 7px;
+		 height: 7px;
+		 cursor: pointer !important;
+		}
 
 		.selectnone
         {
@@ -127,7 +135,7 @@
 		 overflow: hidden;
 		 padding: 0px;
 		 min-width: 10%;
-		 min-height: 10%;
+		 min-height: 3%;
 		 box-sizing: border-box;
 		}
 
