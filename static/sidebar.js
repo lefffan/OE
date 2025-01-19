@@ -1,14 +1,23 @@
-import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg } from './constant.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 
+// Todo0 - Sort search result, and highliught clicked result
 // Todo0 - predefined all classes: view0-100
-// Todo0 - sorting (create time, alphabetical)
 // Todo0 - insert comments for all code
-// Todo0 - search among folders, views and dbs - [sorting root sidebar folder, minimize, fullscreen, lupa, some info (folder vews and db num, user)], hint for info icon
+// Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
 // Todo0 - Escape chars '<>' (or may be others) in OV/OD names
+// Todo0 - Global func to return background svg for up/down arrows with user defined color
+// Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
+// Todo0 - Make sidebar icon twice bigger
 
-const WEIGHTS = { 'view': 1, 'database': 2, 'folder': 3 };
+const WEIGHTS  = { 'view': 1, 'database': 2, 'folder': 3 };
+const ARROW    = [ SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(), // bright green 139,188,122
+                   SVGUrlHeader(12, 12) + SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(),
+                   SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + SVGUrlFooter(),
+                   SVGUrlHeader(12, 12) + SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + SVGUrlFooter() ];
+const LUPA     = SVGUrlHeader(12, 12) + SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + SVGUrlFooter();
+
 function OnDraw(func)
 {
  requestAnimationFrame(function() { requestAnimationFrame(function() { func(); }); });
@@ -25,17 +34,90 @@ export class Sidebar extends Interface
                  ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
                 }
 
+ static Sort(userevent, control, phase)
+ {
+  if (phase !== 'release') return;
+  control.data.indexOf('^') === -1 ? control.data += '^' : control.data = control.data.indexOf('a') === -1 ? (control.data + 'a').replaceAll(/\^/g, '') : control.data.replaceAll(/a|\^/g, '');
+
+  let arrowindex = 0;
+  if (control.data.indexOf('a') !== -1) arrowindex += 2;
+  if (control.data.indexOf('^') !== -1) arrowindex += 1;
+  control.icon = ARROW[arrowindex];
+  
+  control.child.RefreshControlIcons();
+  control.child.SidebarSort();
+  control.child.SidebarShow();
+ }
+
+ SearchTree(search, regexp, tree = this.tree)
+ {
+  let result = [];
+  for (const branch in tree)
+      {
+       if (branch === '0') if (tree !== this.tree) if ((regexp && regexp.test(tree[branch].name)) || (!regexp && tree[branch].name.indexOf(search) !== -1)) result.push(tree);
+       if (branch !== '0') result = result.concat(this.SearchTree(search, regexp, tree[branch]));
+      }
+  return result;
+ }
+
+ static Lupa(userevent, control, phase)
+ {
+  if (phase === 'search')
+     {
+      const searchstring = control.child.search.input.value;
+      if (!searchstring && !(control.child.search.result.innerHTML = '')) return;              // Empty result for empty search string
+      let regexp;
+      const secondslash = searchstring.lastIndexOf('/');                                       // Get second slash position
+      try {
+           if (searchstring[0] === '/' && secondslash > 0) regexp = new RegExp(searchstring.substring(1, secondslash), searchstring.substring(secondslash + 1));     // First slash at first char and second slash position more than zero? Create regular expression
+          }
+      catch
+          {
+          }
+      let inner = '';
+      for (const tree of control.child.SearchTree(searchstring, regexp)) inner += control.child.GetRowInner(tree);
+      control.child.search.result.innerHTML = inner;
+      return;
+     }
+  if (phase !== 'release') return;     // For 'release' phase only at left mouse btn released
+  control.data = !control.data;         // Invert search bar appearance
+  if (control.child.tree[0].wrap = control.data) // Search bar is hidden, so show it
+     {
+      control.child.elementDOM.appendChild(control.child.search.container);
+      control.child.elementDOM.appendChild(control.child.search.result);
+      control.child.search.container.appendChild(control.child.search.input);
+      control.child.search.input.addEventListener('input', control.child.Handler.bind(control.child));
+      setTimeout(() => control.child.search.input.focus(), 0);
+     }
+   else // Search bar is on, so remove it
+     {
+      control.child.search.input.removeEventListener('input', control.child.Handler.bind(control.child));
+      control.child.search.container.remove();
+      control.child.search.result.remove();
+     }
+  control.child.ToggleSubtreeWrap();
+ }
+
  constructor(data, parentchild) // (data, parentchild, props, attributes)
  {
-  super(data, parentchild, { overlay: 'ALWAYSONTOP', control: { fullscreenicon: {}, minimizescreen: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown' } } }, { class: 'defaultbox sidebar selectnone' });
+  const sortcontrol = { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ARROW[0], data: '', callback: [Sidebar.Sort] };
+  const lupacontrol = { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: LUPA, callback: [Sidebar.Lupa] };
+  const control = { fullscreenicon: {}, minimizescreen: {}, sorticon: sortcontrol, lupaicon: lupacontrol, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown|keyup' } };
+  super(data, parentchild, { overlay: 'ALWAYSONTOP', control: control }, { class: 'defaultbox sidebar selectnone' });
+  // Set some props
   this.elementDOM.style.left = '50px';
   this.elementDOM.style.top  = '50px';
   this.od = [];
   this.tree = [{ sort: '', type: 'folder', wrap: false, name: 'Root folder', id: 0 }];
   this.folderid = 0;
   this.props.control.drag.elements = [this.elementDOM];
-  this.props.control.fullscreendblclick.elements = [this.elementDOM];
+  // Get database/view list
   parentchild.CallController({ type: 'SIDEBARGET' });
+  // Create search object
+  this.search = { container: document.createElement('div'), input: document.createElement('input'), result: document.createElement('div') };
+  this.search.container.style.padding = '0 5px';
+  this.search.input.classList.add('newprofileinput');
+  this.search.input.setAttribute('placeholder', 'Type here to search the view');
  }
 
  destructor()
@@ -43,19 +125,20 @@ export class Sidebar extends Interface
   super.destructor();
  }
 
- SidebarSort(tree = this.tree, recursive = true)
+ SidebarSort(tree = this.tree)
  {
   if (tree[0].type === 'view' || tree.length < 2) return;
+  const sort = this.props.control.sorticon.data;
 
   tree.sort((a, b) => {
             if (!Array.isArray(a)) return -1;                                                            // First compared element is uplink database/folder? Return no place change
             if (!Array.isArray(b)) return 1;                                                             // Second compared element is uplink database/folder? Return place change
             if (WEIGHTS[a[0].type] - WEIGHTS[b[0].type]) return WEIGHTS[b[0].type] - WEIGHTS[a[0].type]; // First of all compare element types depending on their weights. Elements compared weights are non zero? Return it
-            const compare = tree[0].sort.indexOf('a') === -1 ? (+a[0].id) - (+b[0].id) : a[0].name.localeCompare(b[0].name); // Appearance/alphabetical order
-            return compare * (tree[0].sort.indexOf('^') === -1 ? 1 : -1);                                                    // Ascending/descending order
+            const compare = sort.indexOf('a') === -1 ? (+a[0].id) - (+b[0].id) : a[0].name.localeCompare(b[0].name); // Appearance/alphabetical order
+            return compare * (sort.indexOf('^') === -1 ? 1 : -1);                                                    // Ascending/descending order
   });
 
-  if (recursive) for (const i in tree) if (+i) this.SidebarSort(tree[i]);
+  for (const i in tree) if (+i) this.SidebarSort(tree[i]);
  }
 
  // tree [ 
@@ -107,6 +190,7 @@ export class Sidebar extends Interface
 
  SidebarShow()
  {
+  if (this.tree[0].wrap) return;                  // Sidebar structure is wrapped (search input is activated), so do not display it
   this.inner = this.GetBranchInner(this.tree, 0);
   requestAnimationFrame(() => { 
                                this.elementDOM.innerHTML = this.inner;
@@ -116,20 +200,44 @@ export class Sidebar extends Interface
 
  GetDOMElementSubtree(element, setelement)
  {
-  let subtree;
-  if (element.attributes['data-branch']?.value)
-     {
-      subtree = this.tree;
-      for (const i of element.attributes['data-branch'].value.split('_')) subtree = subtree[i];
-      if (setelement) subtree[0][setelement] = element;
-     }
+  if (element.attributes['data-branch'] === undefined) return;
+  let subtree = this.tree;
+  if (element.attributes['data-branch'].value) for (const i of element.attributes['data-branch'].value.split('_')) subtree = subtree[i];
+  if (setelement) subtree[0][setelement] = element;
   return subtree;
+ }
+
+ ToggleSubtreeWrap(tree = this.tree)
+ {
+  const element = tree[0]['DOMElement'];
+  const wrappingfunction = function () {
+                                        tree[0].wrap ? element.classList.add('is-collapsed') : element.classList.remove('is-collapsed');
+                                        if (tree[0].wrap) element.style.height = '';
+                                        element.addEventListener('transitionend', function onTransitionEnd() {
+                                                                                                              element.removeEventListener('transitionend', onTransitionEnd);
+                                                                                                              if (!tree[0].wrap) element.style.height = '';
+                                                                                                              if (!element.previousSibling?.rows) return;
+                                                                                                              const remove = tree[0].wrap ? 'unwrapped' : 'wrapped';
+                                                                                                              const add = tree[0].wrap ? 'wrapped' : 'unwrapped';
+                                                                                                              element.previousSibling.rows[0].cells[1].classList.remove(tree[0].type + remove);
+                                                                                                              element.previousSibling.rows[0].cells[1].classList.add(tree[0].type + add);
+                                                                                                             });
+                                       };
+  element.style.height = `${element.scrollHeight}px`;
+  OnDraw(wrappingfunction);
  }
 
  Handler(event)
  {
   switch (event.type)
 	    {
+          case 'keyup':
+               if (event.code === 'Escape' && this.props.control.lupaicon.data) Sidebar.Lupa(null, this.props.control.lupaicon, 'release');
+               break;
+          case 'input':
+               clearTimeout(this.search.timer);
+               this.search.timer = setTimeout(Sidebar.Lupa, 300, null, this.props.control.lupaicon, 'search', this.search.input.value); 
+               break;
           case 'mousedown':							
                if (event.button === 0 && event.buttons === 3){} // Left button down with right button hold?
                break;
@@ -139,23 +247,7 @@ export class Sidebar extends Interface
                   {
                    if (!subtree?.[0] || subtree[0].type === 'view' || subtree.length < 2) break;
                    subtree[0].wrap = !subtree[0].wrap;
-                   const element = subtree[0]['DOMElement'];
-                   //this.isAnimating = true;
-                   const wrappingfunction = function () {
-                                                         subtree[0].wrap ? element.classList.add('is-collapsed') : element.classList.remove('is-collapsed');
-                                                         if (subtree[0].wrap) element.style.height = '';
-                                                         element.addEventListener('transitionend', function onTransitionEnd() {
-                                                                                                                               element.removeEventListener('transitionend', onTransitionEnd);
-                                                                                                                               if (!subtree[0].wrap) element.style.height = '';
-                                                                                                                               const remove = subtree[0].wrap ? 'unwrapped' : 'wrapped';
-                                                                                                                               const add = subtree[0].wrap ? 'wrapped' : 'unwrapped';
-                                                                                                                               element.previousSibling.rows[0].cells[1].classList.remove(subtree[0].type + remove);
-                                                                                                                               element.previousSibling.rows[0].cells[1].classList.add(subtree[0].type + add);
-                                                                                                                               //this.isAnimating = false;
-                                                                                                                              });
-                                                        };
-                   element.style.height = `${element.scrollHeight}px`;
-                   OnDraw(wrappingfunction);
+                   this.ToggleSubtreeWrap(subtree);
                    break;
                   }
                if (event.button === 2)
@@ -191,7 +283,48 @@ export class Sidebar extends Interface
 	    }
  }
  
+ GetRowInner(tree, attribute = '', depth = 1)
+ {
+  let inner = `<table><tbody><tr>`;                                                                                                                        // Collect inner with <table> tag
+  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                         // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
+  switch (tree[0].type)
+         {
+          case 'folder': 
+                  inner += `<td class="folder${tree[0].wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;                                        // Folder icon
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}</td>`;                                                         // Folder name
+                  break;
+             case 'database':
+                  inner += `<td class="database${tree[0].wrap === false ? 'un' : ''}wrapped${tree.length < 2 ? 'empty' : ''}"${attribute}>&nbsp</td>`;     // Database icon
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}</td>`;                                                         // Database name
+                  break;
+             case 'view':
+                  inner += `<td class="view100"${attribute}>&nbsp</td>`;                                                                                   // View icon (od[branch.odid][branch.id]['status'])
+                  let footnote = this.od[tree[0].odid]['ov'][tree[0].id].footnote;
+                  footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}${footnote}</td>`;                                              // View name
+                  break;
+            }
+  inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                                   // Estamated space
+  return inner + '</tr></tbody></table>';                                                                                                                  // Close inner with <table> tag
+ }
+
  GetBranchInner(tree, depth, id = '')
+ {
+  let inner = '';
+  let nestedinner = '';
+  let attribute = ` data-branch="${id}"`; // Fix tag attribute
+
+  for (const branch in tree)
+      {
+       if (branch === '0') if (depth) inner += this.GetRowInner(tree, attribute, depth);
+       // Every non zero tree element is an array with its zero element (folder, database, view) to display as an independent table row, so recursive function call (args: increased depth, char '_' divided tree branch index) to get its inner
+       if (branch !== '0') nestedinner += this.GetBranchInner(tree[branch], depth + 1, depth ? id + '_' + branch : branch);
+      }
+  if (nestedinner) nestedinner = `<div${attribute} style="overflow: hidden; transition: height 200ms ease;"${tree[0].wrap ? ' class="is-collapsed"' : ''}>${nestedinner}</div>`;
+  return inner + nestedinner;
+ }
+
+ GetBranchInner1(tree, depth, id = '')
  {
   let inner = '';
   let nestedinner = '';
@@ -230,7 +363,7 @@ export class Sidebar extends Interface
        // Every non zero tree element is an array with its zero element (folder, database, view) to display as an independent table row, so recursive function call (args: increased depth, char '_' divided tree branch index) to get its inner
        nestedinner += this.GetBranchInner(tree[branch], depth + 1, depth ? id + '_' + branch : branch);
       }
-  if (nestedinner) nestedinner = `<div${attribute} style="overflow: hidden; transition: height 300ms ease;"${tree[0].wrap ? ' class="is-collapsed"' : ''}>${nestedinner}</div>`;
+  if (nestedinner) nestedinner = `<div${attribute} style="overflow: hidden; transition: height 200ms ease;"${tree[0].wrap ? ' class="is-collapsed"' : ''}>${nestedinner}</div>`;
   return inner + nestedinner;
  }
 }

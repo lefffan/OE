@@ -149,6 +149,7 @@ window.onload = function () { app = new Application(); }
 //				Object element val 
 //				Arg dialog
 //				Db global
+// Todo - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
 
 // View
 // Todo - all view changes comes to clint side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.

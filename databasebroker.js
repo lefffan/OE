@@ -103,7 +103,7 @@ export class DatabaseBroker
        clause += clause ? innerseparator : '';
        clause += innerseparator ? this.values[i] : '';
       }
-  // Process ORDER here
+  // Todo2 - Process ORDER here
   return clause;
  }
  

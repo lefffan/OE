@@ -212,7 +212,7 @@ export class Interface
 	   elements.get(element).iconposition += `${control.area.x1 < 0 ? 'right ' + Math.abs(control.area.x2 + 1) : 'left ' + Math.abs(control.area.x1)}px `;	// Define horizontal icon position
 	   elements.get(element).iconposition += `${control.area.y1 < 0 ? 'bottom ' + Math.abs(control.area.y2 + 1) : 'top ' + Math.abs(control.area.y1)}px, `;	// Define vertical icon position
 	   elements.get(element).iconimage += `${control.icon}, `;																								// and its image url
-	   elements.get(element).area = control.area;												// Fix current control area to use it in next area overlap case
+	   elements.get(element).area = area ? { x1: Math.min(area.x1, control.area.x1), y1: Math.min(area.y1, control.area.y1), x2: Math.max(area.x2, control.area.x2), y2: Math.max(area.y2, control.area.y2) } : control.area; // Fix current control area to use it in next area overlap case
 	  }
   for (const e of elements.keys())																// Define style props for every DOM element in <elements> map collection
 	  {
@@ -475,6 +475,12 @@ export class Interface
   if (phase === 'release') return { type: 'KILLME' };
  }
 
+ ToggleControlsStatus(include, exclude, disabled)
+ {
+  if (Array.isArray(include)) for (const controlname in this.props.control) if (include.includes(controlname)) this.props.control[controlname].disabled = disabled;
+  if (Array.isArray(exclude)) for (const controlname in this.props.control) if (!exclude.includes(controlname)) this.props.control[controlname].disabled = disabled;
+ }
+
  // Minimize screen child control
  static MinimizeScreenControl(userevent, control, phase)
  {
@@ -486,25 +492,14 @@ export class Interface
 	 {
 	  [ style.top, style.left, style.width, style.height ] = [ control.data.top, control.data.left, control.data.width, control.data.height ];
 	  delete control.data;
-	  if (control.child.props.control.default) control.child.props.control.default.disabled = false;
-	  if (control.child.props.control.push) control.child.props.control.push.disabled = false;
-	  if (control.child.props.control.fullscreendblclick) control.child.props.control.fullscreendblclick.disabled = false;
-	  if (control.child.props.control.fullscreenicon) control.child.props.control.fullscreenicon.disabled = false;
-	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = false;
-	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = false;
-	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = false;
+	  let fullscreen = control.child.props.control.fullscreenicon ? control.child.props.control.fullscreenicon : control.child.props.control.fullscreendblclick;
+	  control.child.ToggleControlsStatus([], ['minimizescreen', 'closeicon', 'drag'].concat(fullscreen?.data ? ['resize', 'resizex', 'resizey'] : []));
 	 }
    else																																			// Initial size state toggles to minimized screen
 	 {
 	  control.data = { top: style.top, left: style.left, width: style.width, height: style.height };
 	  [ style.top, style.left, style.width, style.height ] = [ style.top, style.left, '3%', '3%'];												// Todo2 - place child to something like "taskbar" of parent child bottom area
-	  if (control.child.props.control.default) control.child.props.control.default.disabled = true;
-	  if (control.child.props.control.push) control.child.props.control.push.disabled = true;
-	  if (control.child.props.control.fullscreendblclick) control.child.props.control.fullscreendblclick.disabled = true;
-	  if (control.child.props.control.fullscreenicon) control.child.props.control.fullscreenicon.disabled = true;
-	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = true;
-	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = true;
-	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = true;
+	  control.child.ToggleControlsStatus([], ['minimizescreen', 'closeicon', 'drag'], true);
 	 }
  }
 
@@ -522,20 +517,14 @@ export class Interface
 	  [ style.top, style.left, style.width, style.height ] = [ control.data.top, control.data.left, control.data.width, control.data.height ];
 	  delete control.data;
 	  if (iconrefresh) control.icon = ICONURLFULLSCREENTURNON;
-	  if (control.child.props.control.drag) control.child.props.control.drag.disabled = false;
-	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = false;
-	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = false;
-	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = false;
+	  control.child.ToggleControlsStatus(['resize', 'resizex', 'resizey', 'drag']);
 	 }
    else																																			// Initial size state toggles to full screen
 	 {
 	  control.data = { top: style.top, left: style.left, width: style.width, height: style.height };
 	  [ style.top, style.left, style.width, style.height ] = ['0%', '0%', '100%', '100%'];														// Full screen child DOM element size. Previous variant: [] = control.child.parentchild === app ? ['0%', '0%', '100%', '100%'] : ['1%', '1%', '98%', '98%'];
 	  if (iconrefresh) control.icon = ICONURLFULLSCREENTURNOFF;
-	  if (control.child.props.control.drag) control.child.props.control.drag.disabled = true;
-	  if (control.child.props.control.resize) control.child.props.control.resize.disabled = true;
-	  if (control.child.props.control.resizex) control.child.props.control.resizex.disabled = true;
-	  if (control.child.props.control.resizey) control.child.props.control.resizey.disabled = true;
+	  control.child.ToggleControlsStatus(['resize', 'resizex', 'resizey', 'drag'], null, true);
 	 }
   if (iconrefresh) control.child.RefreshControlIcons();
  }
