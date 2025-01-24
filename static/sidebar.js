@@ -1,9 +1,8 @@
-import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg, CutString } from './constant.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 
-// Todo0 - Sort search result, and highliught clicked result
-// Todo0 - predefined all classes: view0-100
+// Todo0 - Highliught clicked result, hint every branch in search result with its full path
 // Todo0 - insert comments for all code
 // Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
 // Todo0 - Escape chars '<>' (or may be others) in OV/OD names
@@ -34,19 +33,64 @@ export class Sidebar extends Interface
                  ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
                 }
 
+ SearchSort()
+ {
+  this.search.tree.sort((a, b) => {
+                                   if (WEIGHTS[a[0].type] - WEIGHTS[b[0].type]) return WEIGHTS[b[0].type] - WEIGHTS[a[0].type]; // First of all compare element types depending on their weights. Elements compared weights are non zero? Return it
+                                   const sortstring = this.search.sort;
+                                   const compare = sortstring.indexOf('a') === -1 ? (+a[0].id) - (+b[0].id) : a[0].name.localeCompare(b[0].name); // Appearance/alphabetical order
+                                   return compare * (sortstring.indexOf('^') === -1 ? 1 : -1);                                                    // Ascending/descending order
+                                  });
+ }
+
+ SearchShow()
+ {
+  let inner = '';
+  for (const tree of this.search.tree) inner += this.GetRowInner(tree);
+  requestAnimationFrame(() => { this.search.result.innerHTML = inner; });
+ }
+
+ SidebarSort(sortstring, tree = this.tree)
+ {
+  if (tree[0].type === 'view' || tree.length < 2) return;
+
+  tree.sort((a, b) => {
+            if (!Array.isArray(a)) return -1;                                                            // First compared element is uplink database/folder? Return no place change
+            if (!Array.isArray(b)) return 1;                                                             // Second compared element is uplink database/folder? Return place change
+            if (WEIGHTS[a[0].type] - WEIGHTS[b[0].type]) return WEIGHTS[b[0].type] - WEIGHTS[a[0].type]; // First of all compare element types depending on their weights. Elements compared weights are non zero? Return it
+            const compare = sortstring.indexOf('a') === -1 ? (+a[0].id) - (+b[0].id) : a[0].name.localeCompare(b[0].name); // Appearance/alphabetical order
+            return compare * (sortstring.indexOf('^') === -1 ? 1 : -1);                                                    // Ascending/descending order
+  });
+
+  for (const i in tree) if (+i) this.SidebarSort(sortstring, tree[i]);
+ }
+
+ SetSortIcon(sortsting)
+ {
+  let arrowindex = 0;
+  if (sortsting.indexOf('a') !== -1) arrowindex += 2;
+  if (sortsting.indexOf('^') !== -1) arrowindex += 1;
+  this.props.control.sorticon.icon = ARROW[arrowindex];
+  this.RefreshControlIcons();
+ }
+
  static Sort(userevent, control, phase)
  {
   if (phase !== 'release') return;
-  control.data.indexOf('^') === -1 ? control.data += '^' : control.data = control.data.indexOf('a') === -1 ? (control.data + 'a').replaceAll(/\^/g, '') : control.data.replaceAll(/a|\^/g, '');
+  const sortobject = control.child.tree[0].wrap ? control.child.search : control.child.tree[0];
+  sortobject.sort.indexOf('^') === -1 ? sortobject.sort += '^' : sortobject.sort = sortobject.sort.indexOf('a') === -1 ? (sortobject.sort + 'a').replaceAll(/\^/g, '') : sortobject.sort.replaceAll(/a|\^/g, '');
 
-  let arrowindex = 0;
-  if (control.data.indexOf('a') !== -1) arrowindex += 2;
-  if (control.data.indexOf('^') !== -1) arrowindex += 1;
-  control.icon = ARROW[arrowindex];
-  
-  control.child.RefreshControlIcons();
-  control.child.SidebarSort();
-  control.child.SidebarShow();
+  control.child.SetSortIcon(sortobject.sort);
+  if (control.child.tree[0].wrap)
+     {
+      control.child.SearchSort();
+      control.child.SearchShow();
+     }
+   else
+     {
+      control.child.SidebarSort(sortobject.sort);
+      control.child.SidebarShow();
+     }
  }
 
  SearchTree(search, regexp, tree = this.tree)
@@ -74,19 +118,21 @@ export class Sidebar extends Interface
       catch
           {
           }
-      let inner = '';
-      for (const tree of control.child.SearchTree(searchstring, regexp)) inner += control.child.GetRowInner(tree);
-      control.child.search.result.innerHTML = inner;
+      control.child.search.tree = control.child.SearchTree(searchstring, regexp);
+      control.child.SearchSort();
+      control.child.SearchShow();
       return;
      }
   if (phase !== 'release') return;     // For 'release' phase only at left mouse btn released
-  control.data = !control.data;         // Invert search bar appearance
+  control.data = !control.data;        // Invert search bar appearance
   if (control.child.tree[0].wrap = control.data) // Search bar is hidden, so show it
      {
       control.child.elementDOM.appendChild(control.child.search.container);
       control.child.elementDOM.appendChild(control.child.search.result);
       control.child.search.container.appendChild(control.child.search.input);
       control.child.search.input.addEventListener('input', control.child.Handler.bind(control.child));
+      control.child.SetSortIcon(control.child.search.sort);
+      Sidebar.Lupa(null, control, 'search');
       setTimeout(() => control.child.search.input.focus(), 0);
      }
    else // Search bar is on, so remove it
@@ -94,6 +140,7 @@ export class Sidebar extends Interface
       control.child.search.input.removeEventListener('input', control.child.Handler.bind(control.child));
       control.child.search.container.remove();
       control.child.search.result.remove();
+      control.child.SetSortIcon(control.child.tree[0].sort);
      }
   control.child.ToggleSubtreeWrap();
  }
@@ -105,6 +152,7 @@ export class Sidebar extends Interface
   const control = { fullscreenicon: {}, minimizescreen: {}, sorticon: sortcontrol, lupaicon: lupacontrol, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown|keyup' } };
   super(data, parentchild, { overlay: 'ALWAYSONTOP', control: control }, { class: 'defaultbox sidebar selectnone' });
   // Set some props
+  this.username = parentchild.username;
   this.elementDOM.style.left = '50px';
   this.elementDOM.style.top  = '50px';
   this.od = [];
@@ -114,7 +162,7 @@ export class Sidebar extends Interface
   // Get database/view list
   parentchild.CallController({ type: 'SIDEBARGET' });
   // Create search object
-  this.search = { container: document.createElement('div'), input: document.createElement('input'), result: document.createElement('div') };
+  this.search = { sort: '', container: document.createElement('div'), input: document.createElement('input'), result: document.createElement('div') };
   this.search.container.style.padding = '0 5px';
   this.search.input.classList.add('newprofileinput');
   this.search.input.setAttribute('placeholder', 'Type here to search the view');
@@ -123,22 +171,6 @@ export class Sidebar extends Interface
  destructor()
  {
   super.destructor();
- }
-
- SidebarSort(tree = this.tree)
- {
-  if (tree[0].type === 'view' || tree.length < 2) return;
-  const sort = this.props.control.sorticon.data;
-
-  tree.sort((a, b) => {
-            if (!Array.isArray(a)) return -1;                                                            // First compared element is uplink database/folder? Return no place change
-            if (!Array.isArray(b)) return 1;                                                             // Second compared element is uplink database/folder? Return place change
-            if (WEIGHTS[a[0].type] - WEIGHTS[b[0].type]) return WEIGHTS[b[0].type] - WEIGHTS[a[0].type]; // First of all compare element types depending on their weights. Elements compared weights are non zero? Return it
-            const compare = sort.indexOf('a') === -1 ? (+a[0].id) - (+b[0].id) : a[0].name.localeCompare(b[0].name); // Appearance/alphabetical order
-            return compare * (sort.indexOf('^') === -1 ? 1 : -1);                                                    // Ascending/descending order
-  });
-
-  for (const i in tree) if (+i) this.SidebarSort(tree[i]);
  }
 
  // tree [ 
@@ -169,7 +201,7 @@ export class Sidebar extends Interface
            continue;
           }
        // The cycle didn't result any matched subtrees, so add new folder subtree with the folder id to sort them on
-       tree.push([ { new: true, sort: '', type: type, wrap: type === 'database' ? true : true, name: path[i], id: type === 'folder' ? this.folderid++ : type === 'view' ? ovid : odid, odid: odid } ]);
+       tree.push([ { new: true, type: type, wrap: type === 'database' ? true : true, name: path[i], id: type === 'folder' ? this.folderid++ : type === 'view' ? ovid : odid, odid: odid } ]);
        if (type === 'database') this.od[odid] = { subtree: tree.at(-1), ov: {} }; // Overwrite OD list with current OD id with empty view list (OD is always added first)
        if (type === 'view' && this.od[odid]['ov'][ovid] === undefined) this.od[odid]['ov'][ovid] = { footnote: '' }; // The view doesn't exist. Add it to OD list
        tree = tree.at(-1); // Go to just created folder (next nested) subtree
@@ -210,7 +242,7 @@ export class Sidebar extends Interface
  ToggleSubtreeWrap(tree = this.tree)
  {
   const element = tree[0]['DOMElement'];
-  const wrappingfunction = function () {
+  const wrappingfunction = function () { // Source - https://habr.com/ru/articles/475520/
                                         tree[0].wrap ? element.classList.add('is-collapsed') : element.classList.remove('is-collapsed');
                                         if (tree[0].wrap) element.style.height = '';
                                         element.addEventListener('transitionend', function onTransitionEnd() {
@@ -236,7 +268,7 @@ export class Sidebar extends Interface
                break;
           case 'input':
                clearTimeout(this.search.timer);
-               this.search.timer = setTimeout(Sidebar.Lupa, 300, null, this.props.control.lupaicon, 'search', this.search.input.value); 
+               this.search.timer = setTimeout(Sidebar.Lupa, 300, null, this.props.control.lupaicon, 'search'); 
                break;
           case 'mousedown':							
                if (event.button === 0 && event.buttons === 3){} // Left button down with right button hold?
@@ -252,15 +284,24 @@ export class Sidebar extends Interface
                   }
                if (event.button === 2)
                   {
-                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout']];
-                   if (subtree?.[0].type === 'view') contextmenuoptions[1] = ['Open in a new view'];
-                   if (subtree?.[0].type === 'database') contextmenuoptions[1] = ['Configure database'];
+                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + CutString(this.username)]];
+                   if (event.target.attributes['data-odid'] !== undefined) contextmenuoptions[1] = ['Configure database'];
+                   if (event.target.attributes['data-ovid'] !== undefined) contextmenuoptions[1] = ['Open in a new view'];
                    new ContextMenu(contextmenuoptions, this, event);
                    break;
                   }
                break;
           case 'CONTEXTMENU':
-               if (event.data[0] === 'New Database') this.parentchild.CallController({type: 'New Database'});
+   			switch (event.data[0])	// Switch context item name (event data zero index)
+				  {
+				   case 'New Database':
+                            this.parentchild.CallController({type: 'New Database'});
+					   break;
+                       default:
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.parentchild.socket.close();
+				  }
+	          break;
+
                break;
           case 'SIDEBARSET': // { type: 'SIDEBARSET', odid:, path:, ov: { 1: [path1, path2..], 2: [..] } }
                this.SidebarAdd(event.path, event.odid);
@@ -268,12 +309,12 @@ export class Sidebar extends Interface
                    for (const path in event.ov[ovid]) 
                        this.SidebarAdd(event.ov[ovid][path], event.odid, ovid);
                this.RemoveEmptyFolders(this.tree, event.odid);
-               this.SidebarSort();
+               this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();
                break;
           case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', odid: } 
                this.RemoveEmptyFolders(this.tree, event.odid);
-               this.SidebarSort();
+               this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();
                break;
           case 'SIDEBARFOOTNOTE': // { type: 'SIDEBARFOOTNOTE', odid:, ovid:, value: }
@@ -285,8 +326,11 @@ export class Sidebar extends Interface
  
  GetRowInner(tree, attribute = '', depth = 1)
  {
+  if (tree[0].type === 'database') attribute += ` data-odid="${tree[0].id}"`;
+  if (tree[0].type === 'view') attribute += ` data-odid="${tree[0].odid}" data-ovid="${tree[0].id}"`;
   let inner = `<table><tbody><tr>`;                                                                                                                        // Collect inner with <table> tag
   inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                         // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
+
   switch (tree[0].type)
          {
           case 'folder': 
@@ -295,13 +339,13 @@ export class Sidebar extends Interface
                   break;
              case 'database':
                   inner += `<td class="database${tree[0].wrap === false ? 'un' : ''}wrapped${tree.length < 2 ? 'empty' : ''}"${attribute}>&nbsp</td>`;     // Database icon
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}</td>`;                                                         // Database name
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}</td>`;                               // Database name
                   break;
              case 'view':
-                  inner += `<td class="view100"${attribute}>&nbsp</td>`;                                                                                   // View icon (od[branch.odid][branch.id]['status'])
+                  inner += `<td class="view"${attribute}>&nbsp</td>`;                                                                                      // View icon (od[branch.odid][branch.id]['status'])
                   let footnote = this.od[tree[0].odid]['ov'][tree[0].id].footnote;
                   footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}${footnote}</td>`;                                              // View name
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}${footnote}</td>`; // View name
                   break;
             }
   inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                                   // Estamated space
@@ -323,96 +367,24 @@ export class Sidebar extends Interface
   if (nestedinner) nestedinner = `<div${attribute} style="overflow: hidden; transition: height 200ms ease;"${tree[0].wrap ? ' class="is-collapsed"' : ''}>${nestedinner}</div>`;
   return inner + nestedinner;
  }
-
- GetBranchInner1(tree, depth, id = '')
- {
-  let inner = '';
-  let nestedinner = '';
-  let attribute = ` data-branch="${id}"`;                                                                          // Fix tag attribute
-
-  for (const branch in tree)
-   if (branch === '0')
-      {
-       if (!depth) continue;                                                                                            // Do not display sidebar main root folder
-       inner += `<table><tbody><tr>`;                                                                                         // Collect inner with <table> tag
-       inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                 // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
-       switch (tree[branch].type)
-              {
-               case 'folder': 
-                    inner += `<td class="folder${tree[branch].wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;   // Folder icon
-                    inner += `<td class="sidebar_${tree[branch].type}"${attribute}>${tree[branch].name}</td>`; // Folder name
-                    //inner += `<td class="arrow2" style="padding-right: 15px; background-color: transparent;"${attribute}></td>`; // Sort order
-                    break;
-               case 'database':
-                    inner += `<td class="database${tree[branch].wrap === false ? 'un' : ''}wrapped${tree.length < 2 ? 'empty' : ''}"${attribute}>&nbsp</td>`; // Database icon
-                    inner += `<td class="sidebar_${tree[branch].type}"${attribute}>${tree[branch].name}</td>`; // Database name
-                    //inner += `<td class="rrow0" style="padding-left: 5px; background-color: transparent;"${attribute}></td>`; // Sort order
-                    break;
-               case 'view':
-                    inner += `<td class="view100"${attribute}>&nbsp</td>`;                                                   // View icon (od[branch.odid][branch.id]['status'])
-                    let footnote = this.od[tree[branch].odid]['ov'][tree[branch].id].footnote;
-                    footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
-                    inner += `<td class="sidebar_${tree[branch].type}"${attribute}>${tree[branch].name}${footnote}</td>`; // View name
-                    break;
-              }
-       inner += `<td style="width: 100%;"${attribute}></td>`;                                                           // Estamated space
-       inner += '</tr></tbody></table>';                                                                                        // Close inner with <table> tag
-      }
-    else
-      {
-       // Every non zero tree element is an array with its zero element (folder, database, view) to display as an independent table row, so recursive function call (args: increased depth, char '_' divided tree branch index) to get its inner
-       nestedinner += this.GetBranchInner(tree[branch], depth + 1, depth ? id + '_' + branch : branch);
-      }
-  if (nestedinner) nestedinner = `<div${attribute} style="overflow: hidden; transition: height 200ms ease;"${tree[0].wrap ? ' class="is-collapsed"' : ''}>${nestedinner}</div>`;
-  return inner + nestedinner;
- }
 }
 
-Sidebar.style['.view100'] = {
-         "background-image": SVGUrlHeader(24, 24) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4') + SVGUrlFooter() + ';',
-         "background-repeat": `no-repeat !important;`,
-         "background-position": `center;`,
-         "background-color": `transparent;`,
-         "padding": `0px 10px;`,
+const branchclasses = {
+                       '.view': SVGUrlHeader(24, 24) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4') + SVGUrlFooter() + ';', 
+                       '.folderwrapped': SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(3, 3, 14, 14, 3, 105, 'RGB(97,120,82)', 'RGB(97,120,82)', '1') + SVGUrlFooter() + ';',
+                       '.folderunwrapped': SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(2, 2, 15, 15, 3, 105, 'RGB(97,120,82)', 'none', '1') + SVGUrlFooter() + ';',
+                       '.databaseunwrapped': `${SVGUrlHeader(24, 24)}${SVGPath('M6 12L18 12', 'rgb(97,120,82)', '4')}${SVGUrlFooter()};`,
+                       '.databasewrapped': SVGUrlHeader(24, 24) + SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 4) + SVGUrlFooter() + ';',
+                       '.databasewrappedempty': SVGUrlHeader(24, 24) +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 4) + SVGUrlFooter() + ';',
 };
 
 // function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4') // RGB(185,122,87) RGB(1,130,0) RGB(77,129,7) RGB(140,123,23) // dasharray='89% 105' https://yoksel.github.io/url-encoder/
-Sidebar.style['.folderwrapped'] = {
-     "background-image": SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(3, 3, 14, 14, 3, 105, 'RGB(97,120,82)', 'RGB(97,120,82)', '1') + SVGUrlFooter() + ';',
-     "background-repeat": `no-repeat !important;`,
-     "background-position": `center;`,
-     "background-color": `transparent;`,
-     "padding": `0px 10px;`,
-};
-Sidebar.style['.folderunwrapped'] = {
-     "background-image": SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(2, 2, 15, 15, 3, 105, 'RGB(97,120,82)', 'none', '1') + SVGUrlFooter() + ';',
-     "background-repeat": `no-repeat !important;`,
-     "background-position": `center;`,
-     "background-color": `transparent;`,
-     "padding": `0px 10px;`,
-};
-
-Sidebar.style['.databaseunwrapped'] = {
-     "background-image": `${SVGUrlHeader(24, 24)}${SVGPath('M6 12L18 12', 'rgb(97,120,82)', '4')}${SVGUrlFooter()};`,
-     "background-repeat": `no-repeat !important;`,
-     "background-position": `center;`,
-     "background-color": `transparent;`,
-     "padding": `0px 10px;`,
-};
-
-Sidebar.style['.databasewrapped'] = {
-     "background-image": SVGUrlHeader(24, 24) + SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 4) + SVGUrlFooter() + ';',
-     "background-repeat": `no-repeat !important;`,
-     "background-position": `right;`,
-     "background-color": `transparent;`,
-     "padding": `0px 10px;`,
-};
-
-Sidebar.style['.databasewrappedempty'] = {
-     "background-image": SVGUrlHeader(24, 24) +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 4) + SVGUrlFooter() + ';',
-     "background-repeat": `no-repeat !important;`,
-     "background-position": `center;`,
-     "background-color": `transparent;`,
-     "padding": `0px 10px;`,
-};
-
+for (const classname in branchclasses)
+    {
+     Sidebar.style[classname] = {};
+     Sidebar.style[classname]['background-image'] = branchclasses[classname];
+     Sidebar.style[classname]['background-repeat'] = 'no-repeat !important;';
+     Sidebar.style[classname]['background-position'] = 'center;';
+     Sidebar.style[classname]['background-color'] = 'transparent;';
+     Sidebar.style[classname]['padding'] = '0px 10px;';
+    }

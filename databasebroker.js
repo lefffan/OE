@@ -1,3 +1,9 @@
+// Todo - Use another user (instead of root) with priv granted to 'OEDB' database only and Unicode for MySQL https://mathiasbynens.be/notes/mysql-utf8mb4 http://phpfaq.ru/mysql/charset
+// Todo - All db operations (except handlers and db config) should use the connection via user with read-only permissions
+// Todo - index columns: alter table data_1 add index (`lastversion`);
+// Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
+// Todo - problems of deploying - can i use postgre db on commerisal base? 
+// Todo - db readonly replicas?
 // Todo0 - TimeScaleDB
 //			           https://github.com/timescale/timescaledb/blob/main/tsl/README.md
 //			           https://docs.timescale.com/self-hosted/latest/install/installation-windows/
@@ -13,6 +19,7 @@
 // \l list databases
 // \dt [*.*] list tables [of all schemas]
 
+import { lg } from './main.js';
 import pg from 'pg';
 const { Pool, Client }     = pg
 const PRIMARYKEYSTARTVALUE = 3;
@@ -55,7 +62,7 @@ export class DatabaseBroker
  ShowTables()
  {
   this.table = 'pg_tables';
-  this.Method('SELECT').Fields({ 'tablename': {}, 'schemaname': {} }).Fields({'schemaname': { sign: '=', value: 'public' } }).Mode('COLUMNS');
+  this.Method('SELECT').Fields({ 'tablename': {} }).Fields({'schemaname': { sign: '=', value: 'public' } }).Mode('COLUMN');
   return this;
  }
 
@@ -107,7 +114,7 @@ export class DatabaseBroker
   return clause;
  }
  
- Then(Callback, mode)
+ Then(callback)
  {
   let query = '';
 
@@ -130,6 +137,7 @@ export class DatabaseBroker
                if (!this.fields.length)
                   {
                    query = `CREATE TABLE IF NOT EXISTS ${this.table}()`;
+                   //query = `CREATE TABLE ${this.table}()`;
                    break;
                   }
                // Add columns at the end for default
@@ -167,40 +175,50 @@ export class DatabaseBroker
                query = this.table;
          }
 
-  this.args.length ? DatabaseBroker.pool.query(query, this.args, (err, res) => this.GetResult(Callback, query, err, res)) : DatabaseBroker.pool.query(query, (err, res) => this.GetResult(Callback, query, err, res));
+  if (typeof callback !== 'function') callback = this.GetResult.bind(this);
+  //this.args.length ? DatabaseBroker.pool.query(query, this.args, (err, res) => this.GetResult(Callback, query, err, res)) : DatabaseBroker.pool.query(query, (err, res) => this.GetResult(Callback, query, err, res));
+  this.args.length ? DatabaseBroker.pool.query(query, this.args, (err, res) => callback(query, err, res)) : DatabaseBroker.pool.query(query, (err, res) => callback(query, err, res));
  }
 
- GetResult(Callback, query, err, res)
+ GetResult(query, err, res)
  {
+  if (DatabaseBroker.CatchError(err, query)) return;
   let fields;
-  console.log(query);
   switch (this.mode)
          {
           case 'VALUE':
                fields = this.Join(',', '').split(',')[0];
                if (!fields || fields === '*') fields = res.fields[0].name;
-               console.log(res.rows[0][fields]);
+               lg(res.rows[0][fields]);
                break;
           case 'ROW':
-               console.log(res.rows[0]);
+               lg(res.rows[0]);
                break;
           case 'COLUMN':
                fields = this.Join(',', '').split(',')[0];
                if (!fields || fields === '*') fields = res.fields[0].name;
-               for (const row of res.rows) console.log(row[fields]);
+               for (const row of res.rows) lg(row[fields]);
                break;
           case 'COLUMNS':
                fields = this.Join(',', '').split(',');
                if (!fields || fields === '*') fields = res.fields;
                for (const row of res.rows)
                    {
-                    for (const field of fields) console.log(row[field]);
-                    console.log('___');
+                    for (const field of fields) lg(row[field]);
+                    lg('___');
                    }
                break;
           default:
-               console.log(res.rows);
+               lg(res.rows);
                break;
          }
+ }
+
+ static CatchError(err, query)
+ {
+  if (!err) return;
+  console.error(err);
+  if (query) lg('Error query: ', query);
+  return true;
  }
 }

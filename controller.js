@@ -1,9 +1,11 @@
 // Todo0 - Secure wss https://www.npmjs.com/package/ws#external-https-server
 // Todo0 - Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
+// Todo - socket rate limit: https://javascript.info/websocket#rate-limiting
+// Todo - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
 
 import { WebSocketServer } from 'ws';
 import { DatabaseBroker } from './databasebroker.js';
-import { controller, testdata, lg } from './main.js';
+import { controller, lg } from './main.js';
 
 const wss = new WebSocketServer({ port: 8002 });
 wss.on('connection', WSNewConnection);
@@ -13,7 +15,7 @@ function WSMessageProcess(msg)
  // msg - incoming message from the client side
  // this - ws connection object that is passed first at websocket init and stored in <clients> map object. To send data back to the client side use this.send('...'),
  msg = JSON.parse(msg);
- lg(msg)
+ //lg(msg)
  if (!msg || typeof msg !== 'object' || !msg['type']) return;
  if (msg['type'] !== 'LOGIN' && !controller.clients.get(this).auth)
     {
@@ -24,9 +26,10 @@ function WSMessageProcess(msg)
 
  switch (msg['type'])
 	    {
-	     case 'New Database':
-              //new DatabaseBroker().ShowTables().Then();
-	          this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));
+	     case 'EDITDATABASE':
+              new DatabaseBroker().ShowTables().Then(controller.EditDatabase.bind(controller, msg));
+	          break;
+	     case 'GETDATABASE':
 	          break;
 	     case 'SIDEBARGET':
 	          this.send(JSON.stringify({ type: 'SIDEBARSET', odid: 13, path: 'hui/Система/Users', ov: { 1: ['zest/view1a', '/vvvvvvvvvvvvvvvvvvvvvvvvvie1b'], 2: ['/ahui1/View2c', 'test/view2d']}}));
@@ -73,6 +76,25 @@ export class Controller
   this.clientauthcodes[string] = {};
   // Todo0 - do Settimeout to remove expired codes
   return string;
+ }
+
+ EditDatabase(event, query, err, res)
+ {
+  if (DatabaseBroker.CatchError(err, query)) return;
+  let odid = 0;
+  for (const row of res.rows)
+      {
+       let pos = row.tablename.indexOf('_');
+       if (pos === -1) continue;
+       pos = +(row.tablename.substring(pos + 1));
+       if (pos > odid) odid = pos;
+      }
+  odid++;
+  new DatabaseBroker('head_' + odid).Method('CREATE').Then();
+  new DatabaseBroker('uniq_' + odid).Method('CREATE').Then();
+  new DatabaseBroker('data_' + odid).Method('CREATE').Then();
+  // Parse if it is a new od or not
+  // If it is a new od - Pasre for correct new OD, save it to head_odid table with user, version=0, timestamp, ODJSON. And send SIDEBARSET to all WSS users with new OD view list (this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));).
  }
 }
 

@@ -7,6 +7,7 @@
 // Todo2 - requestIdleCallback for idle tasks
 // Todo0 - While resizing all animation is being applied and slowing GUI?
 // Todo2 - Change box minimize icon from low line to upper line
+// Todo2 - Two modal boxes case, top modal is destroyed, but another modal is still css filtered. Fix it.
 
 import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';
@@ -365,7 +366,7 @@ export class Interface
 		 if (app.control && app.control.child !== current && current.IsModal())								// Current child is modal and existing captured child is not current? Release control
 		 	{
 			 document.body.style.cursor = 'auto';
-			 CallControlHandler(control, null, '');
+			 CallControlHandler(app.control, null, 'release');
 			 lg(`Control ${app.control.name} is released!`);
 			 delete app.control;
 			}
@@ -382,6 +383,7 @@ export class Interface
  // Function kills specified child, rebuilds z-indexes and deletes its element from child array with 'removeonhide' flag set to remove element from the DOM
  KillChild(id)
  {
+  //if (typeof id === 'string') id = +id;																													// Pisec
   if (app.control?.child === this.childs[id])																												// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';

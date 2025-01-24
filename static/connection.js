@@ -1,4 +1,4 @@
-import { NODOWNLINKNONSTICKYCHILDS, lg } from './constant.js';
+import { NODOWNLINKNONSTICKYCHILDS, lg, CutString, NEWOBJECTDATABASE } from './constant.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
@@ -14,8 +14,8 @@ export class Connection extends Interface
 {
  destructor()
  {
+  this.socket?.close();
   super.destructor();
-  // Todo - close web socket
  }
 
  constructor(...args)
@@ -25,25 +25,27 @@ export class Connection extends Interface
                   position: 'CASCADE',
                   control: { closeicon: {}, fullscreenicon: { initevent: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
                 };
-  const attributes = { class: 'defaultbox',
+  const attributes = { class: 'connectionbox',
                        style: 'background-color: #343e54;'
                      };
   super(...args, props, attributes);
-  this.eventid = 0;
+  this.currenteventid = 0;
   this.eventqueue = {};
   this.Login();
  }
 
  Login(header)
  {
+  // Clear all disconnected user data
+  this.username = this.userid = '';
+  this.eventqueue = {};
+  // Kill all childs
+  for (const id in this.childs) if (id !== '0') this.KillChild(+id);
+  // Create login dialog from the template
   const dialog = JSON.parse(JSON.stringify(LOGINDIALOG));
   if (header) dialog.title.data = header;
-  new DialogBox(dialog, this, { effect: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' }, this.LoginCallback.bind(this));
- }
-
- LoginCallback(dialogdata)
- {
-  this.Hujax("/", { method: 'POST', body: JSON.stringify({ type: 'LOGIN', username: dialogdata.username.data, password: dialogdata.password.data}), headers: { 'Content-Type': 'application/json; charset=UTF-8' } }); 
+  const control = { fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} };
+  new DialogBox(dialog, this, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', control: control, callback: this.CallController.bind(this, { type: 'LoginDialogCallback' }, null) }, { class: 'dialogbox selectnone' });
  }
 
  CreateWebSocket(url)
@@ -62,9 +64,6 @@ export class Connection extends Interface
 
  OnCloseSocket()
  {
-  // Todo0 - I think there is no need to pass 'SOCKETCLOSE': for (const child of this.childs) if (child !== this && child.Handler) ProcessChildEvent(child, child.Handler({ type: 'SOCKETCLOSE' }));
-  // Todo0 - Kill all childs here
-  // Todo0 - Process all events (may be POST events waiting big file or media to transfer), cancel them and clear all queue via this.eventqueue = {};
   // Todo0 - process next events 'Server has closed connection due to timeout', '... user delete', '...pass change', '...logout all instances'
   this.Login();
  }
@@ -74,32 +73,55 @@ export class Connection extends Interface
   switch (event.type)
 	    {
 	     case 'mouseup':
-	          new ContextMenu([['Logout'], ['Help']], this, event);
+               let menu = this.username ? [['Help'], ['Logout ' + CutString(this.username)]] : [['Help']];
+	          new ContextMenu(menu, this, event);
 	          break;
 	     case 'CONTEXTMENU':
 			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
 				   case '':
 					   break;
+                       default:
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.socket.close();
 				  }
-	          break;
-	     case 'DIALOG':
-	          new DialogBox(event.data, this, { effect: 'rise', position: 'CENTER' }, { class: 'dialogbox selectnone' });
 	          break;
 	    }
  }
 
- CallController(event)
+ CallController(event, id)
  {
-  lg('Controller is called');
-  if (this.socket.readyState !== WebSocket.OPEN) return;
-  const template = { connectionid: this.id, eventid: this.eventid }; // + ODid, OVid, oid, eid
-  try { this.socket.send(JSON.stringify(this.eventqueue[this.eventid++] = Object.assign(event, template))); }
+  lg('Controller is called with next args:', arguments);
+  id = id ? id : this.currenteventid++;
+
+  switch (event.type)
+	    {
+	     case 'New Database': // Context menu event incoming from sidebar
+               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', callback: this.CallController.bind(this, { type: 'NewDatabaseDialogCallback' }, null) }, { class: 'dialogbox selectnone' });
+               return;
+          case 'NewDatabaseDialogCallback': // New event from creating database dialog callback with dialog data as a third arg (argument[2]). Pass it to the controller
+               event.type = 'EDITDATABASE';
+               event.data = arguments[2];
+               break;
+          case 'LoginDialogCallback': // New event from login dialog callback with dialog data as a third arg (argument[2]). Pass it to the controller via POST method
+               LOGINDIALOG.username.data = arguments[2].username.data;
+               this.Hujax("/", { method: 'POST', body: JSON.stringify({ type: 'LOGIN', username: arguments[2].username.data, password: arguments[2].password.data}), headers: { 'Content-Type': 'application/json; charset=UTF-8' } });
+               return;
+         }
+
+  if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
+  try { this.socket.send(JSON.stringify(this.eventqueue[id] = Object.assign(event, { id: id }))); } // + ODid, OVid, oid, eid
   catch {}
+ }
+
+ // Check incoming event for queue existing. Return check failed for unexisting event
+ CheckEventStatus(event)
+ {
+  return true;
  }
 
  FromController(event)
  {
+  if (!this.CheckEventStatus(event)) return;
   switch (event.type)
 	    {
 	     case 'CREATEWEBSOCKET':
@@ -117,7 +139,11 @@ export class Connection extends Interface
 	     case 'SIDEBARSET':
 	          this.sidebar.Handler(event);
 	          break;
+	     case 'DIALOG':
+	          //new DialogBox(event.data, this, { effect: 'rise', position: 'CENTER' }, { class: 'dialogbox selectnone' });
+	          break;
          }
+  // Todo0 - delete here all event data if needed
  }
 
  async Hujax(url, options)
@@ -130,20 +156,21 @@ export class Connection extends Interface
   catch (err)
         {
          lg(err);
+         setTimeout(this.Login.bind(this), 0, 'No server respond!');
         }
  }
 }
 
-
-
 // +--------+                                           +------------+                                   +---------+                                     
-// |        |   LOGIN (POST) ->                  		 |            |                                   |         |                
+// |        |   LOGIN (POST user/pass) ->       		 |            |                                   |         |                
 // |        |       <- CREATEWEBSOCKET|LOGINERROR (POST)|            |                                   |         |                
-// |        |   LOGIN (WS) ->          		    		 |            |                                   |         |                
+// |        |   LOGIN (WS with uid and authcode) ->     |            |                                   |         |                
 // |        |                      <- AUTHWEBSOCKET (WS)|            |                                   |         |                
 // | Client |   SIDEBARGET (WS) -> 		    		 | Controller |                                   | Handler |                
 // |        |                         <- SIDEBARSET (WS)|            |                                   |         |                
 // |        |                        		    		 |            |                                   |         |                
+// |        |   CREATEDATABASE (WS) -> 		    		 |            |                                   |         |                
+// |        |                 <- SIDEBARSET|WARNING (WS)|            |                                   |         |                
 // |        |                        		    		 |            |                                   |         |                
 // |        |                        		    		 |            |                                   |         |                
 // +--------+                                           +------------+                                   +---------+                                     

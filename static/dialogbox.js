@@ -402,14 +402,11 @@ export class DialogBox extends Interface
 
  constructor(...args)
  {
-  // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes, callback)
-  args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
+  // Override 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1), the search is terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
+  if (!args[2]?.control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
   args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
   args[3]['data-element'] = '_-1';
   super(...args);
-
-  // Set callback to pass dialog data
-  this.DialogDataCallback = args[4];
 
   // Init dialog data
   this.InitDialogData();
@@ -964,7 +961,7 @@ EvalElementExpression(e)
 					   if (ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
 					   return {};
 					  }
-				   if (e.type === 'text' && e.flag.indexOf('-') === -1)													// For 'text' type and no readonly elements only
+				   if ((e.type === 'text' || e.type === 'password') && e.flag.indexOf('-') === -1)						// For 'text' type and no readonly elements only
 				   	  {
 					   for (id of this.callbuttonids)																	// Go through all callable btns and apply first non readonly one
 					   	   if (this.ButtonApply(this.allelements[id])) return {};
@@ -1016,7 +1013,7 @@ EvalElementExpression(e)
 					   let dialogdata;
 					   try { dialogdata = JSON.parse(e.data); }
 					   catch { return; }
-					   new DialogBox(dialogdata, this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' }, this.Handler.bind(this, { type: 'textchange', target: event.target}));
+					   new DialogBox(dialogdata, this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', callback: this.Handler.bind(this, { type: 'textchange', target: event.target }) }, { class: 'dialogbox selectnone' });
 					   break;
 					  }
 				   if (ELEMENTSELECTABLETYPES.indexOf(e.type) === -1) break;											// Sort order change for selectable element types only
@@ -1151,11 +1148,11 @@ EvalElementExpression(e)
  ButtonApply(e)
  {
   if (e?.flag.indexOf('-') !== -1) return;													// Do nothing for 'readonly' (disabled) btns
-  if (this.callbuttonids.indexOf(e.id) !== -1 && this.DialogDataCallback)					// Applied btn id is controller callable? Save all dialog data and call the controller
+  if (this.callbuttonids.indexOf(e.id) !== -1 && this.props.callback)						// Applied btn id is controller callable? Save all dialog data and call the controller
      {
 	  this.ClearDialogDataFromServiceProps();												// Delete unnecessary element props
   	  this.ModifyElementPathActiveProfiles();												// Modify all user element paths depending on active profile bundles
-	  this.DialogDataCallback(this.data);													// Call back function to process dialog data or lg('Calling controller with data', this.data);
+	  this.props.callback(this.data);														// Call back function to process dialog data or lg('Calling controller with data', this.data);
      }
   if (this.allelements[e.id].flag.indexOf('!') === -1)										// Button is not interactive? Kill drop-down list if exist and dialog box of itself
   	 {

@@ -7,7 +7,6 @@ import { Sidebar } from './sidebar.js';
 
 // Todo2 - Change application icon
 // Todo2 - Custom cursor div via css style * {cursor: none;}
-// Todo0 - Sidebar
 // Todo0 - Make module based system, see Shemsetdinov justify src arch via require/import
 // Todo0 - Make code overview for all other sources, testing every feature (don't forget to check table element type with its string data JSON type to convert to object in dialogbox.js)
 // Todo0 - DB SQL handle for OD structure, see Shemsetdinov query builder
@@ -17,7 +16,7 @@ export class Application extends Interface
  static style = {
  				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
  				 "_Appearance animation": "Select interface elements appearance animation", 
-				 ".modalfilter": { "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
+				 ".modalfilter": { "ilter": "blur(1px);", "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
 				}
 
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
@@ -115,9 +114,6 @@ window.onload = function () { app = new Application(); }
 
 // Application architecture
 // Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
-// Todo - all db operations via one function
-// Todo - problems of deploying - can i use postgre db on commerisal base? 
-// Todo - db readonly replicas?
 // Todo - app containers via docker?
 // Todo - Make logs and handlers manager accessable in 'System Manage' context menu
 // Todo - Application global users allowed all. For a example - root user.
@@ -125,12 +121,6 @@ window.onload = function () { app = new Application(); }
 // Todo - Multiple user instance is allowed via checked option in user properties settings
 // Todo - At the end of app stable version make new customization
 // Todo - add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality
-// Todo - Use another user (instead of root) with priv granted to 'OEDB' database only and Unicode for MySQL https://mathiasbynens.be/notes/mysql-utf8mb4 http://phpfaq.ru/mysql/charset
-// Todo - socket rate limit: https://javascript.info/websocket#rate-limiting
-// Todo - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
-// Todo - All db operations (except handlers and db config) should use the connection via user with read-only permissions
-// Todo - index columns: alter table data_1 add index (`lastversion`);
-// Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
 // Todo - helpdesk/jira/CRM example in Help context menu
 // Todo - Favicon change to show unread msges presence
 // Todo - Shortcut key calls OV to open at sidebar focus
@@ -181,14 +171,17 @@ window.onload = function () { app = new Application(); }
 
 // Tree view
 // Todo - Point to point tree shouldn't be multipath? Second query in object selection (add it to the help/doc) should point to the second point of point-to-point tree. Another words: point to point scheme must be one way
-// Todo - Tree element layout: style (for example to see what nodes are down by seeing them via red background)
-// Todo - Tree wire name (arrow name) to mark fiber cooper radio..
+// Todo - Tree element layout style:
+//		  for example to see what nodes are down by seeing them via red background
+//  	  Tree wire name (arrow name) to mark fiber cooper radio..
+//		  Node color or wire type should depend on some current object element values to mark nodes and its links status (node down, line down, etc..)
 // Todo - Object content have element list on per line and should looks like this: "element head: element text value". All unfited text should be displayed at its cursor navigation to show full values (so for elements that act as a links)
 //		  How to display image instead element values with its headers rectangles as a tree nodes?
 // Todo - context menu: expand/hide uplink and downlink subtrees, description for tree view (object number, object selection parameteres..)
 // Todo - loop element - show real looped object instead of read message
 // Todo - nested level input to be displayed. For example, nested level 2 diaplys main switch with its direct downlink nodes and no more deeper levels of nodes
 // Todo - keep input view parameters in a view history navigating, so open last viewed OV with input parameters used before. Access history of opened views via context menu or hot keys?
+// Todo - SVG animation: https://habr.com/ru/articles/450924/ https://habr.com/ru/articles/667116/
 
 // Table view
 // Todo - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
@@ -225,7 +218,7 @@ window.onload = function () { app = new Application(); }
 // Todo - View examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 //										arp table history for one ip/mac
 // Todo - Border svg for a cell
-
+// Todo - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses
 
 // Controller and event handlers
 // Todo - Handler cmd line macroses (replacements) - <oid>, <eid>, <date>, <OD>, <OV>, <ODid>, <OVid>
@@ -254,13 +247,16 @@ window.onload = function () { app = new Application(); }
 //		  In case of no any object selected in object selection process the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
 //		 		The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
 //		  So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
-// Predefined handler commands { "EDIT|SET": "", "data": ""}
+// Todo0 - handlers: cmd line, user defined plain text stdout, builtin node-native handler, node js script. All these handlers are accessed via profiles in which the arg dialog may be defined.
+//		   Each event has its handler profile (that is defined in system user customization). App has event profiles that consists of event list with defined handler profiles. Each element in OD may have default event profile (excel for a example, or chat)
+
 
 // Element layout
 // Todo - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
 // hiderow/hidecolumn - regexp feature with flag i for all cells in rows/columns match successful case
 // Todo - virt cell depends on oid,eid
 // Todo - sql request in 'Element Layout' section in 'value' prop should select among its view object selection, but not from all objects! (see models piechart among switches with one or zero active clients)
+// Todo - Any <td> style in element layout (colors, backgrounds, wires, etc..) for the tree/table view types may be customized depending on current object elements values 
 
 // Rules
 // Todo - when a rule is rejected for the event CHANGE - old element data is set. If element data is overwriten in element layout 'value' prop, the old element data is set anyway.
