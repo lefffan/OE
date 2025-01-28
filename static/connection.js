@@ -5,8 +5,8 @@ import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
 
 const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
-                      username: { type: 'text', head: 'Username', data: '' },
-                      password: { type: 'password', head: 'Password', data: '' },
+                      username: { type: 'text', head: 'Username', data: 'mau' },
+                      password: { type: 'password', head: 'Password', data: 'rrrrrrr' },
                       _ok: { type: 'button', data: ' LOGIN ', head: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
                     };
 
@@ -109,7 +109,7 @@ export class Connection extends Interface
          }
 
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
-  try { this.socket.send(JSON.stringify(this.eventqueue[id] = Object.assign(event, { id: id }))); } // + ODid, OVid, oid, eid
+  try { this.socket.send(JSON.stringify(this.eventqueue[id] = Object.assign(event, { id: id }))); } // + ODid, OVid, oid, eid // No user id and name - this is a server side info
   catch {}
  }
 

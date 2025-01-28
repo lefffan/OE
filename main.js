@@ -5,10 +5,15 @@
 
 import {} from './http.js';
 import {} from './controller.js';
-import { DatabaseBroker } from './databasebroker.js';
 import { Controller } from './controller.js';
 
+import pg from 'pg';
+const { Pool, Client } = pg
+const DBCONNECTION = { host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' };
+export const pool = new Pool(DBCONNECTION);
+
 const RANDOMSTRINGCHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const USERNAMEMAXCHAR  = 64;
 export const controller = new Controller();
 
 export function lg(...data)

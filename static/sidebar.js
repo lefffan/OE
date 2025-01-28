@@ -8,7 +8,7 @@ import { ContextMenu } from './contextmenu.js';
 // Todo0 - Escape chars '<>' (or may be others) in OV/OD names
 // Todo0 - Global func to return background svg for up/down arrows with user defined color
 // Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
-// Todo0 - Make sidebar icon twice bigger
+// Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
 
 const WEIGHTS  = { 'view': 1, 'database': 2, 'folder': 3 };
 const ARROW    = [ SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(), // bright green 139,188,122

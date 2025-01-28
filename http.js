@@ -55,7 +55,7 @@ function FromClient(event, res)
               res.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
               // Todo0 - Compare here user/pass from event.username and event.password from corresponded ones in DB. If match, send back event 'WEBSOCKET' for the client connect wss or login error: response = { type: 'LOGINERROR' };
               if (!event.username || !event.password) response = { type: 'LOGINERROR', data: 'Wrong username or password!' };
-               else response = { type: 'CREATEWEBSOCKET', username: event.username, userid: '0', protocol: 'ws', ip: '127.0.0.1', port: '8002', authcode: controller.AddClinetAuthCode(GenerateRandomString(12)) };
+               else response = { type: 'CREATEWEBSOCKET', username: event.username, userid: '0', protocol: 'ws', ip: '127.0.0.1', port: '8002', authcode: controller.AddClinetAuthCode(GenerateRandomString(12), 123) }; // Todo0 - set user id as a 2nd arg
               break;
         }
  res.write(JSON.stringify(response));

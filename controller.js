@@ -2,20 +2,21 @@
 // Todo0 - Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
 // Todo - socket rate limit: https://javascript.info/websocket#rate-limiting
 // Todo - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
+// Todo - Node SNMP https://github.com/calmh/node-snmp-native
 
 import { WebSocketServer } from 'ws';
-import { DatabaseBroker } from './databasebroker.js';
-import { controller, lg } from './main.js';
+import { QueryMaker } from './querymaker.js';
+import { controller, lg, pool } from './main.js';
 
 const wss = new WebSocketServer({ port: 8002 });
 wss.on('connection', WSNewConnection);
+const qm = new QueryMaker();
  
 function WSMessageProcess(msg)
 {
  // msg - incoming message from the client side
  // this - ws connection object that is passed first at websocket init and stored in <clients> map object. To send data back to the client side use this.send('...'),
  msg = JSON.parse(msg);
- //lg(msg)
  if (!msg || typeof msg !== 'object' || !msg['type']) return;
  if (msg['type'] !== 'LOGIN' && !controller.clients.get(this).auth)
     {
@@ -27,7 +28,7 @@ function WSMessageProcess(msg)
  switch (msg['type'])
 	    {
 	     case 'EDITDATABASE':
-              new DatabaseBroker().ShowTables().Then(controller.EditDatabase.bind(controller, msg));
+              controller.EditDatabase(msg, controller.clients.get(this));
 	          break;
 	     case 'GETDATABASE':
 	          break;
@@ -38,8 +39,9 @@ function WSMessageProcess(msg)
 	     case 'LOGIN':
               if (controller.clientauthcodes[msg.authcode])
                  {
-                  delete controller.clientauthcodes[msg.authcode];
                   controller.clients.get(this).auth = true;
+                  controller.clients.get(this).userid = controller.clientauthcodes[msg.authcode].userid;
+                  delete controller.clientauthcodes[msg.authcode];
 	              this.send(JSON.stringify({ type: 'AUTHWEBSOCKET' }));
                  }
                else
@@ -58,7 +60,7 @@ function WSError(err)
 
 function WSNewConnection(client)
 {
- controller.clients.set(client, { wsclient: client });
+ controller.clients.set(client, { socket: client }); // { auth: true|false, userid:, }
  client.on('message', WSMessageProcess);
  client.on('error', WSError);
 }
@@ -71,18 +73,33 @@ export class Controller
   this.clients = new Map();
  }
 
- AddClinetAuthCode(string)
+ AddClinetAuthCode(string, userid)
  {
-  this.clientauthcodes[string] = {};
-  // Todo0 - do Settimeout to remove expired codes
+  this.clientauthcodes[string] = { userid: userid };
+  // Todo0 - do Settimeout to remove expired auth codes
   return string;
  }
 
- EditDatabase(event, query, err, res)
+ AdjustDatabase(dialog)
  {
-  if (DatabaseBroker.CatchError(err, query)) return;
+  // Todo0 - create a template to check dialog structure correctness and check here database data structure with returning appropriate result (falsy value in case if incorrect database structure)
+  return (dialog && typeof dialog === 'object') ? dialog : null;
+ }
+
+ async EditDatabase(msg, wsclient)
+ {
+  if (!wsclient) return; // No valid web socket client in controller clients map? Return
+  let result;
+
+  // Todo0 - Parse here if it is a new od creation or existing one editing. And dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
+  try {
+       result = await pool.query(...qm.Table().ShowTables().Make()); // Todo2 - Should <qm> be global var or controller class specific?
+      }
+  catch (error) { lg(error); } // Todo0 - catch all error that occur in whole database creation process, send 'Cannot create DB ' to the client side 
+
+  // Calculate next free database index (id)
   let odid = 0;
-  for (const row of res.rows)
+  for (const row of result.rows)
       {
        let pos = row.tablename.indexOf('_');
        if (pos === -1) continue;
@@ -90,11 +107,25 @@ export class Controller
        if (pos > odid) odid = pos;
       }
   odid++;
-  new DatabaseBroker('head_' + odid).Method('CREATE').Then();
-  new DatabaseBroker('uniq_' + odid).Method('CREATE').Then();
-  new DatabaseBroker('data_' + odid).Method('CREATE').Then();
-  // Parse if it is a new od or not
-  // If it is a new od - Pasre for correct new OD, save it to head_odid table with user, version=0, timestamp, ODJSON. And send SIDEBARSET to all WSS users with new OD view list (this.send(JSON.stringify({ type: 'DIALOG', data: testdata }));).
+
+  // Create new databases and write its structure
+  try {
+       await pool.query(...qm.Table('head_' + odid).Method('CREATE').Make());
+       await pool.query(...qm.Table('uniq_' + odid).Method('CREATE').Make());
+       await pool.query(...qm.Table('data_' + odid).Method('CREATE').Make());
+       await pool.query(...qm.Table('head_' + odid).Method('CREATE').Fields({ id: {value: 'INTEGER', constraint: 'PRIMARY'}, timestamp: {value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP'}, userid: 'INTEGER', /*username: `CHAR(${USERNAMEMAXCHAR})`,*/ dialog: 'JSON' }).Make());
+      }
+  catch (error) { lg(error); }
+
+  // Adjust database dialog structure and write it to 'head_<odid>' table
+  const dialog = this.AdjustDatabase(msg.data);
+  if (!dialog) return; // Todo0 - send 'Incorrect database dialog structure' to the client?
+  try {
+       await pool.query(...qm.Table('head_' + odid).Method('WRITE').Fields({ userid: wsclient.userid, dialog: {value: JSON.stringify(dialog), escape: true} }).Make());
+      }
+  catch (error) { lg(error); }
+
+  // Todo0 - for (const client of this.clients) client.socket.send(JSON.stringify({ type: 'SIDEBARSET', odid: 13, path: 'hui/Система/Users', ov: { 1: ['zest/view1a', '/vvvvvvvvvvvvvvvvvvvvvvvvvie1b'], 2: ['/ahui1/View2c', 'test/view2d']}}));
  }
 }
 

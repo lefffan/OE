@@ -880,6 +880,7 @@ EvalElementExpression(e)
 	   e = Object.assign({}, e, { path: path.join(SELECTABLEOPTIONSDIVIDER) });
 	   for (const prop in e)
 		   if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete e[prop];							// Clear element from unnecessary props
+	   e.flag = typeof e.flag === 'string' ? '~' + e.flag : '~';								// Add 'cloned element' mark to the flag property
 	   this.PushInterfaceElement(this.data[this.propmaxindex] = e, this.propmaxindex + '');
 	   delete e.expr;
 	   delete e.affect;

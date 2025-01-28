@@ -66,7 +66,7 @@ export class Application extends Interface
 }
 
 export let app;
-window.onload = function () { app = new Application(); }
+window.onload = function () { new Connection(null, app = new Application()); }; // Connection args: data, parent
 
 // Megacom appliance information systems
 // Todo - discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
@@ -276,6 +276,11 @@ window.onload = function () { app = new Application(); }
 
 // Presentation
 // Todo - Y-combinator
+//		  https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
+//		  https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
+//	      https://tass.ru/ekonomika/14542887
+//		  https://rb.ru/longread/where-to-go-with-business-idea/
+//		  https://vc.ru/flood/60006-kuda-startapu-poyti-za-nastavnikami-i-investorami-desyat-krupnyh-akseleratorov-rossii
 // Todo - big amount of data with faaster and quick perfomance
 // Todo - data is native
 // Todo - data constructor
