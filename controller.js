@@ -6,7 +6,8 @@
 
 import { WebSocketServer } from 'ws';
 import { QueryMaker } from './querymaker.js';
-import { controller, lg, pool } from './main.js';
+import { controller, pool } from './main.js';
+import { lg, SearchDialogElements } from './main.js';
 
 const wss = new WebSocketServer({ port: 8002 });
 wss.on('connection', WSNewConnection);
@@ -82,8 +83,41 @@ export class Controller
 
  AdjustDatabase(dialog)
  {
-  // Todo0 - create a template to check dialog structure correctness and check here database data structure with returning appropriate result (falsy value in case if incorrect database structure)
+  for (const entity of ['Element', 'View'])
+      {
+       const path = entity === 'Element' ? 'Element/' : 'View//General';
+       let id = 1;
+       for (const e of SearchDialogElements(dialog, { path: path, head: 'Description', flag: '^[^~]' }))
+           {
+            //let profilename = e.path;
+           }
+      }
+  // February:
+  //    New dialog source
+  //    Comment and adjust other sourcse
+  //    Divide todo list for specific js sources
+  // March:
+  //    rename New view -> Template to create new view
+  //    Don't create OD (and delete OD) in case of empty OD name and no any view/element profiles
+  //    Change title to 'Database Configuration' and 'ok' btn to 'Save'
+  //    Display odid in dialog
+  //    adjust view and element profiles name + (id1)
+  //        Renew element and view props in memory (depending on macroses too)
+  //        Renew uniq data tables with adding/removing columns
+  //    permissions - check OD creating, check all pads of OD dialog read/change permissions, so no any readable pad - the user is not allowed OD dialog at all
+  //    OD structure, example - 'view name' change to 'aliases list'
+  //    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Dont forget about dynamic macroses (${OD} $OV) and CalcMacrosValue function. Or split them into 2 objects - one is dinamic macroses list that claim to be calculated at its apply or static macroses
+  //    Create a template to check dialog structure correctness and check here database data structure with returning appropriate result (falsy value in case if incorrect database structure)
+  // April
+  //    object view except graph and tree
+  // May
+  //    Auth process, user OD with its dialog and customization etc..
   return (dialog && typeof dialog === 'object') ? dialog : null;
+ }
+ 
+ CalcMacrosValue(name, value, collect = [])
+ {
+  collect.push(name);
  }
 
  async EditDatabase(msg, wsclient)

@@ -140,6 +140,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //				Arg dialog
 //				Db global
 // Todo - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
+// Ctrl + Tab switches between childs in connection child
 
 // View
 // Todo - all view changes comes to clint side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.
@@ -275,13 +276,13 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo - Check opera bug mouseup event at right mouse btn release while dragging while mouse guesters enabled in opera settings
 
 // Presentation
-// Todo - Y-combinator
+// Todo - Y-combinator practice:
 //		  https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
 //		  https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
 //	      https://tass.ru/ekonomika/14542887
 //		  https://rb.ru/longread/where-to-go-with-business-idea/
 //		  https://vc.ru/flood/60006-kuda-startapu-poyti-za-nastavnikami-i-investorami-desyat-krupnyh-akseleratorov-rossii
-// Todo - big amount of data with faaster and quick perfomance
+// Todo - big amount of data with faster and quick perfomance
 // Todo - data is native
 // Todo - data constructor
 // Todo - voting

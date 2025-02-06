@@ -5,7 +5,8 @@
 
 import http from 'http';
 import fs from 'fs';
-import { GenerateRandomString, controller, lg } from './main.js';
+import { GenerateRandomString, controller } from './main.js';
+import { lg } from './main.js';
 
 const staticdocs = {
     '/application.js': '/static/application.js',

@@ -137,39 +137,6 @@ export function SVGCircle(x, y, r, strength, color, fill = 'none', dash)
  return `%3Ccircle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} /%3E`;
 }
 
-// Function returns array of js objects (dialog interface elements) matched input element props (path, type..)
-// Retreive object database all views aliases example - GetDialogElementListByPath(/View//General) returns all view profiles (except template 'New view') with 'General' profile nested, for a exa prof' (empty folder matches all)
-export function GetDialogElementListByPath(dialog, search, nested = true)
-{
- let result = [];
- for (const i in dialog)
-     {
-      const e = dialog[i]; // Fix current diaog interface element
-      let match = true; // Set true match for default
-      for (const prop in search) // Go through all search object props
-       if (prop === 'path') // Test 'path' prop first
-          {
-           const searchpath = search[prop].split('/'); // Split search path
-           const elementpath = e.path.split('/'); // Split element path
-           if ((searchpath.length > elementpath.length || (!nested && elementpath.length > searchpath.length)) && !(match = false)) break; // Break with false match for unmatched length of splited paths and unset nested search
-           for (const j in searchpath) // Go through all folders in search path
-               {
-                if (j === '1' && ['New element', 'New view', 'New rule'].elementpath[j] !== -1 && !(match = false)) break; // No match for template dialog profiles
-                if (!searchpath[j]) continue; // Empty folder in search path matches all
-               }
-           if (!match) break; // Match is unsuccessful so other search is not needed - break it to continue with next dialog interface element
-          }
-        else
-          {
-           if (e.prop.indexOf(search[prop]) !== -1) continue; // Simple match string test for non-path search props
-           match = false;
-           break;
-          }
-      if (match) result.push(dialog[i]);
-     }
- return result;
-}
-
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
 export const NEWOBJECTDATABASE = {
     11: { type: 'title', path: 'Database', data: 'New Database Configuration' },
