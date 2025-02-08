@@ -1,7 +1,6 @@
-import { AdjustString, HTMLINNERENCODEMAP } from './constant.js';
 import { app } from './application.js';
 import { Interface } from './interface.js';
-import { GetElementOptionByChecked, EMPTYOPTIONTEXT } from './dialogbox.js';
+import { GetElementOption } from './dialogbox.js';
 
 // Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 
@@ -13,7 +12,7 @@ export class DropDownList extends Interface
   super(options, dialogbox.parentchild, { overlay: 'NONSTICKY', effect: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } } }, {class: 'select expanded', style: `left: ${selectdiv.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${selectdiv.offsetTop + dialogbox.elementDOM.offsetTop + selectdiv.offsetHeight - dialogbox.contentwrapper.scrollTop}px;`}); // (data, parentchild, props, attributes)
   this.dialogbox = dialogbox;
   this.selectdiv = selectdiv;
-  this.cursor = +(GetElementOptionByChecked(options)?.[2]);
+  this.cursor = +(GetElementOption(options)?.id);
 
   // And fill it with element options
   this.Show();
@@ -23,7 +22,7 @@ export class DropDownList extends Interface
  Show()
  {
   let content = '';
-  for (const option of this.data) content += `<div value="${option[2]}" class="selectnone${option[1] || (+option[2]) === this.cursor ? ' selected' : ''}">${AdjustString(option[0] ? option[0] : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP)}</div>`;
+  for (const option of this.data) content += `<div value="${option.id}" class="selectnone${option.checked || (+option.id) === this.cursor ? ' selected' : ''}">${option.inner}</div>`;
   this.elementDOM.innerHTML = content;
  }
 
