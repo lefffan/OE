@@ -7,7 +7,7 @@ import { Sidebar } from './sidebar.js';
 const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
                       username: { type: 'text', head: 'Username', data: 'mau' },
                       password: { type: 'password', head: 'Password', data: 'rrrrrrr' },
-                      _ok: { type: 'button', data: ' LOGIN ', head: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
+                      ok: { type: 'button', data: ' LOGIN ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' }
                     };
 
 export class Connection extends Interface

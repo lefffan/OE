@@ -138,19 +138,49 @@ export function SVGCircle(x, y, r, strength, color, fill = 'none', dash)
 }
 
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
+
+const DATABASEPAD = {
+10: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. 
+Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as a database name, others before - as a folders. Empty folders are ignored` }, 
+20: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, 
+30: { type: 'textarea', data: '', head: `Hide this dialog 'Database' section dialog for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored), so the restriction is applied for the user that matches the list.
+ Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char.
+ Note that user 'root' is a super user with no any restrictions applied regardless of any lists, so good practice is to use that super user account for recovery purposes only` },
+40: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
+50: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
+60: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
+70: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`, flag: '*' },
+80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros. 
+Each one may be used both for informative purposes and for any constant definitions, which may be used in any database configuration settings via js style quoted expression \${<macros name>}`,
+data: { 'New macros~+': { 10: { type: 'textarea', head: 'Macros value', data: '' },
+                        20: { type: 'textarea', head: 'Macros description', flag: '*', data: '' },
+
+},},},};
+
+const ELEMENTPAD = {
+new: { type: 'select', head: 'Element profile~Set this template element properties and clone it to create new element in object database', data: { 'New element template~+': {
+10: { type: 'textarea', head: 'Name~Element name, used as a default element title in object view display', data: '', flag: '+Enter element name' },
+20: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
+
+} } } };
+
 export const NEWOBJECTDATABASE = {
-    11: { type: 'title', path: 'Database', data: 'New Database Configuration' },
+    padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD }  },
+    title: { type: 'title', data: 'New Database Configuration' },
+    ok: { type: 'button', data: 'CREATE DATABASE', flag: 'a' },
+    cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL' },
+};
+
+/*
     12: { type: 'text', path: 'Database', head: 'Database name', data: '', flag: '*%Enter new database name', hint: `Enter new database name full path in next format: folder1/../folderN/dbname. 
 Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last seprated name is always treated as a database name, others before - as a folders. Empty folders are ignored.` },
-    13: { type: 'textarea', path: 'Database', data: '', head: `User/group list the 'Database' section is hidden for` },
-    14: { type: 'textarea', path: 'Database', data: '', head: `Change 'Database' section restricted user/group list` },
-    15: { type: 'textarea', path: 'Database', data: '', head: `Change 'Element' section restricted user/group list` },
-    16: { type: 'textarea', path: 'Database', data: '', head: `Change 'View' section restricted user/group list` },
-    17: { type: 'textarea', path: 'Database', data: '', head: `Change 'Rule' section restricted user/group list`, flag: '*' },
     18: { type: 'textarea', head: 'Macros value', hint: '', data: '', path: `Database/New macros|+%Enter new macros name|Macros list|Database macros list is an optional list of some text data associated with the specified macros. 
 Each one may be used both for informative purposes and for any constant definition. You may use these constants in any database configuration settings via js style quoted expression \${<macros name>}. 
 For a example, macros name 'Description' may have some text that describes some useful database info` },
     19: { type: 'textarea', path: 'Database/New macros', data: '', head: 'Macros description', flag: '*' },
+
+
+
     20: { type: 'textarea', path: 'Element/New element|+*|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
     21: { type: 'textarea', path: 'Element/New element', head: 'Description', hint: `Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values`, data: '', flag: '*%Enter element description' },
     22: { type: 'checkbox', path: 'Element/New element', head: 'Type', hint: `Unique element type forces specified element for all objects in database to contain uniq values (of element JSON "value" property) only, so duplicated values are excluded and cause an error. Element type cannot be changed after element creation`, data: 'unique' },
@@ -159,10 +189,10 @@ For a example, macros name 'Description' may have some text that describes some 
 For the mouse and keyboards events select modifier keys, but note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved for service purposes and do not cancel default client side (browser) behaviour, so may never occur`, data: CLIENTEVENTS.join('/') },
     25: { type: 'checkbox', path: 'Element/New element/New event', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },
 
-    /**/26: { type: 'textarea', path: `Element/New element/New event/Custom handler||Select event hanlder|Select handler to be called on specified event above`, head: 'Command line', hint: `Set command line for the custom handler. Empty lines and with leading '#' are ignored. Fisrt cmd line is executed. Other lines two, but in 'ignore' mode, see handler output processing below`, data: '', flag: '*' },
-    /**/27: { type: 'textarea', path: `Element/New element/New event/Vitrual handler`, head: 'Output data', hint: `Set plain text for the virtual handler fixed output. Actually no handler call is perfomed - specified output data is passed directly to the controller`, data: '', flag: '*' },
-    /**/28: { type: 'textarea', path: `Element/New element/New event/Predefined handler 'curl'`, head: 'Predefined handler input args',  hint: `All predefined handler command lines are set in 'system' user properties. Change here handler input args only`, data: '', flag: '*' },
-    /**/29: { type: 'textarea', path: `Element/New element/New event/Predefined handler 'snmpwalk'`, head: 'Predefined handler input args',  hint: `All predefined handler command lines are set in 'system' user properties. Change here handler input args only`, data: '', flag: '*' },
+    //26: { type: 'textarea', path: `Element/New element/New event/Custom handler||Select event hanlder|Select handler to be called on specified event above`, head: 'Command line', hint: `Set command line for the custom handler. Empty lines and with leading '#' are ignored. Fisrt cmd line is executed. Other lines two, but in 'ignore' mode, see handler output processing below`, data: '', flag: '*' },
+    //27: { type: 'textarea', path: `Element/New element/New event/Vitrual handler`, head: 'Output data', hint: `Set plain text for the virtual handler fixed output. Actually no handler call is perfomed - specified output data is passed directly to the controller`, data: '', flag: '*' },
+    //28: { type: 'textarea', path: `Element/New element/New event/Predefined handler 'curl'`, head: 'Predefined handler input args',  hint: `All predefined handler command lines are set in 'system' user properties. Change here handler input args only`, data: '', flag: '*' },
+    //29: { type: 'textarea', path: `Element/New element/New event/Predefined handler 'snmpwalk'`, head: 'Predefined handler input args',  hint: `All predefined handler command lines are set in 'system' user properties. Change here handler input args only`, data: '', flag: '*' },
 
     34: { type: 'radio', path: `Element/New element/New event/Handler stdout (correct JSON)|!|Handler output processing|Select processing action for handler stdout and stderr output. For correct-JSON (with correct "cmd" property) 'Apply' option execute client side command "cmd". 
 See appropriate help section for details. 'Ignore' option does nothing and ignores any output. 
@@ -212,6 +242,5 @@ Query may contain any macroses such as user or system defined ones (${'${'}oid},
 Be aware of using rules for unspecified events, it may cause CPU overload due to every event query call. Examples: ` }, 
     74: { path: 'Rule/New rule', type: 'checkbox', data: 'Log rule message', flag: '*' }, 
 
-    _100: { type: 'button', path: 'Element', data: 'CREATE DATABASE' },
-    z101: { head: 'background: rgb(227,125,87);', type: 'button', path: 'Element', data: 'CANCEL' }
    };
+*/

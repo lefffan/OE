@@ -7,7 +7,7 @@
 import { WebSocketServer } from 'ws';
 import { QueryMaker } from './querymaker.js';
 import { controller, pool } from './main.js';
-import { lg, SearchDialogElements } from './main.js';
+import { lg } from './main.js';
 
 const wss = new WebSocketServer({ port: 8002 });
 wss.on('connection', WSNewConnection);
@@ -87,10 +87,10 @@ export class Controller
       {
        const path = entity === 'Element' ? 'Element/' : 'View//General';
        let id = 1;
-       for (const e of SearchDialogElements(dialog, { path: path, head: 'Description', flag: '^[^~]' }))
-           {
+       //for (const e of SearchDialogElements(dialog, { path: path, head: 'Description', flag: '^[^~]' }))
+          // {
             //let profilename = e.path;
-           }
+          // }
       }
   // February:
   //    New dialog source

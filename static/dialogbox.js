@@ -35,99 +35,96 @@
 // Todo2 - add style prop (type, data head hint expr and style!) to style all element types
 // Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
 // Todo2 - When two modal appears - lower box has grey filter and that filter doesn't go away after above box gone away
-// Todo2 - Should clickable elements react to 'click' event instead of 'mousedown' (like 'button' element for a example)?
-// Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
-// Todo0 - indexod -> includes, elementids -> elements
 // Todo0 - Make login btn full painted color with no border
-// Todo0 - after cloning profile - uncheck profile that was cloned
 
 import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, EFFECTSHINT, lg, MessageBox } from './constant.js';
 import { app } from './application.js';
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
 
-const EMPTYOPTIONTEXT			= ' ';
+const EMPTYOPTIONTEXT					= ' ';
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
 const ELEMENTUSERPROPS					= { type: undefined, flag: '', head: undefined, data: undefined, style: undefined, expr: undefined };
 const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
 const ELEMENTTEXTTYPES					= ['textarea', 'text', 'password'];
 const ELEMENTALLTYPES					= ['title', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES, 'table', 'button'];
-const FIELDSDIVIDER						= '~';
 const OPTIONSDIVIDER					= '/';
 const OPTIONISCHECKED					= '!';
 const OPTIONISCLONED					= '*';
 const OPTIONISCLONABLE					= '+';
 const OPTIONISREMOVABLE					= '-';
+const FIELDSDIVIDER						= '~';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 const DIALOGBOXMACROSSTYLE				= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
- 
+const INITSERVICEDATA					= 0b10000; 
+const CHECKDIALOGDATA					= 0b01000; 
+const PARSEDIALOGDATA					= 0b00100; 
+const SHOWDIALOGDATA					= 0b00010; 
+const PARSEEXPRESSIONS					= 0b00001; 
+
 // Function builds array by splitting (divided via '/') input arg data string to separate options and returns eponymous array. Element type 'type' defines checked options number: 'select' (single checked option only), 'radio' (none or single)
-function CreateSelectableElementOptions(data, type)
+function CreateSelectableElementOptions(e)
 {
  // First step - init vars, for 'string'/'object' types only
- if (!data || !['string', 'object'].includes(typeof data)) return [];	// Element with non string data is considered as element with one header/hint only. With empty data ('') - as element with one empty option. With single divider data='/' - as element with two empty option.
- if (typeof data ==='object' && type !== 'select') return [];			// Profile selection (data prop is 'object' type) is for 'select' type only
-
- const list = typeof data ==='srting' ? data.split(OPTIONSDIVIDER) : data;
- const options = [];						// Array of selectable options. Each array element, in turn - is an array of option itself, checked status and order id (to keep default appearance): [option, ischecked, id] plus auto set fourth (profile index) and fifth (profile clonable/removable flag) array elements
- const names = {};
+ if (e.data === null || !['string', 'object'].includes(typeof e.data)) return e.options = [];	// Element with non string data is considered as element with one header/hint only. With empty data ('') - as element with one empty option. With single divider data='/' - as element with two empty option.
+ if (typeof e.data ==='object' && e.type !== 'select') return e.options = [];					// Profile selection (data prop is 'object' type) is for 'select' type only
+ const list = typeof e.data ==='srting' ? e.data.split(OPTIONSDIVIDER) : e.data;
+ const names = new Set();
  let name, flag, style;
+ e.options = [];																	// Array of selectable options. Each array element, in turn - is an option object with origin profile name, checked status, order id (to keep default appearance), clonable/removable flag, etc..
 
  // Second step - push parsed options to the result array
  // Option structure: <name~flags~style>, where flags are: checked, clonable, removable, cloned
- for (origin in list)
+ for (let origin in list)
      {
-      if (options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break;																							// Options number exceeds max allowed? Break
-	  origin = Array.isArray(list) ? list[origin] : origin;
-	  [name, flag, ...style] = origin.split(FIELDSDIVIDER);
-	  if (!Array.isArray(list) && name in names)
+      if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break; 			// Options number exceeds max allowed? Break
+	  origin = Array.isArray(list) ? list[origin] : origin;							// Get full option name with flags and style joined via divider
+	  [name, flag, ...style] = origin.split(FIELDSDIVIDER);							// Split it to get option name without flags, flag and style
+	  if (typeof e.data === 'object' && names.has(name))							// Option name (profile) without flags has already exist in e.data profile list? Delete it and continue
 		 {
-		  delete data[origin];
+		  delete e.data[origin];
 		  continue;
 		 }
-	  names[name] = true;
-	  if (!flag) flag = '';
-	  if (style) style = style.join(FIELDSDIVIDER);
-	  options.push({ id: options.length + '',
-					 origin: origin,
-					 name: name,
-					 inner: AdjustString(option ? option : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP),
-					 checked: flag.includes(OPTIONISCHECKED),
-					 clonable: flag.includes(OPTIONISCLONABLE) && typeof data === 'object',
-					 removable: flag.includes(OPTIONISREMOVABLE) && typeof data === 'object',
-					 cloned: flag.includes(OPTIONISCLONED) && typeof data === 'object',
-					 style: style });
+	  names.add(name);
+	  e.options.push({ id: e.options.length + '',									// Push option object with all its values and flags
+					   origin: origin,
+					   name: name,
+					   inner: AdjustString(name ? name : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP),
+					   checked: (flag || '').includes(OPTIONISCHECKED),
+					   clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
+					   removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
+					   cloned: (flag || '').includes(OPTIONISCLONED) && typeof e.data === 'object',
+					   style: style.length ? style.join(FIELDSDIVIDER) : '', });
      }
-
- // Return result array
- return options;
 }
 
 // Function creates and returns selectable element data from option list 'options'
 function CreateSelectableElementData(e)
 {
- for (const i in options)
+ if (typeof e.data === 'string') e.data === '';
+
+ for (const i in e.options)
 	 {
-	  const origin = `${options[i].name}` + 
-	  				 `${options[i].checked || options[i].clonable || options[i].removable || options[i].cloned || options[i].style ? FIELDSDIVIDER : '' }` + 
-	  				 `${options[i].checked ? OPTIONISCHECKED : '' }` + 
-	  				 `${options[i].clonable ? OPTIONISCLONABLE : '' }` + 
-	  				 `${options[i].removable ? OPTIONISREMOVABLE : '' }` + 
-	  				 `${options[i].cloned ? OPTIONISCLONED : '' }` + 
-	  				 `${options[i].style ? FIELDSDIVIDER + options[i].style : '' }`;
-      if (typeof e.data === 'string')
+	  const option = e.options[i];
+	  const origin = `${option.name}` + 						// Retreive option with all flags from options array
+	  				 `${option.checked || option.clonable || option.removable || option.cloned || option.style ? FIELDSDIVIDER : '' }` + 
+	  				 `${option.checked ? OPTIONISCHECKED : '' }` + 
+	  				 `${option.clonable ? OPTIONISCLONABLE : '' }` + 
+	  				 `${option.removable ? OPTIONISREMOVABLE : '' }` + 
+	  				 `${option.cloned ? OPTIONISCLONED : '' }` + 
+	  				 `${option.style ? FIELDSDIVIDER + option.style : '' }`;
+      if (typeof e.data === 'object')
 		 {
-		  if (i === '0') e.data = '';
-		  e.data += i === '0' ? origin : OPTIONSDIVIDER + origin; // Collect data for each option: /name~flags~style/..
+	  	  if (origin === option.origin) continue;					// Should option origin be changed in order to changed checked status? Continue if no
+	  	  e.data[origin] = e.data[option.origin];					// Otherwise change e.data profile name due to changed flags
+	  	  delete e.data[option.origin];
+	  	  option.origin = origin;
 		  continue;
 		 }
-	  if (origin === option.origin) continue;
-	  e.data[origin] = e.data[option.origin];
-	  delete e.data[option.origin];
-	  option.origin = origin;
-	 } 
+	  e.data += i === '0' ? origin : OPTIONSDIVIDER + origin; 	// Collect data (/name~flags~style/) for each option for usual selectable element with e.data string type
+	} 
  return e;
 }
 
@@ -139,28 +136,25 @@ function CorrectCheckedOptions(e)
 {
  if (!['select', 'radio'].includes(e.type)) return;
  let checkedcount = 0;
- for (let i = e.options.length - 1; i >= 0; i--)
+ for (let i = e.options.length - 1; i >= 0; i--)												// Go through all options begining with last one
 	 {
-   	  if (options[i].checked) checkedcount++;
-	  if (options[i].checked && checkedcount > 1) options[i].checked = false; // Any option already checked? uncheck it
+   	  if (e.options[i].checked) checkedcount++;													// Fix checked options number
+	  if (e.options[i].checked && checkedcount > 1) e.options[i].checked = false;					// Any option already checked? uncheck it
 	 }
- if (!checkedcount && type === 'select') options[0].checked = true; // First option is forced checked for no any option checked (for 'select' type element only)
- if (checkedcount > 1 || (!checkedcount && type === 'select')) CreateSelectableElementData(e);
+ if (!checkedcount && e.type === 'select' && e.options.length) e.options[0].checked = true;							// First option is forced checked for no any option checked (for 'select' type element only)
+ if ((!checkedcount && e.type === 'select') || checkedcount > 1) CreateSelectableElementData(e);// Element checked options number is changed? Correct element data then
 }
 
 // Functions sorts options array based on flag sorting chars
-function SortSelectableElementData(options, flag)
+function SortSelectableElementData(e)
 {
- if (!Array.isArray(options)) return;
- if (typeof flag !== 'string') flag = '';
- const order = SetFlag({ flag: flag }, 'sort').includes('descending') ? -1 : 1;	// Get sorting ascending/descending order
+ if (typeof e.flag !== 'string') flag = '';
+ const order = SetFlag(e, 'sort').includes('descending') ? -1 : 1;	// Get sorting ascending/descending order
 
- if (SetFlag({ flag: flag }, 'sort').includes('alphabetical'))
- 	options.sort((a, b) => (order * a.name.localeCompare(b.name));				// Alphabetical sorting
+ if (SetFlag(e, 'sort').includes('alphabetical'))
+ 	e.options.sort((a, b) => (order * a.name.localeCompare(b.name)));	// Alphabetical sorting
   else 
- 	options.sort((a, b) => (order * ((+a.id) - (+b.id)));						// Default appearance sorting
-
- return options;
+ 	e.options.sort((a, b) => (order * ((+a.id) - (+b.id))));			// Default appearance sorting
 }
 
 // Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg
@@ -170,12 +164,12 @@ function SetFlag(e, name, value)
 		{
 		 case 'readonly':
 			  if (value === undefined) return e.flag.includes('!');
-			  e.flag = value ? e.flag + '!' : e.flag.replaceAll(/!/g, '');
-			  break;
+			  e.flag = value ? e.flag + '!' : e.flag.replaceAll('!', '');
+			  return;
 		 case 'underline':
 			  if (value === undefined) return e.flag.includes('*');
-			  e.flag = value ? e.flag + '*' : e.flag.replaceAll(/\*/g, '');
-			  break;
+			  e.flag = value ? e.flag + '*' : e.flag.replaceAll('*', '');
+			  return;
 		 case 'placeholder':
 			  let placeholder = e.flag.indexOf('+');
 			  placeholder = placeholder === -1 ? '' : AdjustString(e.flag.substring(placeholder + 1), TAGATTRIBUTEENCODEMAP);
@@ -183,8 +177,8 @@ function SetFlag(e, name, value)
 		 case 'sort':
 			  if (value === undefined) return `${e.flag.includes('a') ? 'alphabetical' : ''}${e.flag.includes('-') ? 'descending' : ''}`;
 			  if (!e.flag.includes('-')) e.flag += '-';
-			   else e.flag = e.flag.includes('a') ? e.flag.replaceAll(/a|\-/g, '') : (e.flag + 'a').replaceAll(/\-/g, '');
-			  break;
+			   else e.flag = e.flag.includes('a') ? e.flag.replaceAll(/a|\-/g, '') : (e.flag + 'a').replaceAll('-', '');
+			  return;
 		 case 'interactive':
 			  return e.flag.includes('*') && e.type === 'button';
 		 case 'appliable':
@@ -197,20 +191,26 @@ function SetFlag(e, name, value)
  
 // Functions searches option in options array for the specfified <search> arg (type 'number' converted to string, 'string' is treated as an option id to search, shift for type 'boolean' with true=1 and false=-1 is used, and first checked option found for other types)
 // Corresponded option is returned at the end
-export function GetElementOption(options, search, loop)
+export function GetElementOption(e, search, loop)
 {
- if (!Array.isArray(options)) return;
- 
- for (const i in options)
+ for (let i in e.options)
 	 {
-	  //if (typeof search === 'number' && +options[i].id === search) return options[i];	// Return matched option id
-	  if (typeof search === 'number') search += '';										// Old version: if (typeof search === 'number' && +options[i].id === search) return options[i];	// Return matched option id
-	  if (typeof search === 'string' && options[i].id === search) return options[i];	// Return matched option id
-	  if (!options[i].checked) continue;
-	  let j = typeof search === 'boolean' ? +i + (search ? 1 : -1) : +i;
-	  if (j >= options.length) j = loop ? 0 : options.length - 1;
-	  if (j < 0) j = loop ? options.length - 1 : 0;
-	  return options[j];															// Return optionally shifted checked option
+	  const option = e.options[i];
+	  switch (typeof search)
+			 {
+			  case 'string':
+			  case 'number':
+				   if (option.id === search + '') return option;					// Return matched id option
+				   break;
+			  case 'boolean':
+				   if (!option.checked) break;										// Break for non active option
+				   i = +i + (search ? 1 : -1);										// or set iterator to a number with adding a shift value (true=1 and false=-1)
+				   if (i >= e.options.length) i = loop ? 0 : e.options.length - 1;	// Loop iterator to zero 
+				   if (i < 0) i = loop ? e.options.length - 1 : 0;					// or to last index
+				   return e.options[i];												// Return shifted checked option
+			  default:
+				   if (option.checked) return option;								// Return current active option for other types of <search> arg
+			 }
 	 }
 }
 
@@ -218,22 +218,21 @@ export function GetElementOption(options, search, loop)
 // True toggle converts <serch> option checked status and return
 function SetElementOption(e, search)
 {
- if (!Array.isArray(e.options)) return; // Return undefined for incorrect options array
- const searchoption = GetElementOption(e.options, search); // Search for input arg <search> option
- if (['multiple', 'checkbox'].includes(e.type)) return searchoption ? (searchoption = !searchoption) || true : false; // For successful search toggle found option and return true for changes have been made. Otherwise (unsuccessful search) return false. For multiple option selection element types only
+ const searchoption = GetElementOption(e, search);	// Search for input arg <search> option
+ if (!searchoption) return;							// No option found to set it checked? Return falsy result
+ if (['multiple', 'checkbox'].includes(e.type)) return (searchoption.checked = !searchoption.checked) || true;	// For successful search toggle found option and return true for changes have been made. Otherwise (unsuccessful search) return false. For multiple option selection element types only
  
- if (!searchoption) return; // No option found to set it checked? Return falsy result
- const activeoption = GetElementOption(e.options); // Get current active option 
- if (activeoption === searchoption) return; // No changes made ('old' and 'new' options are the same)? Return falsy result
- if (activeoption) activeoption.checked = false; // Set old active option checked status for false
- return searchoption.checked = true; // and new searched option for true returning it
+ const activeoption = GetElementOption(e);			// Get current active option 
+ if (activeoption === searchoption) return;			// No changes made ('old' and 'new' options are the same)? Return falsy result
+ if (activeoption) activeoption.checked = false;	// Set old active option checked status for false
+ return searchoption.checked = true;				// and new searched option for true returning it
 }
 
 // Calculate estimated time in seconds and convert it to the string
-function GetTimerString(e)
+function GetTimerString(e, autoapplybutton)
 {
- if (!this.NodeList.autoapplybutton) return '';
- let timer = this.NodeList.autoapplybutton.timer - new Date().getTime() + this.NodeList.autoapplybutton.timerstart;	// Calculate timer via initial timer minus past time from e.timerstart
+ if (!autoapplybutton) return '';
+ let timer = autoapplybutton.timer - new Date().getTime() + autoapplybutton.timerstart;	// Calculate timer via initial timer minus past time from e.timerstart
 
  timer = timer < 0 ? 0 : Math.round(timer/1000);			// Round timer (converted ms to seconds) to the nearest positive integer.
 
@@ -246,7 +245,7 @@ function GetTimerString(e)
  let sec = '' + Math.trunc((timer%3600)%60);				// Get integral part of the seconds number plus ':' char.
  if (sec.length === 1) sec = '0' + sec;						// One digit second string - add '0' before.
 
- return ` (${hour}${min}${sec})`;
+ return `(${hour}${min}${sec})`;
 }
 
 // Get interface element id with its wrapped html element from 'target' DOM element via 'data-element' attribute
@@ -263,6 +262,24 @@ function GetEventTargetInterfaceElement(target)
  return attribute ? [attribute.substr(attribute.indexOf('_') + 1), target] : [];	// Return result array with interface element id (string after char '_') and element target (wrapped DOM element)
 }
 
+ // Check element syntax
+function CheckElementSyntax(e)
+{
+ if (!e || typeof e !== 'object' || !ELEMENTALLTYPES.includes(e.type)) return; // Return falsy value for incorrect element
+
+ for (const prop in ELEMENTUSERPROPS) // Go through all props to check their values
+	 {
+	  if (prop === 'data' && ['select', 'table'].includes(e.type) && e.data && typeof e.data === 'object' && Object.keys(e.data).length) continue; // Skip 'object' type 'data' prop falling back to default, for select/table elements only
+	  if (typeof e[prop] !== 'string') ELEMENTUSERPROPS[prop] === undefined ? delete e[prop] : e[prop] = ELEMENTUSERPROPS[prop]; // Fallback to the default value `ELEMENTUSERPROPS[prop]` in case of non string type
+	 }
+
+ for (const prop in e) if (!(prop in ELEMENTUSERPROPS)) delete e[prop]; // Clear element from unnecessary props
+ 
+ if (e.type === 'button') return typeof e.data === 'string' || SetFlag(e, 'autoapply'); // Return true for visible button or autoapply
+ if (e.type === 'title') return true; // Return true for any title. Titles with undefined data are invisible and last appearance in active profile bundle sets dialog title invisible
+ return e.head || typeof e.data !== undefined || SetFlag(e, 'underline'); // Content element is correct for at least one defined header/data/footer property
+}
+
 export class DialogBox extends Interface
 {
  static style = {
@@ -275,7 +292,7 @@ export class DialogBox extends Interface
 	// dialog box active pad
 	".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
 	// dialog box pad bar
-	".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 0 0;" },
+	".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 20px 0;" },
 	// dialog box divider
 	".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
 	// dialog box button
@@ -293,7 +310,7 @@ export class DialogBox extends Interface
 	// dialog box table cell
 	".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
 	// dialog box readonly elements css filter
-	".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion." },
+	".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
 	//------------------------------------------------------------
 	// dialog box select
 	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;", "effect": "rise", "_effect": "Select fall-down option list " + EFFECTSHINT },
@@ -334,85 +351,49 @@ export class DialogBox extends Interface
 	"textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
  };
 
- // Check all dialog interface elements and clear them from unnecessary props
- CheckElementSyntax()
- {
-  if (!this.data || typeof this.data !== 'object') this.data = {}; // No valid dialog structure? Fill it by default values
-  for (const name in this.data)
-	  {
-	   if (!this.data[name] || typeof this.data[name] !== 'object' || !ELEMENTALLTYPES.includes(this.data[name].type)) // Delete incorrect element and continue
-  		  {
-		   delete this.data[name];
-		   continue;
-		  }
-	   const e = this.data[name];
-	   for (const prop in e) 										// Go through all element props to check its values and fall back to the default value or delete the prop in case of incorrect type
-	 	if (prop in ELEMENTUSERPROPS)								// Property 'prop' in ELEMENTUSERPROPS?
-		   {
-		 	if (prop === 'data' && ['select', 'table'].includes(e.type) && e.data && typeof e.data === 'object' && Object.keys(e.data).length) continue; // For profile selection or table elements - continue to avoid 'data' property falling to undefined value
-		 	if (typeof e[prop] !== 'string') ELEMENTUSERPROPS[prop] === undefined ? delete e[prop] : e[prop] = ELEMENTUSERPROPS[prop]; // Fallback to the default value `ELEMENTUSERPROPS[prop]` in case of non string type
-		   }
-	  	 else
-	       {
-		 	delete e[prop];											// otherwise clear element from unnecessary props
-		   }
-	  }
- }
-
+ // Init <elements> (element list), elementnames (element ids list via names) and <Nodes> keeping autoapply buttons alive to retreive its timer data after dialog refresh
  InitDialogServiceData()
  {
-  // Set element ids and names
-  this.elementids = [];
+  this.elements = [];
   this.elementnames = {};
-  this.NodeList = {};
  }
 
+ // Check all dialog interface elements and clear them from unnecessary props
  // Dialog data consists of some GUI elements with next types:
  // Gui elements can be set in any order, but first title appeard is default title.
  // { type: select, data: 
- //  					option1: { elemnt1: {}, element2: {type: data:  }, elemnt3: {}, }
+ //  					option1: { element1: {}, element2: {type: data:  }, element3: {}, }
  //  					option2: {..}
  // }
- ParseDialogData(profile = this.data)
+ ParseDialogData(profile, syntax)
  {
-  let count = 0;
-  for (const name in profile)
-	  {
-	   if (count >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break;																							// Options number exceeds max allowed? Break
-	   const e = profile[name];
-  	   if (e.type === 'select' && typeof e.data === 'object')
-		  {
-		   let count = 0;
-		   for (const option in e.data)
-			   {
-				if (count >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break;							// Options number exceeds max allowed? Break
-				ParseDialogData(e.data[option]) ? count++ : delete e.data[option];
-			   }
-		  }
-  	   if (ELEMENTSELECTABLETYPES.includes(e.type))
-		  {
-		   e.options = CreateSelectableElementOptions(e.data, e.type);
-		   SortSelectableElementData(CorrectCheckedOptions(e.options, e.type), e.flag);			// Create parsed options array for selectable elements
-		  }
-  	   if (['button'].includes(e.type))
-		  {
-		   if (typeof e.data !== 'string' && !SetFlag(e, 'interactive'))
-		   	  {
-			   delete profile[name];
-			   continue;
-		      }
-		  }
-  	   this.elementnames[name] = e.id = this.elementids.length;
-  	   this.elementids.push(e); 																// Insert user defined element to the 'allelements' global array
-  	   e.affect = new Set();																	// Add empty set collection to all elements which data can affect to other elements readonly flag. Old version: if ([...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type)) e.affect = new Set();
-	   count++;
-	  }
-  return count;
+  let elementcount = 0;
+  if (typeof profile === 'object') for (const elementname in profile)
+	 {
+	  if (syntax && !CheckElementSyntax(profile[elementname]) && delete profile[elementname]) continue;
+	  const e = profile[elementname];
+	  if (e.type === 'select' && typeof e.data === 'object')
+		 {
+		  let optioncount = 0;
+		  for (const i in e.data) optioncount < DIALOGSELECTABLEELEMENTMAXOPTIONS && this.ParseDialogData(e.data[i], syntax) ? optioncount++ : delete e.data[i]; // Options number exceeds max allowed or dialog parse returns no elements? Delete option
+		  if (!optioncount && delete e.data) if (syntax && !CheckElementSyntax(e) && delete profile[elementname]) continue; // For zero option count delete 'data' prop and check element syntax again. So delete element of itself for no pass syntax check and continue
+		 }
+	  if (ELEMENTSELECTABLETYPES.includes(e.type)) CreateSelectableElementOptions(e);
+	  if (ELEMENTSELECTABLETYPES.includes(e.type)) CorrectCheckedOptions(e);
+	  if (ELEMENTSELECTABLETYPES.includes(e.type)) SortSelectableElementData(e); // Create parsed options array for selectable elements
+	  this.elementnames[elementname] = e.id = this.elements.length;
+	  this.elements.push(e); // Insert user defined element to the 'allelements' global array
+	  e.affect = new Set();	// Add empty set collection to all elements which data can affect to other elements readonly flag. Old version: if ([...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type)) e.affect = new Set();
+	  if (!elementcount && e.type === 'select' && typeof e.data === 'object' && profile === this.data) e.padbar = true;
+	  elementcount++;
+	 }
+  if (profile === this.data && !elementcount) this.data = {}; // No valid dialog structure? Set it empty
+  return elementcount;
  }
  
  destructor()
  {
-  clearTimeout(this.autoapplybuttontimeoutid);
+  for (id in this.Nodes.autoapplybuttons) clearTimeout(this.Nodes.autoapplybuttons[id].timeoutid);	
   super.destructor();
  }
 
@@ -423,17 +404,16 @@ export class DialogBox extends Interface
   args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
   args[3]['data-element'] = '_-1';
   super(...args);
-  this.CheckElementSyntax();
-  this.Refresh();
+  this.RefreshDialog(INITSERVICEDATA | CHECKDIALOGDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
  }
 
  // Refresh all dialog entities
- Refresh()
+ RefreshDialog(flag)
  {
-  this.InitDialogServiceData(); // Init dialog data
-  this.ParseDialogData(); // Parse dialog data :)
-  for (const e of this.elementids) this.ParseElementExpression(e); // Adjust all elements 'expr' property
-  this.ShowDialogBox(); // Show dialog data (dialog box:)
+  if (flag & INITSERVICEDATA) this.InitDialogServiceData();										// Init dialog data
+  if (flag & PARSEDIALOGDATA) this.ParseDialogData(this.data, flag & CHECKDIALOGDATA);			// Parse dialog data :)
+  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();												// Show dialog data (dialog box:)
+  if (flag & PARSEEXPRESSIONS) for (const e of this.elements) this.ParseElementExpression(e);	// Adjust all elements 'expr' property
  }
 
  // Function parses expression 'e.expr', checks its syntax (restricted chars, evaluating) and put parsed string back to the 'e.expr'
@@ -457,117 +437,135 @@ export class DialogBox extends Interface
 		  }
 	   currentpos = e.expr.indexOf(' ', match.index + match[0].length);												// Get position from the end of a regexp (match.index + match[0].length) for the 1st space found to parse the interface element property name
 	   const name = e.expr.substring(match.index + match[0].length, currentpos === -1 ? e.expr.length : currentpos);// Parse element property name as a substring from the end of a regexp till the calculated space char position above
-	   if (!this.elementnames[name] || this.elementnames[name]['data'] === undefined) return delete e.expr;			// Non existing element or element with undefined data? Return
+	   if (!this.elementnames[name] || typeof this.elementnames[name]['data'] !== 'string') return delete e.expr;	// Non existing element or element with undefined data? Return
 	   this.elementnames[name]['affect'].add(e.id);																	// Add parsing expression element id to the calculated element (via its property name above) affect list
 	   elementids.add(this.elementnames[name].id);																	// so add to the 'elementids' var too - just to clear its 'affect' in case of error expression
 	   expression += match[0] + ".test(this.elementnames['" + name + "']['data'])";									// Collect new expression in js format to pass it to eval function
 	   if (currentpos === -1) break;																				// The end of expression string is reached (index of space char to parse property name reached end of string), so break the cycle
 	  }
   e.expr = expression;
-  EvaluateElementExpression([e.id]);
+  this.EvaluateElementExpression([e.id]);
  }
 
- EvaluateElementExpression(expressionEids)
+ EvaluateElementExpression(expressionids)
  {
-  if (!expressionEids) return;
-  const refreshelementids = new Set();
+  if (!expressionids) return; // Return for unknown element with expression array
+  const refreshelementids = new Set(); // Element ids to refresh (change readonly status)
   let e;
-  for (const id of expressionEids)
+  for (const id of expressionids)
 	  {
 	   let result;
-	   if (!(e = this.elementids[id])) continue;
-	   try {	result = eval(e.expr); }
+	   if (!(e = this.elements[id])) continue;
+	   try { result = eval(e.expr); }
 	   catch { lg('Evaluation exception detected on element:', e); }
-	   if (result === undefined)
+	   if (result === undefined) // Result is undefined in case of eval exception
 		  {
-		   delete e.expr;
-		   for (const element of this.elementids) element.affect.delete(e.id);
+		   delete e.expr; // Delete 'expr' property and this element id from all other elements which data prop affects to
+		   for (const element of this.elements) element.affect.delete(e.id);
 		   continue;
 		  }
-	   if ([0, 2].includes(+this.SetFlag(e, 'readonly') + +result)) continue;
-	   this.SetFlag(e, 'readonly', result);
-	   refreshelementids.add(e.id);
+	   if ([0, 2].includes(+SetFlag(e, 'readonly') + +result)) continue; // Continue for no readonly and falsy result (0 + 0) or readonly and true result (1 + 1)
+	   SetFlag(e, 'readonly', result); // Otherwise set 'result' readonly status
+	   refreshelementids.add(e.id); // and add this element id 'refresh' set
 	  }
-  return refreshelementids;
+  this.RefreshElementReadonlyAttribute(refreshelementids); // Change element readonly status for 'refresh' set
  }
 
  RefreshElementReadonlyAttribute(refreshelementids)
  {
   if (!refreshelementids?.size) return;
-  for (const element of [...this.contentwrapper.querySelectorAll('input, textarea, .select'), ...this.footer.querySelectorAll('.button')])
+  for (const id of refreshelementids)
 	  {
-	   let e, id, target;
-	   [id, target] = GetEventTargetInterfaceElement(element);
-	   e = this.elementids[id];
-	   if (!refreshelementids.has(e?.id)) continue;
-	   this.SetFlag(e, 'readonly') ? target.classList.add('readonlyfilter') : target.classList.remove('readonlyfilter');
-	   if (ELEMENTTEXTTYPES.includes(e.type)) this.SetFlag(e, 'readonly') ? element.setAttribute('readonly') : element.removeAttribute('readonly', '');
-	   if (['readio', 'checkbox'].includes(e.type)) this.SetFlag(e, 'readonly') ? element.setAttribute('disabled') : element.removeAttribute('disabled', '');
-	   if (e.type !== 'button') continue;
-	   if (!this.SetFlag(e, 'readonly') && this.props.control.push.elements.push([element].concat([...element.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]))) continue; // Set btn element (with all childs in) pushable for no readonly button
-	   for (const i in this.props.control.push.elements)	// The button is readonly, so delete button pushable feature via removing btn DOM element from 'push' control.elements array
-	       {
-		    if (this.props.control.push.elements[i][0] !== element) continue;
-		    delete this.props.control.push.elements[i];
-		    break;
-		   }
+	   let target;
+	   const e = this.elements[id];
+	   const readonly = SetFlag(e, 'readonly');
+	   switch (e.type) // Defined target (DOM element) for every element type and do some specific DOM element actions (readonly/disabled attributes for input elements and 'push' control element set for buttons)
+			  {
+			   case 'text':
+			   case 'textarea':
+			   case 'password':
+					if (!this.Nodes.textinputs[id]) continue;
+					target = this.Nodes.textinputs[id];
+					readonly ? target.setAttribute('readonly') : target.removeAttribute('readonly', '');
+					break;
+			   case 'select':
+			   case 'multiple':
+			   case 'radio':
+			   case 'checkbox':
+					if (!this.Nodes.selects[id]) continue;
+					target = this.Nodes.selects[id];
+					if (['radio', 'checkbox'].includes()) readonly ? target.setAttribute('disabled') : target.removeAttribute('disabled', '');
+					break;
+			   case 'table':
+					if (!this.Nodes.tables[id]) continue;
+					target = this.Nodes.tables[id];
+					break;
+			   case 'button':
+					if (!this.Nodes.buttons[id]) continue;
+					target = this.Nodes.buttons[id];
+	   				if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable for no readonly button
+					 else for (const i in this.props.control.push.elements) if (this.props.control.push.elements[i][0] === target && delete this.props.control.push.elements[i]) break; // The button is readonly, so delete button pushable feature via removing btn DOM element from 'push' control.elements array
+					break;
+			  }
+	   readonly ? target.classList.add('readonlyfilter') : target.classList.remove('readonlyfilter'); // Add/remove readonly class (filter, cursor)
 	  }
  }
 
  // Get interface element header+hint inner html for non title/button/padbar element types only
  GetElementHeaderHTML(e)
  {
-  if (e.type === 'title' || e.type === 'button' || !e.id || !e.head) return ''; // No header for title, button, pad bar (select element with zero id) and empty head string
+  if (e.type === 'title' || e.type === 'button' || !e.head || e.padbar) return ''; // No header for title, button, empty head string and padbar
+
   let head, hint;
   [head, ...hint] = e.head.split(FIELDSDIVIDER);
   head = AdjustString(head, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS);
-  if (hint) head += ` <span title="${AdjustString(hint.join(FIELDSDIVIDER), TAGATTRIBUTEENCODEMAP)}" class="hint-icon">?</span>&nbsp;`;
+  if (hint.length) head += `&nbsp<span title="${AdjustString(hint.join(FIELDSDIVIDER), TAGATTRIBUTEENCODEMAP)}" class="hint-icon">?</span>&nbsp;`;
   return head ? `<div class="element-headers">${head}</div>` : '';
  }
 
  // Get interface element divider line inner html for non title/button/padbar element types only. Depends on element flag '*' presence
  GetElementFooterHTML(e)
  {
-  return (e.type === 'title' || e.type === 'button' || !e.id) ? '' : `<div${this.SetFlag(e, 'underline') ? ' class="divider"' : ''}></div>`;
+  return (e.type === 'title' || e.type === 'button' || e.padbar) ? '' : `<div${SetFlag(e, 'underline') ? ' class="divider"' : ''}></div>`;
  }
 
  // Get interface element content outer html
  GetElementContentHTML(e, inner)
  {
-  if (!e) return '';																																// Return empty for undefined interface element
+  if (!e) return '';
   const readonly = SetFlag(e, 'readonly');
   const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
   const dataattribute = `data-element="${uniqeid}"`;																									// Set html attribute to access this uniq id
   const styleattribute = e.style ? ` style="${AdjustString(e.style, TAGATTRIBUTEENCODEMAP)}"` : ``;
-  const classlist = readonly ? 'readonlyfilter' : '';
+  let classlist = readonly ? 'readonlyfilter' : '';
   let content = '';																																	// Element some content var
 
   switch (e.type)
          {
           case 'title':
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? The title is hidden, so return empty
-	    	   return `<div class="title"${styleattribute}>${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>`;				// Empty title string? Whole title element is invisible
+	    	   return `<div class="title" ${dataattribute}${styleattribute}>${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>`;// Empty title string? Whole title element is invisible
 
 		  case 'select':
-			   if (!e.options.length) return '';																									// No options for selectable element? Return empty
+			   if (!e.options.length) return '';																										// No options for selectable element? Return empty
 			   let optionicon = '';
-			   let activeoption = GetElementOption(e.options);
-			   if (activeoption.clonable) optionicon += '<div class="itemadd" title="Clone this dialog profile">&nbsp&nbsp&nbsp&nbsp</div>';			// Define 'clone' icon for the active profile
-			   if (activeoption.removable) optionicon += '<div class="itemremove" title="Remove this dialog profile">&nbsp&nbsp&nbsp&nbsp</div>';		// Define 'remove' icon for the active profile
-			   if (e.id) // No pad selection (id > 0)
+			   let activeoption = GetElementOption(e);
+			   if (activeoption.clonable) optionicon += '<div class="itemadd" title="Clone this dialog profile">&nbsp&nbsp&nbsp&nbsp</div>';		// Define 'clone' icon for the active profile
+			   if (activeoption.removable) optionicon += '<div class="itemremove" title="Remove this dialog profile">&nbsp&nbsp&nbsp&nbsp</div>';	// Define 'remove' icon for the active profile
+			   if (e.padbar) // Pad selection
+				  {
+				   classlist = optionicon ? 'activepad flexrow' : 'activepad';
+				   for (const option of e.options)																										// For pad selection element (pad bar) collect pad divs to 'content' var
+					   content += `<div class="${option.checked ? classlist : 'pad'}" value="${option.id}">${optionicon && option.checked ? '<div>' : ''}${option.inner}${optionicon && option.checked ? '</div>' + optionicon : ''}</div>`;
+				   return inner ? content : `<div class="padbar flexrow" ${dataattribute}${styleattribute}>${content}</div>`;
+				  }
+				else // Usual selection
 				  {
 				   classlist += `${classlist ? ' ' : ''}` + 'select arrow' + `${SetFlag(e, 'sort').includes('descending') + SetFlag(e, 'sort').includes('alphabetical') * 2}` + `${typeof e.data === 'object' ? ' profileselectionstyle' : ''}`;
 				   content = `<div value="${activeoption.id}"${activeoption.style ? 'style="' + activeoption.style + '"' : ''}>${activeoption.inner}</div>`;
 				   if (optionicon) content = `<div class="${classlist}">${content}</div>${optionicon}`;
 				   if (optionicon) return inner ? content : `<div class="flexrow" ${dataattribute}>${content}</div>`;
 				   return inner ? content : `<div class="${classlist}" ${dataattribute}>${content}</div>`;
-				  }
-				else // Pad selection (id = 0)
-				  {
-				   classlist = optionicon ? 'activepad flexrow' : 'activepad';
-				   for (const option of e.options)																										// For pad selection element (pad bar) collect pad divs to 'content' var
-					   content += `<div class="${option.checked ? classlist : 'pad'}" value="${option.id}">${optionicon && option.checked ? '<div>' : ''}${option.inner}${optionicon && option.checked ? '</div>' + optionicon : ''}</div>`;
-				   return inner ? content : `<div class="padbar flexrow" ${attribute}${styleattribute}>${content}</div>`;
 				  }
 
 		  case 'multiple':
@@ -582,13 +580,13 @@ export class DialogBox extends Interface
 			   if (!e.options.length) return ''; // No options for selectable element? Return empty
 			   for (const option of e.options) // For checkbox/readio element types collect input and label tags
 				   content += `<input type="${e.type}" class="${e.type}" ${option.checked ? ' checked' : ''}${readonly ? ' disabled' : ''} name="${uniqeid}" id="${uniqeid + '_' + option.id}" value="${option.id}"><label for="${uniqeid + '_' + option.id}" value="${option.id}">${option.inner}</label>`;
-			   return inner ? content : `<div ${classlist ? 'class="' + classlist + '"' : ''}${attribute}${styleattribute}>${content}</div>`;
+			   return inner ? content : `<div ${classlist ? 'class="' + classlist + '"' : ''}${dataattribute}${styleattribute}>${content}</div>`;
 
 		  case 'textarea':
 		  case 'text':
 		  case 'password':
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? Return empty
-			   let placeholder = this.SetFlag(e, 'placeholder'); // Get placeholder string
+			   let placeholder = SetFlag(e, 'placeholder'); // Get placeholder string
 			   if (placeholder) placeholder = ` placeholder="${AdjustString(placeholder, TAGATTRIBUTEENCODEMAP)}"`;	// Placholder attribute for text elements
 			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${AdjustString(e.data, HTMLINNERENCODEMAP)}</textarea>`;	// For textarea element type return textarea tag
 			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${AdjustString(e.data, TAGATTRIBUTEENCODEMAP)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
@@ -605,18 +603,18 @@ export class DialogBox extends Interface
 
 	 	  case 'button':
 			   if (typeof e.data !== 'string') return '';																		// Button is hidden? Return empty
-			   content = ${AdjustString(e.data, HTMLINNERENCODEMAP)}${GetTimerString(e)};
-	      	   return inner ? content : `<div class="button ${classlist}" ${attribute}${styleattribute}>${content}</div>`;
+			   content = `${AdjustString(e.data, HTMLINNERENCODEMAP)} ${GetTimerString(e, this.Nodes.autoapplybuttons[e.id])}`;
+	      	   return inner ? content : `<div class="button ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;
 		 }
  }
  
  // Function calculates the timer, applies the button if needed and refreshes button text with the new timer in seconds
- ButtonTimer()
+ ButtonTimer(id)
  {
-  clearTimeout(this.NodeList.autoapplybutton.timeoutid); // Clear timer function
-  if (new Date().getTime() - this.NodeList.autoapplybutton.timerstart > this.NodeList.autoapplybutton.timer) this.ButtonApply(this.NodeList.autoapplybutton.e);	// Timer is up? Apply the button
-   else this.NodeList.autoapplybutton.timeoutid = setTimeout(() => this.ButtonTimer(), 1000); 							// Restart timer function otherwise
-  if (this.NodeList.autoapplybutton.target) this.NodeList.autoapplybutton.target.innerHTML = GetElementContentHTML(this.NodeList.autoapplybutton.e, true); // Refresh button
+  clearTimeout(this.Nodes.autoapplybuttons[id].timeoutid); // Clear timer function
+  if (new Date().getTime() - this.Nodes.autoapplybuttons[id].timerstart > this.Nodes.autoapplybuttons[id].timer) this.ButtonApply(this.elements[id]);	// Timer is up? Apply the button
+   else this.Nodes.autoapplybuttons[id].timeoutid = setTimeout(() => this.ButtonTimer(id), 1000); 														// Restart timer function otherwise
+  if (this.Nodes.buttons[id].target) this.Nodes.buttons[id].target.innerHTML = GetElementContentHTML(this.elements[id], true);							// Refresh button
  }
 
  GetDialogInner(inner, profile = this.data, padarea)
@@ -624,131 +622,171 @@ export class DialogBox extends Interface
   for (const name in profile)
 	  {
 	   const e = profile[name];
-	   const outer = this.GetElementHeaderHTML(e) + this.GetElementContentHTML(e) + this.GetElementFooterHTML(e);
-	   if (e.type === 'title') inner.title = outer;
-	   if (e.type === 'button') inner.footer += outer;
-	   if (e.type === 'button') inner.buttonids.add(e.id));
-	   if (['title', 'button'].includes(e.type)) continue;
-	   if (e.id) padarea ? inner.padarea += outer : inner.mainarea += outer;
-		else (e.type === 'select' && typeof e.data === 'object') ? inner.padbar += outer : inner.mainarea += outer;
+	   const outer = this.GetElementHeaderHTML(e) + this.GetElementContentHTML(e) + this.GetElementFooterHTML(e); // Get element outer HTML including element header, element content and element footer
+	   if (e.type === 'title') inner.title = outer;	// Fix dialog title, so last dialog title is used for multiple ones
+	   if (e.type === 'button') inner.footer += outer; // Collect btns to dialog footer
+	   if (e.type === 'button') this.Nodes.buttons[e.id] = false; // Fix btn id here but not from full dialog HTML query selector (for hidden auto apply btns not in HTML)
+	   if (['title', 'button'].includes(e.type)) continue; // Continue for title/btn elements
+	   if (e.id) padarea ? inner.padarea += outer : inner.mainarea += outer; // Collect non zero element id for pad or main area
+		else (e.type === 'select' && typeof e.data === 'object') ? inner.padbar += outer : inner.mainarea += outer; // Collect zero id element for main area (non profile selection) or fix zero id element for pad area (profile selection)
 	   if (e.type !== 'select' || typeof e.data !== 'object') continue;
-	   for (const option in e.data) GetDialogInner(e.data[option], inner, e.id ? padarea : true);
+	   const option = GetElementOption(e);
+	   if (!option) continue;
+	   this.GetDialogInner(inner, e.data[option.origin], e.id ? padarea : true); // Call <GetDialogInner> function recursively for any profile selection (pad or drop-down list)
 	  }
  }
 
  ShowDialogBox()
  {
-  let inner = { title: '', padbar: '', padarea: '', mainarea: '', footer: '', buttonids: new Set() };
-  this.GetDialogInner(inner);
-  if (inner.padarea || inner.mainarea) inner.padbar += `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`;
-  if (this.NodeList.autoapplybutton && !inner.buttonids.has(this.NodeList.autoapplybutton.e.id)) inner.footer = GetElementContentHTML(this.NodeList.autoapplybutton.e) + inner.footer;
-  if (inner.footer) inner.footer = `<div class="footer">${inner.footer}</div>`;
-  inner.title += inner.padbar + inner.footer;
+  let inner = { title: '', padbar: '', padarea: '', mainarea: '', footer: '' };
+  this.Nodes = this.Nodes ? { autoapplybuttons: this.Nodes.autoapplybuttons, textinputs: {}, selects: {}, tables: {}, buttons: {} } : { autoapplybuttons: {}, textinputs: {}, selects: {}, tables: {}, buttons: {} };
+  this.GetDialogInner(inner); // Get dialog inner for each area
+  if (inner.padarea || inner.mainarea) inner.padbar += `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`; // Wrap pad/main area to div
+  if (inner.footer) inner.footer = `<div class="footer">${inner.footer}</div>`; // so do footer..
+  inner.title += inner.padbar + inner.footer; // Collect title, content and footer to title
   if (!inner.title) return;
-  this.elementDOM.innerHTML = inner.title;
+  this.elementDOM.innerHTML = inner.title; // and set it to dialog root DOM element
 
-  for (const prop in this.NodeList)
-	  if (prop === 'autoapplybutton') delete this.NodeList.autoapplybutton.target; else delete this.NodeList[prop];
-
-  for (const target of [...this.elementDOM.querySelectorAll('.title, .padbar, input, textarea, .select, .boxtable, .button')]) // Go through all dialog DOM elements to fix them. Todo - add element list for affected elements
-	  {
-	   if (target.tagName === 'INPUT') target.addEventListener('input', this.Handler.bind(this));
-	   let e, id;
-  	   [id, target] = GetEventTargetInterfaceElement(target);															// Define the clicked element 'id' and its wrapped target
-  	   if (!(e = this.elementids[id])) continue;
-	   if (e.type === 'title') this.NodeList.title = target;
-	   if (!e.id) this.NodeList.padbar = target;
-	   if (SetFlag(e, 'autoapply'))
-	   if (this.NodeList.autoapplybutton)
-		  {
-		   if (this.NodeList.autoapplybutton.e.id === e.id) this.NodeList.autoapplybutton.target = target;
-		  }
-		else
-		  {
-		   this.NodeList.autoapplybutton = { target: target, timer: Math.min(SetFlag(e, 'autoapply'), BUTTONTIMERMAXSECONDS) * 1000, timerstart: new Date().getTime(), timeoutid: setTimeout(() => this.ButtonTimer(), 1000), e: e  };
-		  }
+  for (const id in this.Nodes.autoapplybuttons) // Any button first appeared goes to (inited empty at any refresh dialog) Nodes.buttons 'set' object (see <GetDialogInner> function).
+	  {											// All btns in <Nodes.autoapplybuttons> are checked and deleted in case of no in Nodes.buttons
+	   if (id in this.Nodes.buttons) continue;
+	   clearTimeout(this.Nodes.autoapplybuttons[id].timeoutid);
+	   delete this.Nodes.autoapplybuttons[id];
 	  }
-  
-  // Set 'fullscreendblclick' and 'drag' controls <elements> property
-  if (this.props.control.fullscreendblclick || this.props.control.fullscreenicon || this.props.control.drag || this.props.control.closeicon)
-	 {
-	  const elements = this.NodeList.title ? [this.NodeList.title].concat([...this.title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
-	  if (this.props.control.fullscreenicon) this.props.control.fullscreenicon.elements = [elements[0]];															// and set 1st element for fullscreen icon,
-	  if (this.props.control.closeicon) this.props.control.closeicon.elements = [elements[0]];																		// set 1st element for close icon,
-	  if (this.props.control.fullscreendblclick) this.props.control.fullscreendblclick.elements = elements;															// set <elements> array clickable for 'full screen'	feature
-	  if (this.props.control.drag) this.props.control.drag.elements = elements;																						// and set them dragable
-	  this.RefreshControlIcons();
-	 }
+  for (const id in this.Nodes.buttons) // Then all btns in <button> set object are checked on 'autoapply' feature and added to Nodes.autoapplybuttons object (if not exist) with new timers or left with old timers (if exist)
+	  {
+	   if (this.Nodes.autoapplybuttons[id]) continue;
+	   const timer = Math.min(SetFlag(this.elements[id], 'autoapply'), BUTTONTIMERMAXSECONDS) * 1000;
+	   if (timer) this.Nodes.autoapplybuttons[id] = { timer: timer, timerstart: new Date().getTime(), timeoutid: setTimeout(() => this.ButtonTimer(id), 1000) };
+	  }
+
+  for (let target of [...this.elementDOM.querySelectorAll('.boxcontentwrapper, .title, .padbar, input, textarea, .select, .boxtable, .button')]) // Go through all dialog DOM elements to set them to <Nodes> object in appropriate sub objects 
+	  {
+	   if (target.tagName === 'INPUT') target.addEventListener('input', this.Handler.bind(this)); // not forgetting to add listeners on native input elements to intercept its data keeping it in actual state at main dialog data object
+	   if (target.classList.contains('boxcontentwrapper')) this.Nodes.contentwrapper = target;
+	   let e, id;
+  	   [id, target] = GetEventTargetInterfaceElement(target); // Define the clicked element 'id' and its wrapped target
+  	   if (!(e = this.elements[id])) continue;
+	   if (e.type === 'title') this.Nodes.title = target;
+	   if (ELEMENTTEXTTYPES.includes(e.type)) this.Nodes.textinputs[e.id] = target;
+	   if (ELEMENTSELECTABLETYPES.includes(e.type)) this.Nodes.selects[e.id] = target;
+	   if (e.padbar) this.Nodes.padbar = target;
+	   if (e.type === 'table') this.Nodes.tables[e.id] = target;
+	   if (e.type === 'button') this.Nodes.buttons[e.id] = target;
+	  }
+
+  // Set 'fullscreendblclick' and 'drag' with 'push' controls <elements> property
+  if (this.props.control.fullscreendblclick || this.props.control.fullscreenicon || this.props.control.drag || this.props.control.closeicon || this.props.control.push) this.RefreshControlElements();
 
   // Set focus to the first found text element
   requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
  }
 
- // Set focus to the '1st found' in child non-readonly text element. Todo0 - replace this focus dialog 1st text element activation to global querySelector after ShowDialog
+ // Refresh dialog drag, icon and push control elements not forgetting to refresh its icons via function 'RefreshControlIcons' direct call
+ RefreshControlElements()
+ {
+  const elements = this.Nodes.title ? [this.Nodes.title].concat([...this.Nodes.title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
+  if (this.props.control.fullscreenicon) this.props.control.fullscreenicon.elements = [elements[0]];															// and set 1st element for fullscreen icon,
+  if (this.props.control.closeicon) this.props.control.closeicon.elements = [elements[0]];																		// set 1st element for close icon,
+  if (this.props.control.fullscreendblclick) this.props.control.fullscreendblclick.elements = elements;															// set <elements> array clickable for 'full screen'	feature
+  if (this.props.control.drag) this.props.control.drag.elements = elements;																						// and set them dragable
+  if (this.props.control.push)
+  	 for (const i in this.Nodes.buttons)
+		 if (this.Nodes.buttons[i]) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); 
+  this.RefreshControlIcons();
+ }
+
+ // Set focus to the '1st found' in child non-readonly text element
  SetFirstTextElementFocus()
  {
   if (!this.elementDOM) return;
-  for (const element of this.elementDOM.querySelectorAll('input[type=password], input[type=text], textarea'))
-	  if (!element.readOnly) return element.focus();
+  for (const id in this.Nodes.textinputs)
+	  if (!SetFlag(this.elements[id], 'readonly')) return this.Nodes.textinputs[id].focus();
+ }
+
+ // Todo0 - release cloning profile via nonsticky child. If it fails - move this.TextInput to Nodes.CloneInput
+ RemoveTextInput()
+ {
+  this.TextInput.isDeleted = true;																				// Set profilecloning object 'isDeleted' flag to true
+  if (this.TextInput.e.id !== 0) this.TextInput.div.parentNode.firstChild.style.display = 'block';				// For non-pad prfile clone display block 'select' DOM element
+  this.TextInput.input.removeEventListener('blur', this.Handler.bind(this));									// Remove event listener from 'input' DOM element
+  this.TextInput.div.remove();																					// Remove input and its wrap div elements from DOM
+  this.TextInput.input.remove();
+  if (!this.TextInput.e.id) this.Nodes.padbar.innerHTML = this.GetElementContentHTML(this.elements[0], true);	// Cloning dialog pad? Refresh pad bar
+  delete this.TextInput;																							
+ }
+
+ CloneNewProfile(e)
+ {
+  let name, flags;
+  [name, ...flags] = this.TextInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
+  for (const profile in e.data)
+	  if (profile.split(FIELDSDIVIDER, 1)[0] === name) return new DialogBox(...MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error')); // Check name exist in e.data profile list and return warning msg in success
+  flags = flags.length ? flags.join(FIELDSDIVIDER) : ''; // Join back flag string
+  if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
+  e.data[name + FIELDSDIVIDER + flags] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
+  this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS); // and refresh dialogwith a new profile added
  }
 
  // Inheritance function that is called on mouse/keyboard events on dialog box
  Handler(event, callbackdata)
  {
   let e, id, target;
-  [id, target] = GetEventTargetInterfaceElement(event.target);															// Define the clicked element 'id' and its wrapped target
-  if (!(e = this.elementids[id])) return;																				// Return for nonexistent element, Todo0 - for keyboard events what id/target equals to?
+  [id, target] = GetEventTargetInterfaceElement(event.target);	// Define the clicked element 'id' and its wrapped target
+  if (!(e = this.elements[id])) return;							// Return for nonexistent element, Todo0 - for keyboard events what id/target equals to?
 
   switch (event.type)
          {
-	  	  case 'blur':
-			   if (this.profilecloning && !this.profilecloning.isDeleted)
+	  	  case 'blur':											// Blur event for the new profile input? Clone input profile name and remove input element
+			   if (this.TextInput && !this.TextInput.isDeleted)
 				  {
-				   const profileelement = this.allelements[this.ProcessCloneButton()];
-				   this.RemoveProfileCloneInput();
-				   if (profileelement && ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
+				   this.CloneNewProfile(this.TextInput.e);
+				   this.RemoveTextInput();
 				  }
-			   return {};
-	  	  case 'keydown':																									// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
-	       	   if (event.code === 'Escape' && this.profilecloning)
+
+	  	  case 'keydown':
+	       	   if (event.code === 'Escape' && this.TextInput)
 				  {
-				   this.RemoveProfileCloneInput();
+				   this.RemoveTextInput();
 				   return {};
 				  }
 			   break;
-	  	  case 'keyup':																									// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
+
+	  	  case 'keyup':											// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
 			   if (event.code === 'Enter' || event.code === 'NumpadEnter')
 		  		  {
-				   if (this.profilecloning)
+				   if (this.TextInput)
 					  {
-					   const profileelement = this.allelements[this.ProcessCloneButton()];
-					   this.RemoveProfileCloneInput();
-					   if (ChangeElementOptionById(profileelement.options, profileelement.options.length - 1)) this.ShowDialogBox();
+					   this.TextInput.isDeleted = true;
+					   this.CloneNewProfile(this.TextInput.e);
+					   this.RemoveTextInput();
 					   return {};
 					  }
-				   if ((e.type === 'text' || e.type === 'password') && e.flag.indexOf('-') === -1)						// For 'text' type and no readonly elements only
+				   if ((e.type === 'text' || e.type === 'password') && !SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
 				   	  {
-					   for (id of this.callbuttonids)																	// Go through all callable btns and apply first non readonly one
-					   	   if (this.ButtonApply(this.allelements[id])) return {};
+					   for (id in this.Nodes.buttons)											// Go through all callable btns and apply first non readonly one
+					   	   if (!SetFlag(this.elements[id], 'readonly') && SetFlag(this.elements[id], 'appliable') && !this.ButtonApply(this.elements[id])) break;
+					   return {};
 					  }
 		       	  }
 	       	   if (event.code === 'ArrowLeft' && event.altKey && event.shiftKey)
 		  		  {
-				   if (!ShiftElementOption(this.allelements[0].options, -1, true)) this.ShowDialogBox();				// Option has been changed? Refresh dialog content with a new active profile
+				   if (this.elements[0].type !== 'select' || typeof this.elements[0].data !== 'object') return {};
+				   this.ActivateSelectedOption(this.elements[0], false);
 				   return {};
 		       	  }
 			   if (event.code === 'ArrowRight' && event.altKey && event.shiftKey)
 				  {
-				   if (!ShiftElementOption(this.allelements[0].options, 1, true)) this.ShowDialogBox();					// Option has been changed? Refresh dialog content with a new active profile
+				   if (this.elements[0].type !== 'select' || typeof this.elements[0].data !== 'object') return {};
+				   this.ActivateSelectedOption(this.elements[0], true);
 				   return {};
 				  }
+
 		  case 'input':
-			   if (ELEMENTTEXTTYPES.includes(e.type)) e.data = target.value; // Get text element data directly from its DOM element value
-			   
-			   if (ELEMENTTEXTTYPES.indexOf(e.type) !== -1)
+			   if (ELEMENTTEXTTYPES.includes(e.type))
 				  {
-				   e.data = target.value;																				// Get text element data directly from its DOM element value
-				   this.EvalElementExpression(e);
+				   e.data = target.value;														// Get text element data directly from its DOM element value. Todo0 - what about textarea, should its text be retreived from target.innerHTML?
+				   this.EvaluateElementExpression(e.affect);
 				   break;
 				  }
 			   if (['radio', 'checkbox'].includes(e.type))
@@ -757,42 +795,41 @@ export class DialogBox extends Interface
 				   break;
 				  }
 			   break;
+
 		  case 'textchange':
 			   target.value = JSON.stringify(callbackdata);
 			   break;
-	  	  case 'mousedown':																								// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (SetFlag(e, 'readonly')) break;																		// Break for readonly element
-			   if (event.button === 0 && event.buttons === 3)															// Left button down with right button hold?
+
+	  	  case 'mousedown':																		// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
+			   if (SetFlag(e, 'readonly')) break;												// Break for readonly element
+			   if (event.button === 0 && event.buttons === 3)									// Left button down with right button hold? Do some element extra actions lower
 				  {
-			   	   if (['text', 'textarea'].includes(e.type)) 
+			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
 					  {
 					   try { new DialogBox(JSON.parse(e.data), this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', callback: this.Handler.bind(this, { type: 'textchange', target: event.target }) }, { class: 'dialogbox selectnone' }); }
 					   catch { return; }
 					  }
-				   if (ELEMENTSELECTABLETYPES.includes(e.type))															// Sort order change for selectable element types only
+				   if (ELEMENTSELECTABLETYPES.includes(e.type))									// or change sort order of selectable element
 				      {
-			   	   	   if (event.target.classList.contains('itemadd')) break;											// and for non profile clone icon click
-			   	   	   if (event.target.classList.contains('itemremove')) break;										// and for non profile remove icon click
-				   	   this.SetFlag(e, 'sort', true);
-					   SortSelectableElementData(e.options, e.flag);
+			   	   	   if (event.target.classList.contains('itemadd')) break;					// excluding profile clone/remove btns
+			   	   	   if (event.target.classList.contains('itemremove')) break;
+				   	   SetFlag(e, 'sort', true);
+					   SortSelectableElementData(e);
 				   	   target.innerHTML = this.GetElementContentHTML(e, true);
 					  }
 				   break;
 				  }
-			   if (event.button === 0 && event.buttons === 1)															// Left button down with no any other button hold?
+			   if (event.button === 0 && event.buttons === 1)									// Left button down with no any other button hold?
 				  {
 				   if (e.type === 'multiple')
 					  {
-					   if (!SetElementOption(e, event.target.attributes?.value?.value)) break;		// Toggle clicked option and break in case of no change
-					   event.target.classList.toggle("selected");									// Refresh 'multiple' element via option class toggle
-					   e.data = CreateSelectableElementData(e.options);
-					   this.EvaluateElementExpression(e.affect);
+					   this.ActivateSelectedOption(e, event.target.attributes?.value?.value, event.target);
 					   break;
 					  }
 				   if (e.type === 'select')
 					  {
 					   //if (this.profilecloning) break; // Todo0 - is it needable? Why the select element is anaccessable while profile input is active - blur event will create a new profile anyaway??
-					   if (event.target.classList.contains('itemadd'))												// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
+					   if (event.target.classList.contains('itemadd'))							// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   this.TextInput = { e: e, div: document.createElement('div'), input: document.createElement('input') };
 						   this.TextInput.div.appendChild(this.TextInput.input);
@@ -800,7 +837,7 @@ export class DialogBox extends Interface
 						   if (e.id)
 						   	  {
 							   target.firstChild.firstChild.style.display = 'none';
-							   target.firstChild.appendChild(this.profilecloning.div);
+							   target.firstChild.appendChild(this.TextInput.div);
 						   	  }
 						    else
 						   	  {
@@ -810,137 +847,73 @@ export class DialogBox extends Interface
 							  }
 						   this.TextInput.input.classList.add('newprofileinput');
 						   this.TextInput.input.setAttribute('placeholder', SetFlag(e, 'placeholder'));
-						   requestIdleCallback(() => this.TextInput.input.focus()); // Todo0 - old: setTimeout(() => this.profilecloning.input.focus(), 0);
+						   requestIdleCallback(() => this.TextInput.input.focus());				// Todo0 - check if it works, old version: setTimeout(() => this.profilecloning.input.focus(), 0);
 						   break;
 						  }
-					   if (event.target.classList.contains('itemremove'))											// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
+					   if (event.target.classList.contains('itemremove'))						// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   if (e.options.length === 1 && new DialogBox(...MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error'))) break;
-						   delete e.data[GetElementOption(e.options).name]; // Removing current profile
-						   this.Refresh(); // and refreshing dialog. Todo0 - Autoapply button after refresh dialog entities
+						   delete e.data[GetElementOption(e).name];								// Removing current profile
+						   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
 						   break;
 						  }
-					   if (!e.id)
+					   if (e.padbar)															// Pad selection?
 						  {
-						   this.ActivateSelectedOption(e, event.target.attributes?.value?.value);
+						   this.ActivateSelectedOption(e, event.target.attributes?.value?.value, target);
 						   break;
 						  }
-					   if (this.dropdownlist?.hideeventid !== app.eventcounter)									// Drop-down list is hidden via current 'select' element click (this.dropdownlisthide_eventcounter === app.eventcounter)?
+					   if (this.dropdownlist?.hideeventid !== app.eventcounter)					// Drop-down list is hidden via current 'select' element click (this.dropdownlisthide_eventcounter === app.eventcounter)?
 						  {
-						   this.dropdownlist = new DropDownList(e.options, this, target.firstChild);				// Do nothing or create new option list box again otherwise.
+						   this.dropdownlist = new DropDownList(e.options, this, target.firstChild); // If so - create new option list box
 						   break;
 						  }
 					  }
 				  }
 			   break;
+
 		  case 'optionchange':
-			   this.ActivateSelectedOption(e, this.dropdownlist?.cursor);
+			   this.ActivateSelectedOption(e, this.dropdownlist?.cursor, event.target);			// Drop-down list returned back selected option
 			   break;
+
 		  case 'click':
-		  	   this.ButtonApply(e);	// Button-apply function will check whether the element is appliable button by itself and make corresponded action then
+		  	   this.ButtonApply(e, event.target);												// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
 	       	   break;
 		 }
  }
 
- ActivateSelectedOption(e, id)
+ ActivateSelectedOption(e, id, target)
  {
   if (!['number', 'string'].includes(typeof id)) return;
   if (!SetElementOption(e, id)) return;
-  this.CreateSelectableElementData(e);
+  CreateSelectableElementData(e);
   this.EvaluateElementExpression(e.affect);
-  switch (e.type) 
-		 {
-		  case 'select':
-			   typeof e.data === 'object' ? this.ShowDialogBox() : target.innerHTML = this.GetElementContentHTML(e, true);
-			   break;
-		  case 'multiple':
-			   break;
-		  case 'radio':
-		  case 'checkbox':
-			   break;
-		 }
-}
-
- // Clone all input profile GUI elements except 'title' and 'button' types
- CloneCurrentProfileElements(profile, newprofilename, pathnestedindex)
- {
-  if (!Array.isArray(profile)) return;
-  for (const id of profile) 
-	  {
-	   if (Array.isArray(id) && !this.CloneCurrentProfileElements(id, newprofilename, pathnestedindex)) continue;
-	   let e = this.allelements[id];
-	   if (!e || e.type === 'title' || e.type === 'button' || e.selectionid !== undefined) continue;
-	   this.propmaxindex++;
-	   const path = e.path.split(SELECTABLEOPTIONSDIVIDER);
-	   path[pathnestedindex] = newprofilename;
-	   const re = new RegExp(`^!|\\${PROFILEFIELDSDIVIDER}.*`, 'g');
-	   for (const i in path) if (i < pathnestedindex) path[i] = path[i].replace(re, '');
-	   e = Object.assign({}, e, { path: path.join(SELECTABLEOPTIONSDIVIDER) });
-	   for (const prop in e)
-		   if (ELEMENTUSERPROPS.indexOf(prop) === -1) delete e[prop];							// Clear element from unnecessary props
-	   e.flag = typeof e.flag === 'string' ? '~' + e.flag : '~';								// Add 'cloned element' mark to the flag property
-	   this.PushInterfaceElement(this.data[this.propmaxindex] = e, this.propmaxindex + '');
-	   delete e.expr;
-	   delete e.affect;
-	   if (e.options) CorrectCheckedOptions(e.options, e.type);
-	  }
+  if (e.type === 'select')
+	 {
+	  if (typeof e.data === 'object') this.RefreshDialog(SHOWDIALOGDATA);
+	   else target.innerHTML = this.GetElementContentHTML(e, true); // Show full dialog structure with new profile activate for profile selections or refresh element inner HTML otherwise
+	  return;
+	 }
+  if (e.type === 'multiple') target.classList.toggle("selected");	// Refresh 'multiple' element via option class toggle. For other types (radio and checkbox) make no action due to its native form
  }
-
- // Handle 'clone' button
- ProcessCloneButton()
+ 
+ // Todo0 - lg(target) so to process table click events
+ ButtonApply(e, target)
  {
-  const activeprofileoption = GetElementOptionByChecked(this.profilecloning.e.options);																		// Get active profile option in selectable element
-  const cloningprofilename = activeprofileoption[0];																										// Get profile name to clone. To compare with input name below
-  const newprofile = {};																																	// Init new profile object
-  const re = new RegExp(`\\${SELECTABLEOPTIONSDIVIDER}`, 'g');
-  [newprofile.name, newprofile.flag, newprofile.head, newprofile.hint] = this.profilecloning.input.value.replaceAll(re, '').split(PROFILEFIELDSDIVIDER, 4);	// Parse input element to get new profile name/flag/head/hint
-  if (newprofile.name[0] === CHECKEDOPTIONPREFIX) newprofile.name = newprofile.name.substring(1);															// Check profile name 1st char to get prfile active status
-  for (const option of this.profilecloning.e.options)
-  	  if (option[0] === newprofile.name)
-		 {
-		  new DialogBox(...MessageBox(this.parentchild, `Profile name '${newprofile.name}' already exists!`, 'Clone error'));								// Cloning profile name matches new profile name? Return
-		  return;
-		 }
-  newprofile.flag = (newprofile.flag || '').replaceAll(/!/g, '');																							// Remove selection-id '!' chars
-  newprofile.flag = newprofile.flag.padStart(this.profilecloning.e.selectionid + newprofile.flag.length, '!');												// Add cloning profile selection id to the new profile flag to match cloning selection id
-  if (newprofile.flag) newprofile.flag = '|' + newprofile.flag;
-  newprofile.head = newprofile.head === undefined ? '' : `|${newprofile.head}`;
-  newprofile.hint = newprofile.hint === undefined ? '' : `|${newprofile.hint}`;
-  this.CloneCurrentProfileElements(this.profilecloning.e.profile[activeprofileoption[3]], newprofile.name + newprofile.flag + newprofile.head + newprofile.hint, this.profilecloning.e.path.split(SELECTABLEOPTIONSDIVIDER).length - 1);
-  for (const e of this.allelements) if (e.options && e.selectionid !== undefined) CorrectCheckedOptions(e.options, e.type);									// New profile user selectable elements are all with corrected checked options (see last line of function CloneCurrentProfileElements). But not service selectable elements (such as profile selection) in just created profile. So correct their checked optoins.
-  return this.profilecloning.e.id;
- }
-
- RemoveProfileCloneInput()
- {
-  this.profilecloning.isDeleted = true;																					// Set profilecloning object 'isDeleted' flag to true
-  if (this.profilecloning.e.id !== 0) this.profilecloning.wrapdiv.parentNode.firstChild.style.display = 'block';		// For non-pad prfile clone display back 'select' DOM element
-  this.profilecloning.input.removeEventListener('blur', this.Handler.bind(this));										// Remove event listener from 'input' DOM element
-  this.profilecloning.wrapdiv.remove();																					// Remove input string DOM elements
-  this.profilecloning.input.remove();
-  if (this.profilecloning.e.id === 0)
+  if (e.type !== 'button' || SetFlag(e, 'readonly')) return;											// Return for disabled button
+  if (SetFlag(e, 'appliable'))																			// Button is appliable?
   	 {
-	  this.padbar.outerHTML = this.GetElementContentHTML(this.allelements[0]);											// Cloning dialog pad? Refresh pad bar
-  	  this.padbar = this.elementDOM.querySelector('.padbar');
+	  for (e of this.elements) for (const prop in e) if (!(prop in ELEMENTUSERPROPS)) delete e[prop];	// Clear element from unnecessary props
+  	  if (typeof this.props.callback === 'function') this.props.callback(this.data);					// and call back specified function to process dialog data
 	 }
-  delete this.profilecloning;																							// Delete profilecloning object
- }
 
- ButtonApply(e)
- {
-  if (!SetFlag(e, 'appliable') || SetFlag(e, 'readonly')) return;							// Return falsy result for non appliable and disabled buttons
-  this.CheckElementSyntax();
-  if (typeof this.props.callback === 'function') this.props.callback(this.data);			// Call back function to process dialog data or lg('Calling controller with data', this.data);
-
-  if (SetFlag(e, 'interactive'))															// Button is interactive? Refresh dialog. Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns
+  if (SetFlag(e, 'interactive'))																		// Button is interactive? Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns
      {
-	  this.Refresh();
+	  if (SetFlag(e, 'appliable'))
+		 this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);		// Refresh dialog for appliable button, so do nothing for non appliable buttons
+	  return;
 	 }
-   else
-     {
-  	  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id]) this.parentchild.KillChild(this.dropdownlist.id); // Otherwise kill drop-down list if exist and dialog box of itself
-  	  this.parentchild.KillChild(this.id);
-	 }
-  return true;
+  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])
+	 this.parentchild.KillChild(this.dropdownlist.id);													// Otherwise kill drop-down list if exist
+  this.parentchild.KillChild(this.id);																	// and dialog box of itself
  }
 }

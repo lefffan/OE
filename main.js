@@ -28,39 +28,3 @@ export function GenerateRandomString(length)
  for (let i = 0; i < length; i++) randomstring += RANDOMSTRINGCHARS[Math.floor(Math.random() * RANDOMSTRINGCHARS.length)];
  return randomstring;
 }
-
-// Function returns array of js objects (dialog interface elements) matched input element props (path, type..)
-// Retreive object database all views aliases example - GetDialogElementListByPath(/View//General) returns all view profiles (except template 'New view') with 'General' profile nested, for a exa prof' (empty folder matches all)
-export function SearchDialogElements(dialog, search)
-{
- let result = [];
- for (const i in dialog)
-     {
-      const e = dialog[i]; // Fix current diaog interface element
-      let match = true; // Set true match for default
-      for (const prop in search) // Go through all search object props
-       if (prop === 'path') // Test 'path' prop first
-          {
-           const searchpath = search[prop].split('/'); // Split search path
-           const elementpath = e.path.split('/'); // Split element path
-           if (searchpath.length !== elementpath.length && !(match = false)) break; // Break for splited paths unmatching length
-           for (const j in searchpath) // Go through all folders in search path
-               {
-                const pos = elementpath[j].indexOf(PROFILEFIELDSDIVIDER);
-                if (pos !== -1) elementpath[j] = elementpath[j].substring(0, pos);
-                if (j === '1' && ['New element', 'New view', 'New rule'].indexOf(elementpath[j]) !== -1 && !(match = false)) break; // No match for template dialog profiles
-                if (!searchpath[j]) continue; // Empty folder in search path matches all
-                //if (elementpath[j].indexOf(searchpath[j]) === -1 && !(match = false)) break;
-                if (!(new RegExp(searchpath[j]).test(elementpath[j])) && !(match = false)) break;
-               }
-           if (!match) break; // Match is unsuccessful so other search is not needed - break it to continue with next dialog interface element
-          }
-        else
-          {
-           //if (!e[prop] || (e[prop].indexOf(search[prop]) === -1 && !(match = false))) break; // Simple match string test for non-path search props
-           if (!e[prop] || (!(new RegExp(search[prop]).test(e[prop])) && !(match = false))) break; // Simple match string test for non-path search props
-          }
-      if (match) result.push(dialog[i]);
-     }
- return result;
-}

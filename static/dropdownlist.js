@@ -9,7 +9,7 @@ export class DropDownList extends Interface
  constructor(options, dialogbox, selectdiv)
  {
   // Create element 'e' drop-down option list
-  super(options, dialogbox.parentchild, { overlay: 'NONSTICKY', effect: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } } }, {class: 'select expanded', style: `left: ${selectdiv.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${selectdiv.offsetTop + dialogbox.elementDOM.offsetTop + selectdiv.offsetHeight - dialogbox.contentwrapper.scrollTop}px;`}); // (data, parentchild, props, attributes)
+  super(options, dialogbox.parentchild, { overlay: 'NONSTICKY', effect: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } } }, {class: 'select expanded', style: `left: ${selectdiv.offsetLeft + dialogbox.elementDOM.offsetLeft}px; top: ${selectdiv.offsetTop + dialogbox.elementDOM.offsetTop + selectdiv.offsetHeight - dialogbox.Nodes.contentwrapper.scrollTop}px;`}); // (data, parentchild, props, attributes)
   this.dialogbox = dialogbox;
   this.selectdiv = selectdiv;
   this.cursor = +(GetElementOption(options)?.id);
