@@ -36,6 +36,9 @@
 // Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
 // Todo2 - When two modal appears - lower box has grey filter and that filter doesn't go away after above box gone away
 // Todo0 - Make login btn full painted color with no border
+// Todo1 - icon control for pad area sort order
+// alt shift change pad doesn't work
+// Database cancel cloning profile causes icon wrap
 
 import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, EFFECTSHINT, lg, MessageBox } from './constant.js';
 import { app } from './application.js';
@@ -64,47 +67,58 @@ const PARSEDIALOGDATA					= 0b00100;
 const SHOWDIALOGDATA					= 0b00010; 
 const PARSEEXPRESSIONS					= 0b00001; 
 
+// At profile selection element change option - its name (prop) is modified by adding active flag to the property name (via cloning object property with a new name), so violating object property default appearance order. This function is just to fix it
+function AdjustObjectPropDefaultAppearance(e)
+{
+ if (!Array.isArray(e.options)) return;
+ const flag = e.flag;
+ e.flag = '';
+ SetFlag(e, 'sort', true);
+ const newdata = {};
+ for (const option of e.options) newdata[option.origin] = e.data[option.origin];
+ e.data = newdata;
+ e.flag = flag;
+}
+
 // Function builds array by splitting (divided via '/') input arg data string to separate options and returns eponymous array. Element type 'type' defines checked options number: 'select' (single checked option only), 'radio' (none or single)
 function CreateSelectableElementOptions(e)
 {
  // First step - init vars, for 'string'/'object' types only
  if (e.data === null || !['string', 'object'].includes(typeof e.data)) return e.options = [];	// Element with non string data is considered as element with one header/hint only. With empty data ('') - as element with one empty option. With single divider data='/' - as element with two empty option.
  if (typeof e.data ==='object' && e.type !== 'select') return e.options = [];					// Profile selection (data prop is 'object' type) is for 'select' type only
- const list = typeof e.data ==='srting' ? e.data.split(OPTIONSDIVIDER) : e.data;
+ const list = typeof e.data === 'string' ? e.data.split(OPTIONSDIVIDER) : e.data;
  const names = new Set();
  let name, flag, style;
  e.options = [];																	// Array of selectable options. Each array element, in turn - is an option object with origin profile name, checked status, order id (to keep default appearance), clonable/removable flag, etc..
-
  // Second step - push parsed options to the result array
  // Option structure: <name~flags~style>, where flags are: checked, clonable, removable, cloned
  for (let origin in list)
      {
-      if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break; 			// Options number exceeds max allowed? Break
-	  origin = Array.isArray(list) ? list[origin] : origin;							// Get full option name with flags and style joined via divider
-	  [name, flag, ...style] = origin.split(FIELDSDIVIDER);							// Split it to get option name without flags, flag and style
-	  if (typeof e.data === 'object' && names.has(name))							// Option name (profile) without flags has already exist in e.data profile list? Delete it and continue
+      if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break;	// Options number exceeds max allowed? Break
+	  origin = Array.isArray(list) ? list[origin] : origin;				// Get full option name with flags and style joined via divider
+	  [name, flag, ...style] = origin.split(FIELDSDIVIDER);			// Split it to get option name without flags, flag and style
+	  if (typeof e.data === 'object')
 		 {
-		  delete e.data[origin];
-		  continue;
-		 }
-	  names.add(name);
-	  e.options.push({ id: e.options.length + '',									// Push option object with all its values and flags
-					   origin: origin,
-					   name: name,
-					   inner: AdjustString(name ? name : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP),
-					   checked: (flag || '').includes(OPTIONISCHECKED),
-					   clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
-					   removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
-					   cloned: (flag || '').includes(OPTIONISCLONED) && typeof e.data === 'object',
-					   style: style.length ? style.join(FIELDSDIVIDER) : '', });
+		  if (names.has(name) && delete e.data[origin]) continue;		// Option name (profile) without flags has already exist in e.data profile list? Delete it and continue
+	  	  names.add(name);
+	  	 }
+	  e.options.push({	id: e.options.length + '',					// Push option object with all its values and flags
+						origin: origin,
+					   	name: name,
+					   	inner: AdjustString(name ? name : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP),
+					   	checked: (flag || '').includes(OPTIONISCHECKED),
+					   	clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
+					   	removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
+					   	cloned: (flag || '').includes(OPTIONISCLONED) && typeof e.data === 'object',
+					   	style: style.length ? style.join(FIELDSDIVIDER) : '',
+					   	styleattribute: style.length ? ` style="${style.join(FIELDSDIVIDER)}"` : `` });
      }
 }
 
 // Function creates and returns selectable element data from option list 'options'
 function CreateSelectableElementData(e)
 {
- if (typeof e.data === 'string') e.data === '';
-
+ if (typeof e.data === 'string') e.data = '';
  for (const i in e.options)
 	 {
 	  const option = e.options[i];
@@ -117,14 +131,14 @@ function CreateSelectableElementData(e)
 	  				 `${option.style ? FIELDSDIVIDER + option.style : '' }`;
       if (typeof e.data === 'object')
 		 {
-	  	  if (origin === option.origin) continue;					// Should option origin be changed in order to changed checked status? Continue if no
-	  	  e.data[origin] = e.data[option.origin];					// Otherwise change e.data profile name due to changed flags
+	  	  if (origin === option.origin) continue;				// Should option origin be changed in order to changed checked status? Continue if no
+	  	  e.data[origin] = e.data[option.origin];				// Otherwise change e.data profile name due to changed flags
 	  	  delete e.data[option.origin];
 	  	  option.origin = origin;
 		  continue;
 		 }
 	  e.data += i === '0' ? origin : OPTIONSDIVIDER + origin; 	// Collect data (/name~flags~style/) for each option for usual selectable element with e.data string type
-	} 
+	 } 
  return e;
 }
 
@@ -159,6 +173,51 @@ function SortSelectableElementData(e)
 
 // Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg
 function SetFlag(e, name, value)
+{
+ let flag, placeholder = e.flag.indexOf('+');
+ if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
+	{
+	 flag = e.flag.substring(0, placeholder);
+	 placeholder = AdjustString(e.flag.substring(placeholder), TAGATTRIBUTEENCODEMAP);
+	}
+  else
+	{
+	 flag = e.flag;
+	 placeholder = '';
+	}
+
+ switch (name)
+		{
+		 case 'readonly':
+			  if (value === undefined) return flag.includes('!');
+			  e.flag = value ? flag + '!' : flag.replaceAll('!', '');
+			  e.flag += placeholder;
+			  return;
+		 case 'underline':
+			  if (value === undefined) return flag.includes('*');
+			  e.flag = value ? flag + '*' : flag.replaceAll('*', '');
+			  e.flag += placeholder;
+			  return;
+		 case 'placeholder':
+			  if (placeholder) return placeholder.substring(1);
+			  return e.type === 'select' ? 'Enter new profile name' : '';
+		 case 'sort':
+			  if (value === undefined) return `${flag.includes('a') ? 'alphabetical' : ''}${flag.includes('-') ? 'descending' : ''}`;
+			  if (!flag.includes('-')) e.flag = flag + '-';
+			   else e.flag = flag.includes('a') ? flag.replaceAll(/a|\-/g, '') : (flag + 'a').replaceAll('-', '');
+			  e.flag += placeholder;
+			  return;
+		 case 'interactive':
+			  return flag.includes('*') && e.type === 'button';
+		 case 'appliable':
+			  return flag.includes('a') && e.type === 'button';
+		 case 'autoapply':
+			  if (!['+', '-'].includes(flag) || e.type !== 'button') return;
+			  return (flag.split('+').length - 1) * 60 + flag.split('-').length - 1;
+		}
+}
+// Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg
+function SetFlag1(e, name, value)
 {
  switch (name)
 		{
@@ -369,7 +428,7 @@ export class DialogBox extends Interface
  {
   let elementcount = 0;
   if (typeof profile === 'object') for (const elementname in profile)
-	 {
+  	 {
 	  if (syntax && !CheckElementSyntax(profile[elementname]) && delete profile[elementname]) continue;
 	  const e = profile[elementname];
 	  if (e.type === 'select' && typeof e.data === 'object')
@@ -556,13 +615,13 @@ export class DialogBox extends Interface
 				  {
 				   classlist = optionicon ? 'activepad flexrow' : 'activepad';
 				   for (const option of e.options)																										// For pad selection element (pad bar) collect pad divs to 'content' var
-					   content += `<div class="${option.checked ? classlist : 'pad'}" value="${option.id}">${optionicon && option.checked ? '<div>' : ''}${option.inner}${optionicon && option.checked ? '</div>' + optionicon : ''}</div>`;
+					   content += `<div class="${option.checked ? classlist : 'pad'}" value="${option.id}"${option.styleattribute}>${optionicon && option.checked ? '<div>' : ''}${option.inner}${optionicon && option.checked ? '</div>' + optionicon : ''}</div>`;
 				   return inner ? content : `<div class="padbar flexrow" ${dataattribute}${styleattribute}>${content}</div>`;
 				  }
 				else // Usual selection
 				  {
 				   classlist += `${classlist ? ' ' : ''}` + 'select arrow' + `${SetFlag(e, 'sort').includes('descending') + SetFlag(e, 'sort').includes('alphabetical') * 2}` + `${typeof e.data === 'object' ? ' profileselectionstyle' : ''}`;
-				   content = `<div value="${activeoption.id}"${activeoption.style ? 'style="' + activeoption.style + '"' : ''}>${activeoption.inner}</div>`;
+				   content = `<div value="${activeoption.id}"${activeoption.styleattribute}>${activeoption.inner}</div>`;
 				   if (optionicon) content = `<div class="${classlist}">${content}</div>${optionicon}`;
 				   if (optionicon) return inner ? content : `<div class="flexrow" ${dataattribute}>${content}</div>`;
 				   return inner ? content : `<div class="${classlist}" ${dataattribute}>${content}</div>`;
@@ -571,7 +630,7 @@ export class DialogBox extends Interface
 		  case 'multiple':
 			   if (!e.options.length) return '';																									// No options for selectable element? Return empty
 			   for (const option of e.options)
-				   content += `<div value="${option.id}"${option.checked ? ' class="selected"' : ''}>${option.inner}</div>`;	// For multiple selection element collect option divs
+				   content += `<div value="${option.id}"${option.checked ? ' class="selected"' : ''}${option.styleattribute}>${option.inner}</div>`;	// For multiple selection element collect option divs
 			   return inner ? content : `<div class="select ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;																																			// Return div wraped content
 
 		  case 'checkbox':
@@ -579,7 +638,7 @@ export class DialogBox extends Interface
 			   // Todo0 - Release option.style for selectable elements
 			   if (!e.options.length) return ''; // No options for selectable element? Return empty
 			   for (const option of e.options) // For checkbox/readio element types collect input and label tags
-				   content += `<input type="${e.type}" class="${e.type}" ${option.checked ? ' checked' : ''}${readonly ? ' disabled' : ''} name="${uniqeid}" id="${uniqeid + '_' + option.id}" value="${option.id}"><label for="${uniqeid + '_' + option.id}" value="${option.id}">${option.inner}</label>`;
+				   content += `<input type="${e.type}" class="${e.type}" ${option.checked ? ' checked' : ''}${readonly ? ' disabled' : ''} name="${uniqeid}" id="${uniqeid + '_' + option.id}" value="${option.id}"><label for="${uniqeid + '_' + option.id}" value="${option.id}"${option.styleattribute}>${option.inner}</label>`;
 			   return inner ? content : `<div ${classlist ? 'class="' + classlist + '"' : ''}${dataattribute}${styleattribute}>${content}</div>`;
 
 		  case 'textarea':
@@ -627,23 +686,23 @@ export class DialogBox extends Interface
 	   if (e.type === 'button') inner.footer += outer; // Collect btns to dialog footer
 	   if (e.type === 'button') this.Nodes.buttons[e.id] = false; // Fix btn id here but not from full dialog HTML query selector (for hidden auto apply btns not in HTML)
 	   if (['title', 'button'].includes(e.type)) continue; // Continue for title/btn elements
-	   if (e.id) padarea ? inner.padarea += outer : inner.mainarea += outer; // Collect non zero element id for pad or main area
-		else (e.type === 'select' && typeof e.data === 'object') ? inner.padbar += outer : inner.mainarea += outer; // Collect zero id element for main area (non profile selection) or fix zero id element for pad area (profile selection)
+	   (e.padbar || padarea) ? inner.padarea += outer : inner.mainarea += outer; // Collect non zero element id for pad or main area
 	   if (e.type !== 'select' || typeof e.data !== 'object') continue;
 	   const option = GetElementOption(e);
 	   if (!option) continue;
-	   this.GetDialogInner(inner, e.data[option.origin], e.id ? padarea : true); // Call <GetDialogInner> function recursively for any profile selection (pad or drop-down list)
+	   this.GetDialogInner(inner, e.data[option.origin], e.padbar ? true : padarea); // Call <GetDialogInner> function recursively for any profile selection (pad or drop-down list)
 	  }
  }
 
  ShowDialogBox()
  {
-  let inner = { title: '', padbar: '', padarea: '', mainarea: '', footer: '' };
+  let inner = { title: '', padarea: '', mainarea: '', footer: '' };
   this.Nodes = this.Nodes ? { autoapplybuttons: this.Nodes.autoapplybuttons, textinputs: {}, selects: {}, tables: {}, buttons: {} } : { autoapplybuttons: {}, textinputs: {}, selects: {}, tables: {}, buttons: {} };
   this.GetDialogInner(inner); // Get dialog inner for each area
-  if (inner.padarea || inner.mainarea) inner.padbar += `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`; // Wrap pad/main area to div
+
+  if (inner.padarea || inner.mainarea) inner.mainarea = `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`; // Wrap pad/main area to div
   if (inner.footer) inner.footer = `<div class="footer">${inner.footer}</div>`; // so do footer..
-  inner.title += inner.padbar + inner.footer; // Collect title, content and footer to title
+  inner.title += inner.mainarea + inner.footer; // Collect title, content and footer to title
   if (!inner.title) return;
   this.elementDOM.innerHTML = inner.title; // and set it to dialog root DOM element
 
@@ -704,27 +763,27 @@ export class DialogBox extends Interface
 	  if (!SetFlag(this.elements[id], 'readonly')) return this.Nodes.textinputs[id].focus();
  }
 
- // Todo0 - release cloning profile via nonsticky child. If it fails - move this.TextInput to Nodes.CloneInput
+ // Todo0 - release cloning profile via nonsticky child. If it fails - move this.TextInput to this.Nodes.CloneInput
  RemoveTextInput()
  {
   this.TextInput.isDeleted = true;																				// Set profilecloning object 'isDeleted' flag to true
-  if (this.TextInput.e.id !== 0) this.TextInput.div.parentNode.firstChild.style.display = 'block';				// For non-pad prfile clone display block 'select' DOM element
+  if (!this.TextInput.e.padbar) this.TextInput.div.parentNode.firstChild.style.display = 'block';				// For non-pad prfile clone display block 'select' DOM element
   this.TextInput.input.removeEventListener('blur', this.Handler.bind(this));									// Remove event listener from 'input' DOM element
   this.TextInput.div.remove();																					// Remove input and its wrap div elements from DOM
   this.TextInput.input.remove();
-  if (!this.TextInput.e.id) this.Nodes.padbar.innerHTML = this.GetElementContentHTML(this.elements[0], true);	// Cloning dialog pad? Refresh pad bar
   delete this.TextInput;																							
  }
 
  CloneNewProfile(e)
  {
-  let name, flags;
-  [name, ...flags] = this.TextInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
-  for (const profile in e.data)
-	  if (profile.split(FIELDSDIVIDER, 1)[0] === name) return new DialogBox(...MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error')); // Check name exist in e.data profile list and return warning msg in success
-  flags = flags.length ? flags.join(FIELDSDIVIDER) : ''; // Join back flag string
+  let name, flags, style;
+  [name, flags, ...style] = this.TextInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
+  for (const option of e.options) if (option.name === name) return new DialogBox(...MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error')); // Check name exist in e.data profile list and return warning msg in success
+  flags = FIELDSDIVIDER + (flags || '');
   if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
-  e.data[name + FIELDSDIVIDER + flags] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
+  style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
+  AdjustObjectPropDefaultAppearance(e);
+  e.data[name + flags + style] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS); // and refresh dialogwith a new profile added
  }
 
@@ -771,14 +830,12 @@ export class DialogBox extends Interface
 		       	  }
 	       	   if (event.code === 'ArrowLeft' && event.altKey && event.shiftKey)
 		  		  {
-				   if (this.elements[0].type !== 'select' || typeof this.elements[0].data !== 'object') return {};
-				   this.ActivateSelectedOption(this.elements[0], false);
+				   if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], false);
 				   return {};
 		       	  }
 			   if (event.code === 'ArrowRight' && event.altKey && event.shiftKey)
 				  {
-				   if (this.elements[0].type !== 'select' || typeof this.elements[0].data !== 'object') return {};
-				   this.ActivateSelectedOption(this.elements[0], true);
+				   if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], true);
 				   return {};
 				  }
 
@@ -811,11 +868,9 @@ export class DialogBox extends Interface
 					  }
 				   if (ELEMENTSELECTABLETYPES.includes(e.type))									// or change sort order of selectable element
 				      {
-			   	   	   if (event.target.classList.contains('itemadd')) break;					// excluding profile clone/remove btns
-			   	   	   if (event.target.classList.contains('itemremove')) break;
 				   	   SetFlag(e, 'sort', true);
 					   SortSelectableElementData(e);
-				   	   target.innerHTML = this.GetElementContentHTML(e, true);
+				   	   target.outerHTML = this.GetElementContentHTML(e);
 					  }
 				   break;
 				  }
@@ -828,32 +883,32 @@ export class DialogBox extends Interface
 					  }
 				   if (e.type === 'select')
 					  {
-					   //if (this.profilecloning) break; // Todo0 - is it needable? Why the select element is anaccessable while profile input is active - blur event will create a new profile anyaway??
+					   if (this.TextInput) break;	// No action at cloning profile process, element click will call blur event that will clone user defined profile
 					   if (event.target.classList.contains('itemadd'))							// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   this.TextInput = { e: e, div: document.createElement('div'), input: document.createElement('input') };
 						   this.TextInput.div.appendChild(this.TextInput.input);
 						   this.TextInput.input.addEventListener('blur', this.Handler.bind(this));
-						   if (e.id)
-						   	  {
-							   target.firstChild.firstChild.style.display = 'none';
-							   target.firstChild.appendChild(this.TextInput.div);
-						   	  }
-						    else
+						   if (e.padbar)
 						   	  {
 							   this.TextInput.div.classList.add('pad');
 							   this.TextInput.div.style.width = '100%';
 							   target.appendChild(this.TextInput.div);
+						   	  }
+						    else
+						   	  {
+							   target.firstChild.firstChild.style.display = 'none';
+							   target.firstChild.appendChild(this.TextInput.div);
 							  }
 						   this.TextInput.input.classList.add('newprofileinput');
 						   this.TextInput.input.setAttribute('placeholder', SetFlag(e, 'placeholder'));
-						   requestIdleCallback(() => this.TextInput.input.focus());				// Todo0 - check if it works, old version: setTimeout(() => this.profilecloning.input.focus(), 0);
+						   requestIdleCallback(() => this.TextInput.input.focus());
 						   break;
 						  }
 					   if (event.target.classList.contains('itemremove'))						// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   if (e.options.length === 1 && new DialogBox(...MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error'))) break;
-						   delete e.data[GetElementOption(e).name];								// Removing current profile
+						   delete e.data[GetElementOption(e).origin];							// Removing current profile
 						   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
 						   break;
 						  }
@@ -883,7 +938,7 @@ export class DialogBox extends Interface
 
  ActivateSelectedOption(e, id, target)
  {
-  if (!['number', 'string'].includes(typeof id)) return;
+  if (!['boolean', 'number', 'string'].includes(typeof id)) return;
   if (!SetElementOption(e, id)) return;
   CreateSelectableElementData(e);
   this.EvaluateElementExpression(e.affect);
@@ -899,21 +954,12 @@ export class DialogBox extends Interface
  // Todo0 - lg(target) so to process table click events
  ButtonApply(e, target)
  {
-  if (e.type !== 'button' || SetFlag(e, 'readonly')) return;											// Return for disabled button
-  if (SetFlag(e, 'appliable'))																			// Button is appliable?
-  	 {
-	  for (e of this.elements) for (const prop in e) if (!(prop in ELEMENTUSERPROPS)) delete e[prop];	// Clear element from unnecessary props
-  	  if (typeof this.props.callback === 'function') this.props.callback(this.data);					// and call back specified function to process dialog data
-	 }
+  if (e.type !== 'button' || SetFlag(e, 'readonly')) return;												// Return for disabled button
+  if (SetFlag(e, 'appliable') && typeof this.props.callback === 'function') this.props.callback(this.data);	// Button is appliable? Call back specified function to process dialog data
 
-  if (SetFlag(e, 'interactive'))																		// Button is interactive? Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns
-     {
-	  if (SetFlag(e, 'appliable'))
-		 this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);		// Refresh dialog for appliable button, so do nothing for non appliable buttons
-	  return;
-	 }
-  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])
-	 this.parentchild.KillChild(this.dropdownlist.id);													// Otherwise kill drop-down list if exist
-  this.parentchild.KillChild(this.id);																	// and dialog box of itself
+  if (SetFlag(e, 'interactive')) return;																	// Button is interactive? Do nothing and return Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns
+  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])									// Otherwise kill drop-down list if exist
+	 this.parentchild.KillChild(this.dropdownlist.id);
+  this.parentchild.KillChild(this.id);																		// and dialog box of itself
  }
 }

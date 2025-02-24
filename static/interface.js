@@ -7,7 +7,6 @@
 // Todo2 - requestIdleCallback for idle tasks
 // Todo0 - While resizing all animation is being applied and slowing GUI?
 // Todo2 - Change box minimize icon from low line to upper line
-// Todo2 - Two modal boxes case, top modal is destroyed, but another modal is still css filtered. Fix it.
 
 import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';
@@ -380,25 +379,34 @@ export class Interface
 	    }
  }
 
- // Function kills specified child, rebuilds z-indexes and deletes its element from child array with 'removeonhide' flag set to remove element from the DOM
+ // Function kills specified child, rebuilds z-indexes and deletes its element from child array with 'removeonhide' flag seting to true (to remove element from the DOM)
  KillChild(id)
  {
-  //if (typeof id === 'string') id = +id;																													// Pisec
-  if (app.control?.child === this.childs[id])																												// Current captured control is on killing child? Release it
+  //if (typeof id === 'string') id = +id;																						// Pisec
+  if (app.control?.child === this.childs[id])																					// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';
 	  lg(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
-  this.childs[id].removeonhide = true;																														// Set 'removeonhide' flag to kill the child on hide
-  this.childs[id].Hide();																																	// Hide and kill the child
-  this.zindexes.splice(this.childs[id].zindex, 1);																											// Remove appropriate child z-index element
-  for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);								// and decrement all z-index values
+  this.childs[id].removeonhide = true;																							// Set 'removeonhide' flag to kill the child on hide
+  this.childs[id].Hide();																										// Hide and kill the child
+  this.zindexes.splice(this.childs[id].zindex, 1);																				// Remove appropriate child z-index element
+  for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);	// and decrement all z-index values
   if (this.preactiveid === id) this.preactiveid = 0;																										// If killing child is last active, set it to child container (zero child id)
-  if (this.activeid === id) this.childs[this.activeid = this.preactiveid].StyleActiveChild();																// Activate last active child if killing child is active. Old code version activates top child: this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();
-  this.childs[id].destructor();																																// Call child desctructir
+  if (this.activeid === id) this.childs[this.activeid = this.preactiveid].StyleActiveChild();									// Activate last active child if killing child is active. Old code version activates top child: this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();
+  this.childs[id].destructor();																									// Call child desctructir
+  const ismodal = this.childs[id].props.overlay === 'MODAL';
   delete this.childs[id];	
-  if (this.childs[this.activeid].props.overlay !== 'MODAL') for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');	// and reomve css style modal filter in case of killing child is 'MODAL' overlay
+  if (ismodal)																													// Killed child was modal overlay? Remove css 'modal' filter for some childs below
+  if (this.childs[this.activeid].props.overlay === 'MODAL') 
+	 {
+	  this.childs[this.activeid].elementDOM.classList.remove('modalfilter');													// Current active child is modal overlay? Remove its DOM element css 'modal' filter. For current active only
+	 }
+   else
+     {
+  	  for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');							// Otherwise remove css 'modal' filter for all childs 
+	 }
  }
 
  // Hide the child with animation this.props.effect

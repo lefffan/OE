@@ -152,7 +152,7 @@ Folders are optional and created automatically in a sidebar db hierarchy. Leadin
 70: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`, flag: '*' },
 80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros. 
 Each one may be used both for informative purposes and for any constant definitions, which may be used in any database configuration settings via js style quoted expression \${<macros name>}`,
-data: { 'New macros~+': { 10: { type: 'textarea', head: 'Macros value', data: '' },
+data: { 'New macros~+-': { 10: { type: 'textarea', head: 'Macros value', data: '' },
                         20: { type: 'textarea', head: 'Macros description', flag: '*', data: '' },
 
 },},},};
@@ -161,11 +161,12 @@ const ELEMENTPAD = {
 new: { type: 'select', head: 'Element profile~Set this template element properties and clone it to create new element in object database', data: { 'New element template~+': {
 10: { type: 'textarea', head: 'Name~Element name, used as a default element title in object view display', data: '', flag: '+Enter element name' },
 20: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
-
-} } } };
+30: { type: 'select', head: 'Хуета', data: '1/2/3/Test/A/Zest' }, 
+40: { type: 'select', head: 'Хуета', data: 'est' }, 
+},},},};
 
 export const NEWOBJECTDATABASE = {
-    padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD }  },
+    padbar: { type: 'select', data: { 'Database~+-': DATABASEPAD, 'Element~+-': ELEMENTPAD }  },
     title: { type: 'title', data: 'New Database Configuration' },
     ok: { type: 'button', data: 'CREATE DATABASE', flag: 'a' },
     cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL' },
