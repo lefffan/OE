@@ -29,16 +29,14 @@
 //										Once the auto-apply button appeares in the profile bundle the auto-apply feature is turned on and does exist regardless of button current profile appearance.
 //								  grey style readonly button (!)
 // 						 'expr' - See text type description. In case of true expr expression the button becomes grey.
+
 // Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
 // Todo2 - Multuiple flag * creates rounded area arount GUI element. 
 // Todo2 - Review all css props, its content props, some for builtin conf (index.html), some for configurable GUI via user customization
-// Todo2 - add style prop (type, data head hint expr and style!) to style all element types
 // Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
-// Todo2 - When two modal appears - lower box has grey filter and that filter doesn't go away after above box gone away
-// Todo0 - Make login btn full painted color with no border
 // Todo1 - icon control for pad area sort order
-// alt shift change pad doesn't work
-// Database cancel cloning profile causes icon wrap
+// Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
+// Todo0 - what if regexp in 'expr' contains '/' char? May be ignore regexp string end at these two chars: '\/' ?
 
 import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, EFFECTSHINT, lg, MessageBox } from './constant.js';
 import { app } from './application.js';
@@ -52,11 +50,11 @@ const ELEMENTUSERPROPS					= { type: undefined, flag: '', head: undefined, data:
 const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
 const ELEMENTTEXTTYPES					= ['textarea', 'text', 'password'];
 const ELEMENTALLTYPES					= ['title', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES, 'table', 'button'];
-const OPTIONSDIVIDER					= '/';
 const OPTIONISCHECKED					= '!';
 const OPTIONISCLONED					= '*';
 const OPTIONISCLONABLE					= '+';
 const OPTIONISREMOVABLE					= '-';
+const OPTIONSDIVIDER					= '/';
 const FIELDSDIVIDER						= '~';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
@@ -66,19 +64,6 @@ const CHECKDIALOGDATA					= 0b01000;
 const PARSEDIALOGDATA					= 0b00100; 
 const SHOWDIALOGDATA					= 0b00010; 
 const PARSEEXPRESSIONS					= 0b00001; 
-
-// At profile selection element change option - its name (prop) is modified by adding active flag to the property name (via cloning object property with a new name), so violating object property default appearance order. This function is just to fix it
-function AdjustObjectPropDefaultAppearance(e)
-{
- if (!Array.isArray(e.options)) return;
- const flag = e.flag;
- e.flag = '';
- SetFlag(e, 'sort', true);
- const newdata = {};
- for (const option of e.options) newdata[option.origin] = e.data[option.origin];
- e.data = newdata;
- e.flag = flag;
-}
 
 // Function builds array by splitting (divided via '/') input arg data string to separate options and returns eponymous array. Element type 'type' defines checked options number: 'select' (single checked option only), 'radio' (none or single)
 function CreateSelectableElementOptions(e)
@@ -212,39 +197,7 @@ function SetFlag(e, name, value)
 		 case 'appliable':
 			  return flag.includes('a') && e.type === 'button';
 		 case 'autoapply':
-			  if (!['+', '-'].includes(flag) || e.type !== 'button') return;
 			  return (flag.split('+').length - 1) * 60 + flag.split('-').length - 1;
-		}
-}
-// Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg
-function SetFlag1(e, name, value)
-{
- switch (name)
-		{
-		 case 'readonly':
-			  if (value === undefined) return e.flag.includes('!');
-			  e.flag = value ? e.flag + '!' : e.flag.replaceAll('!', '');
-			  return;
-		 case 'underline':
-			  if (value === undefined) return e.flag.includes('*');
-			  e.flag = value ? e.flag + '*' : e.flag.replaceAll('*', '');
-			  return;
-		 case 'placeholder':
-			  let placeholder = e.flag.indexOf('+');
-			  placeholder = placeholder === -1 ? '' : AdjustString(e.flag.substring(placeholder + 1), TAGATTRIBUTEENCODEMAP);
-			  return placeholder ? placeholder : e.type === 'select' ? 'Enter new profile name' : '';
-		 case 'sort':
-			  if (value === undefined) return `${e.flag.includes('a') ? 'alphabetical' : ''}${e.flag.includes('-') ? 'descending' : ''}`;
-			  if (!e.flag.includes('-')) e.flag += '-';
-			   else e.flag = e.flag.includes('a') ? e.flag.replaceAll(/a|\-/g, '') : (e.flag + 'a').replaceAll('-', '');
-			  return;
-		 case 'interactive':
-			  return e.flag.includes('*') && e.type === 'button';
-		 case 'appliable':
-			  return e.flag.includes('a') && e.type === 'button';
-		 case 'autoapply':
-			  if (!['+', '-'].includes(e.flag) || e.type !== 'button') return;
-			  return (e.flag.split('+').length - 1) * 60 + e.flag.split('-').length - 1;
 		}
 }
  
@@ -381,8 +334,6 @@ export class DialogBox extends Interface
 	".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
 	// Profile selection additional style
 	".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "4px;" },
-	// Expanded selection
-	".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
 	//------------------------------------------------------------
 	// dialog box radio
 	"input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
@@ -403,11 +354,11 @@ export class DialogBox extends Interface
 	"input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": "0px 10px 0px 0px;" },
 	//------------------------------------------------------------
 	// dialog box input text
-	"input[type=text]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	"input[type=text]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
 	// dialog box input password
-	"input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	"input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
 	// dialog box input textarea
-	"textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "5%;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	"textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
  };
 
  // Init <elements> (element list), elementnames (element ids list via names) and <Nodes> keeping autoapply buttons alive to retreive its timer data after dialog refresh
@@ -424,27 +375,37 @@ export class DialogBox extends Interface
  //  					option1: { element1: {}, element2: {type: data:  }, element3: {}, }
  //  					option2: {..}
  // }
- ParseDialogData(profile, syntax)
+ ParseDialogData(profile, syntax, service = true)
  {
   let elementcount = 0;
   if (typeof profile === 'object') for (const elementname in profile)
   	 {
-	  if (syntax && !CheckElementSyntax(profile[elementname]) && delete profile[elementname]) continue;
 	  const e = profile[elementname];
+	  if (e.type === 'select' && typeof e.data === 'object' && Array.isArray(e.options)) // Profile clone/remove breaks default appearance initial sort order for already inited selections, so set it back as it was at initial time
+		 {
+		  const flag = e.flag, newdata = {};
+		  e.flag = '';
+		  SetFlag(e, 'sort', true);
+		  for (const option of e.options) newdata[option.origin] = e.data[option.origin];
+		  [e.data, e.flag] = [newdata, flag];
+		 }
+	  if (syntax && !CheckElementSyntax(e) && delete profile[elementname]) continue;
 	  if (e.type === 'select' && typeof e.data === 'object')
 		 {
 		  let optioncount = 0;
-		  for (const i in e.data) optioncount < DIALOGSELECTABLEELEMENTMAXOPTIONS && this.ParseDialogData(e.data[i], syntax) ? optioncount++ : delete e.data[i]; // Options number exceeds max allowed or dialog parse returns no elements? Delete option
+		  for (const i in e.data) optioncount < DIALOGSELECTABLEELEMENTMAXOPTIONS && this.ParseDialogData(e.data[i], syntax, service) ? optioncount++ : delete e.data[i]; // Options number exceeds max allowed or dialog parse returns no elements? Delete option
 		  if (!optioncount && delete e.data) if (syntax && !CheckElementSyntax(e) && delete profile[elementname]) continue; // For zero option count delete 'data' prop and check element syntax again. So delete element of itself for no pass syntax check and continue
 		 }
+	  elementcount++;
+	  if (!service) continue;
 	  if (ELEMENTSELECTABLETYPES.includes(e.type)) CreateSelectableElementOptions(e);
 	  if (ELEMENTSELECTABLETYPES.includes(e.type)) CorrectCheckedOptions(e);
 	  if (ELEMENTSELECTABLETYPES.includes(e.type)) SortSelectableElementData(e); // Create parsed options array for selectable elements
 	  this.elementnames[elementname] = e.id = this.elements.length;
+	  e.name = elementname;
 	  this.elements.push(e); // Insert user defined element to the 'allelements' global array
 	  e.affect = new Set();	// Add empty set collection to all elements which data can affect to other elements readonly flag. Old version: if ([...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type)) e.affect = new Set();
-	  if (!elementcount && e.type === 'select' && typeof e.data === 'object' && profile === this.data) e.padbar = true;
-	  elementcount++;
+	  if (elementcount === 1 && e.type === 'select' && typeof e.data === 'object' && profile === this.data) e.padbar = true;
 	 }
   if (profile === this.data && !elementcount) this.data = {}; // No valid dialog structure? Set it empty
   return elementcount;
@@ -452,7 +413,7 @@ export class DialogBox extends Interface
  
  destructor()
  {
-  for (id in this.Nodes.autoapplybuttons) clearTimeout(this.Nodes.autoapplybuttons[id].timeoutid);	
+  for (const button of this.Nodes.autoapplybuttons.values()) clearTimeout(button.timeoutid);	
   super.destructor();
  }
 
@@ -486,7 +447,6 @@ export class DialogBox extends Interface
   let currentpos = 0;
   let expression = '';
   const elementids = new Set();
-
   for (const match of matches)																						// Go through all matches
    	  {
 	   if (currentpos < match.index)																				// If cursor current position lower than current regexp found
@@ -496,13 +456,13 @@ export class DialogBox extends Interface
 		  }
 	   currentpos = e.expr.indexOf(' ', match.index + match[0].length);												// Get position from the end of a regexp (match.index + match[0].length) for the 1st space found to parse the interface element property name
 	   const name = e.expr.substring(match.index + match[0].length, currentpos === -1 ? e.expr.length : currentpos);// Parse element property name as a substring from the end of a regexp till the calculated space char position above
-	   if (!this.elementnames[name] || typeof this.elementnames[name]['data'] !== 'string') return delete e.expr;	// Non existing element or element with undefined data? Return
-	   this.elementnames[name]['affect'].add(e.id);																	// Add parsing expression element id to the calculated element (via its property name above) affect list
-	   elementids.add(this.elementnames[name].id);																	// so add to the 'elementids' var too - just to clear its 'affect' in case of error expression
-	   expression += match[0] + ".test(this.elementnames['" + name + "']['data'])";									// Collect new expression in js format to pass it to eval function
+	   if (!(name in this.elementnames) || typeof this.elements[this.elementnames[name]]['data'] !== 'string') return delete e.expr;	// Non existing element or element with undefined data? Return
+	   this.elements[this.elementnames[name]]['affect'].add(e.id);													// Add parsing expression element id to the calculated element (via its property name above) affect list
+	   elementids.add(this.elementnames[name]);																		// so add to the 'elementids' var too - just to clear its 'affect' in case of error expression
+	   expression += match[0] + ".test(this.elements[this.elementnames['" + name + "']]['data'])";					// Collect new expression in js format to pass it to eval function
 	   if (currentpos === -1) break;																				// The end of expression string is reached (index of space char to parse property name reached end of string), so break the cycle
 	  }
-  e.expr = expression;
+  e.test = expression;
   this.EvaluateElementExpression([e.id]);
  }
 
@@ -515,11 +475,12 @@ export class DialogBox extends Interface
 	  {
 	   let result;
 	   if (!(e = this.elements[id])) continue;
-	   try { result = eval(e.expr); }
+	   try { result = eval(e.test); }
 	   catch { lg('Evaluation exception detected on element:', e); }
 	   if (result === undefined) // Result is undefined in case of eval exception
 		  {
 		   delete e.expr; // Delete 'expr' property and this element id from all other elements which data prop affects to
+		   delete e.test;
 		   for (const element of this.elements) element.affect.delete(e.id);
 		   continue;
 		  }
@@ -545,7 +506,7 @@ export class DialogBox extends Interface
 			   case 'password':
 					if (!this.Nodes.textinputs[id]) continue;
 					target = this.Nodes.textinputs[id];
-					readonly ? target.setAttribute('readonly') : target.removeAttribute('readonly', '');
+					readonly ? target.setAttribute('readonly', '') : target.removeAttribute('readonly', '');
 					break;
 			   case 'select':
 			   case 'multiple':
@@ -594,7 +555,7 @@ export class DialogBox extends Interface
   if (!e) return '';
   const readonly = SetFlag(e, 'readonly');
   const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
-  const dataattribute = `data-element="${uniqeid}"`;																									// Set html attribute to access this uniq id
+  const dataattribute = `data-element="${uniqeid}"`;																								// Set html attribute to access this uniq id
   const styleattribute = e.style ? ` style="${AdjustString(e.style, TAGATTRIBUTEENCODEMAP)}"` : ``;
   let classlist = readonly ? 'readonlyfilter' : '';
   let content = '';																																	// Element some content var
@@ -630,12 +591,11 @@ export class DialogBox extends Interface
 		  case 'multiple':
 			   if (!e.options.length) return '';																									// No options for selectable element? Return empty
 			   for (const option of e.options)
-				   content += `<div value="${option.id}"${option.checked ? ' class="selected"' : ''}${option.styleattribute}>${option.inner}</div>`;	// For multiple selection element collect option divs
-			   return inner ? content : `<div class="select ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;																																			// Return div wraped content
+				   content += `<div value="${option.id}"${option.checked ? ' class="selected"' : ''}${option.styleattribute}>${option.inner}</div>`;// For multiple selection element collect option divs
+			   return inner ? content : `<div class="select ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;						// Return div wraped content
 
 		  case 'checkbox':
 		  case 'radio':
-			   // Todo0 - Release option.style for selectable elements
 			   if (!e.options.length) return ''; // No options for selectable element? Return empty
 			   for (const option of e.options) // For checkbox/readio element types collect input and label tags
 				   content += `<input type="${e.type}" class="${e.type}" ${option.checked ? ' checked' : ''}${readonly ? ' disabled' : ''} name="${uniqeid}" id="${uniqeid + '_' + option.id}" value="${option.id}"><label for="${uniqeid + '_' + option.id}" value="${option.id}"${option.styleattribute}>${option.inner}</label>`;
@@ -647,8 +607,8 @@ export class DialogBox extends Interface
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? Return empty
 			   let placeholder = SetFlag(e, 'placeholder'); // Get placeholder string
 			   if (placeholder) placeholder = ` placeholder="${AdjustString(placeholder, TAGATTRIBUTEENCODEMAP)}"`;	// Placholder attribute for text elements
-			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${AdjustString(e.data, HTMLINNERENCODEMAP)}</textarea>`;	// For textarea element type return textarea tag
-			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${AdjustString(e.data, TAGATTRIBUTEENCODEMAP)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
+			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${AdjustString(e.data/*, HTMLINNERENCODEMAP*/)}</textarea>`;	// For textarea element type return textarea tag
+			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${AdjustString(e.data/*, TAGATTRIBUTEENCODEMAP*/)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
 
 		  case 'table':
 			   if (e.data && typeof e.data === 'object') for (const row in e.data)
@@ -662,18 +622,19 @@ export class DialogBox extends Interface
 
 	 	  case 'button':
 			   if (typeof e.data !== 'string') return '';																		// Button is hidden? Return empty
-			   content = `${AdjustString(e.data, HTMLINNERENCODEMAP)} ${GetTimerString(e, this.Nodes.autoapplybuttons[e.id])}`;
+			   content = `${AdjustString(e.data, HTMLINNERENCODEMAP)} ${GetTimerString(e, this.Nodes.autoapplybuttons.get(e))}`;
 	      	   return inner ? content : `<div class="button ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;
 		 }
  }
  
  // Function calculates the timer, applies the button if needed and refreshes button text with the new timer in seconds
- ButtonTimer(id)
+ ButtonTimer(e)
  {
-  clearTimeout(this.Nodes.autoapplybuttons[id].timeoutid); // Clear timer function
-  if (new Date().getTime() - this.Nodes.autoapplybuttons[id].timerstart > this.Nodes.autoapplybuttons[id].timer) this.ButtonApply(this.elements[id]);	// Timer is up? Apply the button
-   else this.Nodes.autoapplybuttons[id].timeoutid = setTimeout(() => this.ButtonTimer(id), 1000); 														// Restart timer function otherwise
-  if (this.Nodes.buttons[id].target) this.Nodes.buttons[id].target.innerHTML = GetElementContentHTML(this.elements[id], true);							// Refresh button
+  const button = this.Nodes.autoapplybuttons.get(e);
+  clearTimeout(button.timeoutid); // Clear timer function
+  if (new Date().getTime() - button.timerstart > button.timer) this.ButtonApply(e);	// Timer is up? Apply the button
+   else button.timeoutid = setTimeout(() => this.ButtonTimer(e), 1000); 			// Restart timer function otherwise
+  if (this.Nodes.buttons[e.id]) this.Nodes.buttons[e.id].innerHTML = this.GetElementContentHTML(e, true);										// Refresh button
  }
 
  GetDialogInner(inner, profile = this.data, padarea)
@@ -697,7 +658,7 @@ export class DialogBox extends Interface
  ShowDialogBox()
  {
   let inner = { title: '', padarea: '', mainarea: '', footer: '' };
-  this.Nodes = this.Nodes ? { autoapplybuttons: this.Nodes.autoapplybuttons, textinputs: {}, selects: {}, tables: {}, buttons: {} } : { autoapplybuttons: {}, textinputs: {}, selects: {}, tables: {}, buttons: {} };
+  this.Nodes = this.Nodes ? { autoapplybuttons: this.Nodes.autoapplybuttons, textinputs: {}, selects: {}, tables: {}, buttons: {}, CloneInput: this.Nodes.CloneInput } : { autoapplybuttons: new Map(), textinputs: {}, selects: {}, tables: {}, buttons: {} };
   this.GetDialogInner(inner); // Get dialog inner for each area
 
   if (inner.padarea || inner.mainarea) inner.mainarea = `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`; // Wrap pad/main area to div
@@ -706,22 +667,23 @@ export class DialogBox extends Interface
   if (!inner.title) return;
   this.elementDOM.innerHTML = inner.title; // and set it to dialog root DOM element
 
-  for (const id in this.Nodes.autoapplybuttons) // Any button first appeared goes to (inited empty at any refresh dialog) Nodes.buttons 'set' object (see <GetDialogInner> function).
-	  {											// All btns in <Nodes.autoapplybuttons> are checked and deleted in case of no in Nodes.buttons
-	   if (id in this.Nodes.buttons) continue;
-	   clearTimeout(this.Nodes.autoapplybuttons[id].timeoutid);
-	   delete this.Nodes.autoapplybuttons[id];
+  for (const [e, button] of this.Nodes.autoapplybuttons) // Go through all auto apply btns and delete with timer clear any btn not in all btn list (Nodes.buttons)
+	  {
+	   if (e.id in this.Nodes.buttons) continue;
+	   clearTimeout(button.timeoutid);
+	   this.Nodes.autoapplybuttons.delete(e);
 	  }
   for (const id in this.Nodes.buttons) // Then all btns in <button> set object are checked on 'autoapply' feature and added to Nodes.autoapplybuttons object (if not exist) with new timers or left with old timers (if exist)
 	  {
-	   if (this.Nodes.autoapplybuttons[id]) continue;
-	   const timer = Math.min(SetFlag(this.elements[id], 'autoapply'), BUTTONTIMERMAXSECONDS) * 1000;
-	   if (timer) this.Nodes.autoapplybuttons[id] = { timer: timer, timerstart: new Date().getTime(), timeoutid: setTimeout(() => this.ButtonTimer(id), 1000) };
+	   const e = this.elements[id];
+	   if (this.Nodes.autoapplybuttons.has(e)) continue;
+	   const timer = Math.min(SetFlag(e, 'autoapply'), BUTTONTIMERMAXSECONDS) * 1000;
+	   if (timer) this.Nodes.autoapplybuttons.set(e, { timer: timer, timerstart: new Date().getTime(), timeoutid: setTimeout(() => this.ButtonTimer(e), 0) });
 	  }
 
   for (let target of [...this.elementDOM.querySelectorAll('.boxcontentwrapper, .title, .padbar, input, textarea, .select, .boxtable, .button')]) // Go through all dialog DOM elements to set them to <Nodes> object in appropriate sub objects 
 	  {
-	   if (target.tagName === 'INPUT') target.addEventListener('input', this.Handler.bind(this)); // not forgetting to add listeners on native input elements to intercept its data keeping it in actual state at main dialog data object
+	   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') target.addEventListener('input', this.Handler.bind(this)); // not forgetting to add listeners on native input elements to intercept its data keeping it in actual state at main dialog data object
 	   if (target.classList.contains('boxcontentwrapper')) this.Nodes.contentwrapper = target;
 	   let e, id;
   	   [id, target] = GetEventTargetInterfaceElement(target); // Define the clicked element 'id' and its wrapped target
@@ -735,7 +697,7 @@ export class DialogBox extends Interface
 	  }
 
   // Set 'fullscreendblclick' and 'drag' with 'push' controls <elements> property
-  if (this.props.control.fullscreendblclick || this.props.control.fullscreenicon || this.props.control.drag || this.props.control.closeicon || this.props.control.push) this.RefreshControlElements();
+  this.RefreshControlElements();
 
   // Set focus to the first found text element
   requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
@@ -744,14 +706,18 @@ export class DialogBox extends Interface
  // Refresh dialog drag, icon and push control elements not forgetting to refresh its icons via function 'RefreshControlIcons' direct call
  RefreshControlElements()
  {
+  if (!this.props.control.fullscreendblclick && !this.props.control.fullscreenicon && !this.props.control.drag && !this.props.control.closeicon && !this.props.control.push) return;
   const elements = this.Nodes.title ? [this.Nodes.title].concat([...this.Nodes.title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
   if (this.props.control.fullscreenicon) this.props.control.fullscreenicon.elements = [elements[0]];															// and set 1st element for fullscreen icon,
   if (this.props.control.closeicon) this.props.control.closeicon.elements = [elements[0]];																		// set 1st element for close icon,
   if (this.props.control.fullscreendblclick) this.props.control.fullscreendblclick.elements = elements;															// set <elements> array clickable for 'full screen'	feature
   if (this.props.control.drag) this.props.control.drag.elements = elements;																						// and set them dragable
   if (this.props.control.push)
-  	 for (const i in this.Nodes.buttons)
-		 if (this.Nodes.buttons[i]) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); 
+	 {
+	  this.props.control.push.elements = [];
+  	  for (const i in this.Nodes.buttons)
+		  if (this.Nodes.buttons[i] && !SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); 
+	 }
   this.RefreshControlIcons();
  }
 
@@ -763,27 +729,26 @@ export class DialogBox extends Interface
 	  if (!SetFlag(this.elements[id], 'readonly')) return this.Nodes.textinputs[id].focus();
  }
 
- // Todo0 - release cloning profile via nonsticky child. If it fails - move this.TextInput to this.Nodes.CloneInput
  RemoveTextInput()
  {
-  this.TextInput.isDeleted = true;																				// Set profilecloning object 'isDeleted' flag to true
-  if (!this.TextInput.e.padbar) this.TextInput.div.parentNode.firstChild.style.display = 'block';				// For non-pad prfile clone display block 'select' DOM element
-  this.TextInput.input.removeEventListener('blur', this.Handler.bind(this));									// Remove event listener from 'input' DOM element
-  this.TextInput.div.remove();																					// Remove input and its wrap div elements from DOM
-  this.TextInput.input.remove();
-  delete this.TextInput;																							
+  if (!this.Nodes.CloneInput.e.padbar) this.Nodes.CloneInput.div.parentNode.firstChild.style.display = 'block';				// For non-pad prfile clone display block 'select' DOM element
+  this.Nodes.CloneInput.input.removeEventListener('blur', this.Handler.bind(this));									// Remove event listener from 'input' DOM element
+  this.Nodes.CloneInput.div.remove();																					// Remove input and its wrap div elements from DOM
+  this.Nodes.CloneInput.input.remove();
+  delete this.Nodes.CloneInput;																							
  }
 
  CloneNewProfile(e)
  {
+  if (this.Nodes.CloneInput.esc) return; // Pressed Esc btn caused blur event, so profile cloning is not needed
   let name, flags, style;
-  [name, flags, ...style] = this.TextInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
+  [name, flags, ...style] = this.Nodes.CloneInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
   for (const option of e.options) if (option.name === name) return new DialogBox(...MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error')); // Check name exist in e.data profile list and return warning msg in success
   flags = FIELDSDIVIDER + (flags || '');
   if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
   style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
-  AdjustObjectPropDefaultAppearance(e);
   e.data[name + flags + style] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
+  e.options.push({origin: name + flags + style});
   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS); // and refresh dialogwith a new profile added
  }
 
@@ -792,57 +757,56 @@ export class DialogBox extends Interface
  {
   let e, id, target;
   [id, target] = GetEventTargetInterfaceElement(event.target);	// Define the clicked element 'id' and its wrapped target
-  if (!(e = this.elements[id])) return;							// Return for nonexistent element, Todo0 - for keyboard events what id/target equals to?
+  e = this.elements[id];
 
   switch (event.type)
          {
 	  	  case 'blur':											// Blur event for the new profile input? Clone input profile name and remove input element
-			   if (this.TextInput && !this.TextInput.isDeleted)
-				  {
-				   this.CloneNewProfile(this.TextInput.e);
-				   this.RemoveTextInput();
-				  }
-
-	  	  case 'keydown':
-	       	   if (event.code === 'Escape' && this.TextInput)
-				  {
-				   this.RemoveTextInput();
-				   return {};
-				  }
+			   this.CloneNewProfile(this.Nodes.CloneInput.e);
+			   this.RemoveTextInput();
 			   break;
 
-	  	  case 'keyup':											// Enter key for btn-apply/profile-cloning or left/right arrow key with Alt+Ctrl hold for pad selection
-			   if (event.code === 'Enter' || event.code === 'NumpadEnter')
+	  	  case 'keyup':
+	       	   if (event.code === 'Escape')
+				  {
+				   if (!this.Nodes.CloneInput) break;
+				   this.Nodes.CloneInput.esc = true;
+				   this.Nodes.CloneInput.input.blur();
+				   return {};
+				  }
+			   if (event.code === 'Enter' || event.code === 'NumpadEnter') // Enter key for btn-apply/profile-cloning
 		  		  {
-				   if (this.TextInput)
+				   if (this.Nodes.CloneInput)
 					  {
-					   this.TextInput.isDeleted = true;
-					   this.CloneNewProfile(this.TextInput.e);
-					   this.RemoveTextInput();
+					   this.Nodes.CloneInput.input.blur();
 					   return {};
 					  }
-				   if ((e.type === 'text' || e.type === 'password') && !SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
+				   if ((e?.type === 'text' || e?.type === 'password') && !SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
 				   	  {
 					   for (id in this.Nodes.buttons)											// Go through all callable btns and apply first non readonly one
 					   	   if (!SetFlag(this.elements[id], 'readonly') && SetFlag(this.elements[id], 'appliable') && !this.ButtonApply(this.elements[id])) break;
 					   return {};
 					  }
+				   break;
 		       	  }
-	       	   if (event.code === 'ArrowLeft' && event.altKey && event.shiftKey)
+	       	   if (event.code === 'ArrowLeft') // Left arrow key with Alt+Ctrl hold for pad selection
 		  		  {
+				   if (this.Nodes.CloneInput || !event.altKey || !event.shiftKey) break;
 				   if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], false);
 				   return {};
 		       	  }
-			   if (event.code === 'ArrowRight' && event.altKey && event.shiftKey)
+			   if (event.code === 'ArrowRight') // Right arrow key with Alt+Ctrl hold for pad selection
 				  {
+				   if (this.Nodes.CloneInput || !event.altKey || !event.shiftKey) break;
 				   if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], true);
 				   return {};
 				  }
+			   break;
 
 		  case 'input':
 			   if (ELEMENTTEXTTYPES.includes(e.type))
 				  {
-				   e.data = target.value;														// Get text element data directly from its DOM element value. Todo0 - what about textarea, should its text be retreived from target.innerHTML?
+				   e.data = target.value;														// Get text element data directly from its DOM element value
 				   this.EvaluateElementExpression(e.affect);
 				   break;
 				  }
@@ -858,7 +822,7 @@ export class DialogBox extends Interface
 			   break;
 
 	  	  case 'mousedown':																		// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (SetFlag(e, 'readonly')) break;												// Break for readonly element
+			   if (!e || SetFlag(e, 'readonly')) break;											// Break for readonly element
 			   if (event.button === 0 && event.buttons === 3)									// Left button down with right button hold? Do some element extra actions lower
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
@@ -883,26 +847,36 @@ export class DialogBox extends Interface
 					  }
 				   if (e.type === 'select')
 					  {
-					   if (this.TextInput) break;	// No action at cloning profile process, element click will call blur event that will clone user defined profile
+					   if (this.Nodes.CloneInput) break;	// No action at cloning profile process, element click will call blur event that will clone user defined profile
 					   if (event.target.classList.contains('itemadd'))							// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
-						   this.TextInput = { e: e, div: document.createElement('div'), input: document.createElement('input') };
-						   this.TextInput.div.appendChild(this.TextInput.input);
-						   this.TextInput.input.addEventListener('blur', this.Handler.bind(this));
+					   	   /*
+						   const CLONEINPUT					= { input: { type: 'text', data: '' }, ok: { type: 'button', flag: 'a' } };
+						   target = event.target;
+					   	   this.clone = new DialogBox(CLONEINPUT, this.parentchild, { effect: 'rise', overlay: 'NONSTICKY', control: { closeesc: {} }, callback: this.Handler.bind(this, { type: 'CLONE' }, null) }, { class: 'clonedialog selectnone', style: `left: ${target.offsetLeft + this.elementDOM.offsetLeft}px; top: ${target.offsetTop + this.elementDOM.offsetTop}px;` });
+						   this.clone.Nodes.textinputs[0].classList.add('cloneinput');
+						   css:
+					  	   ".clonedialog": { "position": "absolute;", "display": "block;", "outline": "none;", "border": "none;", "padding": "0px !important;", "margin": "0px !important;", "background-color": "transparent;", "box-shadow": "none !important;" },
+						   ".cloneinput": { "padding": "5px !important;", "border": "none !important;", "background-color": "rgb(166,197,206) !important;", "box-shadow": "none !important;" },
+						   background: linear-gradient(35deg, transparent, transparent 50%, #333 0%);
+					   	   */
+						   this.Nodes.CloneInput = { e: e, div: document.createElement('div'), input: document.createElement('input') };
+						   this.Nodes.CloneInput.div.appendChild(this.Nodes.CloneInput.input);
+						   this.Nodes.CloneInput.input.addEventListener('blur', this.Handler.bind(this));
 						   if (e.padbar)
 						   	  {
-							   this.TextInput.div.classList.add('pad');
-							   this.TextInput.div.style.width = '100%';
-							   target.appendChild(this.TextInput.div);
+							   this.Nodes.CloneInput.div.classList.add('pad');
+							   this.Nodes.CloneInput.div.style.width = '100%';
+							   target.appendChild(this.Nodes.CloneInput.div);
 						   	  }
 						    else
 						   	  {
 							   target.firstChild.firstChild.style.display = 'none';
-							   target.firstChild.appendChild(this.TextInput.div);
+							   target.firstChild.appendChild(this.Nodes.CloneInput.div);
 							  }
-						   this.TextInput.input.classList.add('newprofileinput');
-						   this.TextInput.input.setAttribute('placeholder', SetFlag(e, 'placeholder'));
-						   requestIdleCallback(() => this.TextInput.input.focus());
+						   this.Nodes.CloneInput.input.classList.add('newprofileinput');
+						   this.Nodes.CloneInput.input.setAttribute('placeholder', SetFlag(e, 'placeholder'));
+						   requestIdleCallback(() => this.Nodes.CloneInput.input.focus());
 						   break;
 						  }
 					   if (event.target.classList.contains('itemremove'))						// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
@@ -927,11 +901,11 @@ export class DialogBox extends Interface
 			   break;
 
 		  case 'optionchange':
-			   this.ActivateSelectedOption(e, this.dropdownlist?.cursor, event.target);			// Drop-down list returned back selected option
+			   if (e) this.ActivateSelectedOption(e, this.dropdownlist?.cursor, target);			// Drop-down list returned back selected option
 			   break;
 
 		  case 'click':
-		  	   this.ButtonApply(e, event.target);												// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
+			   if (e) this.ButtonApply(e, event.target);											// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
 	       	   break;
 		 }
  }
@@ -951,15 +925,24 @@ export class DialogBox extends Interface
   if (e.type === 'multiple') target.classList.toggle("selected");	// Refresh 'multiple' element via option class toggle. For other types (radio and checkbox) make no action due to its native form
  }
  
- // Todo0 - lg(target) so to process table click events
  ButtonApply(e, target)
  {
-  if (e.type !== 'button' || SetFlag(e, 'readonly')) return;												// Return for disabled button
-  if (SetFlag(e, 'appliable') && typeof this.props.callback === 'function') this.props.callback(this.data);	// Button is appliable? Call back specified function to process dialog data
+  if (!['button', 'table'].includes(e.type) || SetFlag(e, 'readonly')) return;			// Return for disabled (or non button/table type) element
+  if (SetFlag(e, 'appliable') || (e.type === 'table' && target.attributes['data-id']))	// Button (or table cell) is appliable? Call back specified function to process dialog data and subevent (<element name> for button and <cell name starting with _> for table) caused dialog apply
+  	 if (typeof this.props.callback === 'function')
+		{
+		 this.ParseDialogData(this.data, true, false);
+		 this.props.callback(this.data, e.type === 'button' ? e.name : target.attributes['data-id'].value);
+		}
 
-  if (SetFlag(e, 'interactive')) return;																	// Button is interactive? Do nothing and return Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns
-  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])									// Otherwise kill drop-down list if exist
+  if (SetFlag(e, 'interactive') || e.type === 'table')
+	 {
+	  this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS); // and refresh dialogwith a new profile added
+	  return; // Button is interactive or element is a table? Do nothing and return
+	 }
+
+  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])				// Otherwise kill drop-down list if exist
 	 this.parentchild.KillChild(this.dropdownlist.id);
-  this.parentchild.KillChild(this.id);																		// and dialog box of itself
+  this.parentchild.KillChild(this.id);													// and dialog box of itself
  }
 }

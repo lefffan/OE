@@ -16,9 +16,11 @@
 // Todo0 - step1 (head_table: serial id, DIALOG JSON; uniq_table: serial id, value; data_table: serial id, date, user, version, eid1, eid1)
 // CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
 // SELECT current_database(); SELECT current_schema(); SELECT current_user;
+// \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html)
 // \l list databases
 // \dt [*.*] list tables [of all schemas]
-
+// \c postgres postgres; 
+// DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
 import { lg } from './main.js';
 
 const PRIMARYKEYSTARTVALUE = 3;
@@ -36,10 +38,13 @@ export class QueryMaker
   delete this.method;
   delete this.index;
   delete this.mode;
+  delete this.limit;
   this.fields = [];  // Column names array for 'SELECT', 'ADD COLUMN', 'CREATE INDEX' and 'WHERE' statements
   this.values = [];  // Values for corresponded fields above
   this.args = [];    // Real values for a above 'values' array to pass to the DB system
   this.signs = [];   // Comparing signs for 'where' fields and its values
+  this.orderasc = [];
+  this.orderdesc = [];
   return this;
  }
 
@@ -130,8 +135,8 @@ export class QueryMaker
        if (['boolean', 'number'].indexOf(typeof field.value) !== -1) field += '';                                                   // Bring field value to string
        const i = this.fields.push(name) - 1;                                                                                        // Return last pos of field array
        if (typeof field.value !== 'string') continue;                                                                               // Field value does exist?
-       if (field.escape) this.args.push(field.value);                                                                                // Set arg array value to escapable for a true escape flag
-       this.values[i] = field.escape ? `$${this.args.length}` : this.method === 'CREATE' ? field.value : `'${field.value}'`;                   // Set <values> array element to direct value string or 'escaped' one ($i+1)
+       if (field.escape) this.args.push(field.value);                                                                               // Set arg array value to escapable for a true escape flag
+       this.values[i] = field.escape ? `$${this.args.length}` : this.method === 'CREATE' ? field.value : `'${field.value}'`;        // Set <values> array element to direct value string or 'escaped' one ($i+1)
        if (typeof field.sign === 'string' && field.sign) this.signs[i] = field.sign;                                                // Set compare sign for where expressions
        if (typeof field.constraint !== 'string' || !field.constraint) continue;                                                     // Field constraint does exist?
        this.values[i] += ' ' + field.constraint;                                                                                    // Add it to the <value> array
@@ -161,6 +166,33 @@ export class QueryMaker
   return clause;
  }
  
+ Order(fields, type)
+ {
+  if (typeof fields === 'string') fields = [fields];
+  if (!Array.isArray(fields)) return;
+  for (const field of fields) type ? this.orderasc.push(field) : this.orderdesc.push(field);
+  return this;
+ }
+
+ GetOrderClause()
+ {
+  let clause = '';
+  for (const field of this.orderasc) clause += `${clause ? ', ' : ''}${field} ASC`;
+  for (const field of this.orderdesc) clause += `${clause ? ', ' : ''}${field} DESC`;
+  return clause ? ' ORDER BY ' + clause : '';
+ }
+ 
+ Limit(limit)
+ {
+  this.limit = limit + '';
+  return this;
+ }
+
+ GetLimitClause()
+ {
+  return this.limit ? ` LIMIT ${this.limit}` : ``;
+ }
+ 
  BuildQuery()
  {
   this.query = '';
@@ -170,7 +202,7 @@ export class QueryMaker
                // Select general fields from this.table with 'where' clause if exists
                this.query = this.Join(' AND ');
                if (this.query) this.query = ' WHERE ' + this.query;
-               this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.query}`;
+               this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.query}${this.GetOrderClause()}${this.GetLimitClause()}`;
                break;
           case 'CREATE':
                // Add index for the column
@@ -182,7 +214,7 @@ export class QueryMaker
                // Create table in case of no columns defined
                if (!this.fields.length)
                   {
-                   this.query = `CREATE TABLE IF NOT EXISTS ${this.table}()`; // Or should be like that: this.query = `CREATE TABLE ${this.table}()`;
+                   this.query = `CREATE TABLE ${this.table}()`; // Or should be like that: this.query = `CREATE TABLE IF NOT EXISTS ${this.table}()`;
                    break;
                   }
                // Add columns at the end for default
@@ -225,6 +257,7 @@ export class QueryMaker
  Make()
  {
   this.BuildQuery();
+  lg(`query: ${this.query}`);
   return this.args.length ? [this.query, this.args] : [this.query];
  }
 }

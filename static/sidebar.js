@@ -2,6 +2,7 @@ import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg, CutString 
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 
+// Todo - OV description as a hint on taskbar OV navigation
 // Todo0 - Highliught clicked result, hint every branch in search result with its full path
 // Todo0 - insert comments for all code
 // Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
@@ -193,8 +194,9 @@ export class Sidebar extends Interface
        let match;
        for (const j in tree)
            if (+j && tree[j][0].type === type) // Go through all non zero tree elements for the type <type> and search match case. For folder match case is a name match, for a database - odid match, for a view - odid and ovid
-           if ((type === 'folder' && tree[j][0].name === path[i]) || (type === 'database' && tree[j][0].id === odid) || (type === 'view' && tree[j][0].id === ovid && tree[j][0].odid === odid))
-           if ((match = true) && (tree = tree[j])) break; // Set match case to true and current tree to matched one. Then break the cycle
+           //if ((type === 'folder' && tree[j][0].name === path[i]) || (type === 'database' && tree[j][0].id === odid) || (type === 'view' && tree[j][0].id === ovid && tree[j][0].odid === odid))
+           if ((type === 'folder' && tree[j][0].name === path[i]) || (type === 'database' && tree[j][0].id === odid)) // Should not check duplicated view names by line above
+              if ((match = true) && (tree = tree[j])) break; // Set match case to true and current tree to matched one. Then break the cycle
        if (match)
           {
            tree[0].new = true;
@@ -286,8 +288,8 @@ export class Sidebar extends Interface
                if (event.button === 2)
                   {
                    const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + CutString(this.username)]];
-                   if (event.target.attributes['data-odid'] !== undefined) contextmenuoptions[1] = ['Configure database'];
-                   if (event.target.attributes['data-ovid'] !== undefined) contextmenuoptions[1] = ['Open in a new view'];
+                   if (event.target.attributes['data-odid'] !== undefined) contextmenuoptions[1] = ['Configure Database', event.target.attributes['data-odid'].value];
+                   if (event.target.attributes['data-ovid'] !== undefined) contextmenuoptions[1] = ['Open in a new window', event.target.attributes['data-ovid'].value];
                    new ContextMenu(contextmenuoptions, this, event);
                    break;
                   }
@@ -296,7 +298,8 @@ export class Sidebar extends Interface
    			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
 				   case 'New Database':
-                            this.parentchild.CallController({type: 'New Database'});
+				   case 'Configure Database':
+                            this.parentchild.CallController({type: event.data[0], data: event.data});
 					   break;
                        default:
                             if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.parentchild.socket.close();
@@ -331,22 +334,24 @@ export class Sidebar extends Interface
   if (tree[0].type === 'view') attribute += ` data-odid="${tree[0].odid}" data-ovid="${tree[0].id}"`;
   let inner = `<table><tbody><tr>`;                                                                                                                        // Collect inner with <table> tag
   inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                         // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
+  let name = tree[0].name.trim();
+  if (!name) name = '&nbsp';
 
   switch (tree[0].type)
          {
           case 'folder': 
                   inner += `<td class="folder${tree[0].wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;                                        // Folder icon
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}</td>`;                                                         // Folder name
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${name}</td>`;                                                                 // Folder name
                   break;
              case 'database':
                   inner += `<td class="database${tree[0].wrap === false ? 'un' : ''}wrapped${tree.length < 2 ? 'empty' : ''}"${attribute}>&nbsp</td>`;     // Database icon
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}</td>`;                               // Database name
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${name}</td>`;                                                                 // Database name
                   break;
              case 'view':
                   inner += `<td class="view"${attribute}>&nbsp</td>`;                                                                                      // View icon (od[branch.odid][branch.id]['status'])
                   let footnote = this.od[tree[0].odid]['ov'][tree[0].id].footnote;
                   footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${tree[0].name}${footnote}</td>`; // View name
+                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${name}${footnote}</td>`; // View name
                   break;
             }
   inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                                   // Estamated space

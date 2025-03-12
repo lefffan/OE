@@ -6,6 +6,11 @@ import { GetElementOption } from './dialogbox.js';
 
 export class DropDownList extends Interface
 {
+ static style = {
+				 // Expanded selection
+				 ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
+ 				}
+
  constructor(options, dialogbox, selectdiv)
  {
   // Create element 'e' drop-down option list
@@ -22,7 +27,7 @@ export class DropDownList extends Interface
  Show()
  {
   let content = '';
-  for (const option of this.data) content += `<div value="${option.id}" class="selectnone${option.checked || (+option.id) === this.cursor ? ' selected' : ''}">${option.inner}</div>`;
+  for (const option of this.data) content += `<div value="${option.id}" class="selectnone${option.checked || (+option.id) === this.cursor ? ' selected' : ''}"${option.styleattribute}>${option.inner}</div>`;
   this.elementDOM.innerHTML = content;
  }
 

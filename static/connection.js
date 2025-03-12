@@ -1,4 +1,4 @@
-import { NODOWNLINKNONSTICKYCHILDS, lg, CutString, NEWOBJECTDATABASE } from './constant.js';
+import { NODOWNLINKNONSTICKYCHILDS, lg, CutString, MessageBox, NEWOBJECTDATABASE } from './constant.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
@@ -7,7 +7,7 @@ import { Sidebar } from './sidebar.js';
 const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
                       username: { type: 'text', head: 'Username', data: 'mau' },
                       password: { type: 'password', head: 'Password', data: 'rrrrrrr' },
-                      ok: { type: 'button', data: ' LOGIN ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' }
+                      ok: { type: 'button', data: ' LOGIN ', tyle: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' }
                     };
 
 export class Connection extends Interface
@@ -79,7 +79,7 @@ export class Connection extends Interface
 	     case 'CONTEXTMENU':
 			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
-				   case '':
+				   case 'Help':
 					   break;
                        default:
                             if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.socket.close();
@@ -88,28 +88,31 @@ export class Connection extends Interface
 	    }
  }
 
- CallController(event, id)
+ CallController(event, id, callbackdata, callbackevent)
  {
   lg('Controller is called with next args:', arguments);
-  id = id ? id : this.currenteventid++;
+  const queueid = id ? id : this.currenteventid++;
 
   switch (event.type)
 	    {
 	     case 'New Database': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', callback: this.CallController.bind(this, { type: 'NewDatabaseDialogCallback' }, null) }, { class: 'dialogbox selectnone' });
+               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', callback: this.CallController.bind(this, { type: 'DatabaseDialogCallback' }, null) }, { class: 'dialogbox selectnone' });
                return;
-          case 'NewDatabaseDialogCallback': // New event from creating database dialog callback with dialog data as a third arg (argument[2]). Pass it to the controller
-               event.type = 'EDITDATABASE';
-               event.data = arguments[2];
+	     case 'Configure Database': // Context menu event incoming from sidebar
+               event = { type: 'GETDATABASE', odid: event.data[1] };
+               break;
+          case 'DatabaseDialogCallback': // New event from configuring database 
+               event = { type: 'SETDATABASE', data: callbackdata };
+               if (id) event.odid = this.eventqueue[id].odid;
                break;
           case 'LoginDialogCallback': // New event from login dialog callback with dialog data as a third arg (argument[2]). Pass it to the controller via POST method
-               LOGINDIALOG.username.data = arguments[2].username.data;
-               this.Hujax("/", { method: 'POST', body: JSON.stringify({ type: 'LOGIN', username: arguments[2].username.data, password: arguments[2].password.data}), headers: { 'Content-Type': 'application/json; charset=UTF-8' } });
+               LOGINDIALOG.username.data = callbackdata.username.data;
+               this.Hujax("/", { method: 'POST', body: JSON.stringify({ type: 'LOGIN', username: callbackdata.username.data, password: callbackdata.password.data}), headers: { 'Content-Type': 'application/json; charset=UTF-8' } });
                return;
          }
 
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
-  try { this.socket.send(JSON.stringify(this.eventqueue[id] = Object.assign(event, { id: id }))); } // + ODid, OVid, oid, eid // No user id and name - this is a server side info
+  try { this.socket.send(JSON.stringify(this.eventqueue[queueid] = Object.assign(event, { id: queueid }))); } // + ODid, OVid, oid, eid // No user id and name - this is a server side info
   catch {}
  }
 
@@ -140,7 +143,8 @@ export class Connection extends Interface
 	          this.sidebar.Handler(event);
 	          break;
 	     case 'DIALOG':
-	          //new DialogBox(event.data, this, { effect: 'rise', position: 'CENTER' }, { class: 'dialogbox selectnone' });
+               if (typeof event.data === 'string') new DialogBox(...MessageBox(this, event.data, event.title));
+                else new DialogBox(event.data, this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', callback: this.CallController.bind(this, { type: 'DatabaseDialogCallback' }, event.id) }, { class: 'dialogbox selectnone' });
 	          break;
          }
   // Todo0 - delete here all event data if needed

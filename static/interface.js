@@ -664,16 +664,16 @@ export class Interface
  }
 }
 
-const CHILDCONTROLTEMPLATES     	= {
-									   minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 
-									   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
-									   fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
-									   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
-									   closeesc: { captureevent: 'keydown', releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
-									   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
-									   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
-									   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
-									   push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
-									   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
-									   default: { callback: [] }, 
-									  };
+const CHILDCONTROLTEMPLATES = {
+							   minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 
+							   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+							   fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
+							   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
+							   closeesc: { releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
+							   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
+							   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
+							   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
+							   push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
+							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
+							   default: { callback: [] }, 
+							  };

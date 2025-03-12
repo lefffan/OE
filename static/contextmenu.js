@@ -32,10 +32,10 @@ export class ContextMenu extends Interface
   let inner = '';                                                                                                                                                         // Create empty context menu inner html
   for (const item in data)
       {
-       if (Array.isArray(data[item])) inner += `<div class="contextmenuitem" data-item="${item}">${data[item] ? data[item] : '&nbsp'}</div>`;                             // Create active context menu item. Empty item is considered as a context menu divider line
+       if (Array.isArray(data[item])) inner += `<div class="contextmenuitem" data-item="${item}">${data[item][0] ? data[item][0] : '&nbsp'}</div>`;                       // Create active context menu item
        if (typeof data[item] === 'string') inner += data[item] ? `<div class="greycontextmenuitem">${data[item]}</div>` : '<div class="contextmenuitemdivider"></div>';   // Create inactive context menu item. Empty item is considered as a context menu divider line also
       }
-  if (!inner || !event) return;                                                                                                                                                // Context menu inner html is empty or undefined event? Return
+  if (!inner || !event) return;                                                                                                                                           // Context menu inner html is empty or undefined event? Return
   super(data, parentchild, { effect: 'rise', overlay: 'NONSTICKY', control: { closeesc: {}, default: { releaseevent: 'mouseup|keydown|keyup' } } }, { class: 'contextmenu selectnone' });    // Args: data, parentchild, props, attributes
   this.elementDOM.innerHTML = inner;
 
