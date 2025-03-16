@@ -141,7 +141,7 @@ export function SVGCircle(x, y, r, strength, color, fill = 'none', dash)
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
 
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: { General: {
-    name: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. 
+    dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. 
     Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as a database name, others before - as a folders. Empty folders are ignored` }, 
     description: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, }, 
                                                                                                   Permissions: {
@@ -163,13 +163,13 @@ Macroses may be nested, so one macros may contain another. Macros loops (when on
     
 const ELEMENTPAD = {
 elements: { type: 'select', head: 'Element profile~Set this template element properties and clone it to create new element in object database', data: { 'New element template~+': {
-10: { type: 'textarea', head: 'Name~Element name, used as a default element title in object view display', data: '', flag: '+Enter element name' },
-20: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
+name: { type: 'textarea', head: 'Name~Element name, used as a default element title in object view display', data: '', flag: '+Enter element name' },
+description: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
 //30: { type: 'select', head: 'Хуета', data: '!1!/2~!/3/Test~!~color: red;/A/Zest/q/w/e/r/t/' }, 
 //40: { type: 'table', head: 'Table', data: {a: {1:'hui', 2:'piz'}, b:{1:'hui2', _2:'piz2'}} }, 
-30: { type: 'checkbox', head: `Type~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'unique' },
+uniq: { type: 'checkbox', head: `Type~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'unique' },
 //40: { type: 'select', head: `Default event profile~Specify handler profile to use it for this element all defined client events as a default one (in case of no appropriate event defined below)`, data: 'None/Content editable/Chat', flag: '*' },
-50: { type: 'textarea', head: `Event profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
+event: { type: 'textarea', head: `Event profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
 // Event profile -> Event -> Name, Modifiers, Step1 -> Handler(customm, virtual, NodeJS source, predefined1, predefined2..), input args definition (${} - auto dialog arg definition, empty - no dialog, non empty - dialog), Stderr/Stdout/ControllerCall processing (!Apply/Message/Ignore/), Redirect to Next step, Log, timeout in sec, retries
 //44: { type: 'select', head: 'Event list~Event list is a list client events, each event has its name, modifier keys and other settings. To create new event (the handler below will be called on) just clone "New event template"', data: { 'New event template': {
     //50: { type: 'select', head: 'Select event', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
@@ -230,7 +230,7 @@ Be aware of using queries with no events specified, it may cause some overload d
 export const NEWOBJECTDATABASE = {
     padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
     title: { type: 'title', data: 'New Database Configuration' },
-    create: { type: 'button', data: 'CREATE DATABASE', flag: 'a', },
+    create: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
     cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '' },
 };
 

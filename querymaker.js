@@ -236,9 +236,9 @@ export class QueryMaker
                break;
           case 'DROP':
                // Drop table in case of no columns defined
-               if (!this.fields)
+               if (!this.fields.length)
                   {
-                   this.query = `DROP TABLE ${this.table}`;
+                   this.query = `DROP TABLE IF EXISTS ${this.table}`;
                    break;
                   }
                // Delete columns at the end for default. Todo0 - Statement 'DROP COLUMN' doesn't remove column physically. Fix it. See https://postgrespro.ru/docs/postgresql/14/sql-altertable for details

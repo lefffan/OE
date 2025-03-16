@@ -212,10 +212,15 @@ export class Sidebar extends Interface
  }
 
  // Function removes empty subtrees - folders or databases (if odid exists). True function result signals upstream recursive call to slice current subtree
+ // tree [ 
+ //       { type:, sort:, wrapped:, name:, id:, odid:, DOMElement},
+ //       [ {...}, [] ],
+ //       [ {...} ],
+ //      ]
  RemoveEmptyFolders(tree, odid)
  {
-  for (const i in tree)
-      if (+i && this.RemoveEmptyFolders(tree[i], odid)) tree.splice(i, 1); // Remove folder/database content for recursive call true result
+  for (let i = 0; i < tree.length; i++)
+      if (+i && this.RemoveEmptyFolders(tree[i], odid)) tree.splice(i--, 1); // Remove folder/database content for recursive call true result
 
   if (tree[0].new) return (tree[0].new = undefined);                   // Database, view or folder are just created? Unset 'new' prop and return
   if (tree[0].type === 'folder') return tree.length < 2;               // Return true for empty folder (length < 2) and false for non empty
@@ -317,6 +322,7 @@ export class Sidebar extends Interface
                this.SidebarShow();
                break;
           case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', odid: } 
+          lg('hui', this.tree, event.odid);
                this.RemoveEmptyFolders(this.tree, event.odid);
                this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();
@@ -332,30 +338,31 @@ export class Sidebar extends Interface
  {
   if (tree[0].type === 'database') attribute += ` data-odid="${tree[0].id}"`;
   if (tree[0].type === 'view') attribute += ` data-odid="${tree[0].odid}" data-ovid="${tree[0].id}"`;
-  let inner = `<table><tbody><tr>`;                                                                                                                        // Collect inner with <table> tag
-  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                         // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
+  let inner = `<table><tbody><tr>`;                                                                                                                   // Collect inner with <table> tag
+  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                    // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
   let name = tree[0].name.trim();
   if (!name) name = '&nbsp';
+  name = name.toWellFormed();
 
   switch (tree[0].type)
          {
           case 'folder': 
-                  inner += `<td class="folder${tree[0].wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;                                        // Folder icon
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${name}</td>`;                                                                 // Folder name
-                  break;
-             case 'database':
-                  inner += `<td class="database${tree[0].wrap === false ? 'un' : ''}wrapped${tree.length < 2 ? 'empty' : ''}"${attribute}>&nbsp</td>`;     // Database icon
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${name}</td>`;                                                                 // Database name
-                  break;
-             case 'view':
-                  inner += `<td class="view"${attribute}>&nbsp</td>`;                                                                                      // View icon (od[branch.odid][branch.id]['status'])
-                  let footnote = this.od[tree[0].odid]['ov'][tree[0].id].footnote;
-                  footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
-                  inner += `<td class="sidebar_${tree[0].type}"${attribute}>${name}${footnote}</td>`; // View name
-                  break;
-            }
-  inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                                   // Estamated space
-  return inner + '</tr></tbody></table>';                                                                                                                  // Close inner with <table> tag
+               inner += `<td class="folder${tree[0].wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;                                      // Folder icon
+               inner += `<td class="sidebar_${tree[0].type}"${attribute} nowrap>${name}</td>`;                                                        // Folder name
+               break;
+          case 'database':
+               inner += `<td class="database${tree[0].wrap === false ? 'un' : ''}wrapped${tree.length < 2 ? 'empty' : ''}"${attribute}>&nbsp</td>`;   // Database icon
+               inner += `<td class="sidebar_${tree[0].type}"${attribute} nowrap>${name}</td>`;                                                        // Database name
+               break;
+          case 'view':
+               inner += `<td class="view"${attribute}>&nbsp</td>`;                                                                                    // View icon (od[branch.odid][branch.id]['status'])
+               let footnote = this.od[tree[0].odid]['ov'][tree[0].id].footnote;
+               footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
+               inner += `<td class="sidebar_${tree[0].type}"${attribute} nowrap>${name}${footnote}</td>`;                                             // View name
+               break;
+         }
+  inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                              // Estamated space
+  return inner + '</tr></tbody></table>';                                                                                                             // Close inner with <table> tag
  }
 
  GetBranchInner(tree, depth, id = '')

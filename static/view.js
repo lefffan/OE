@@ -90,3 +90,4 @@ export class View extends Interface
 //										arp table history for one ip/mac
 // Todo - Border svg for a cell
 // Todo - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses
+// Todo - chars №№ being in 'td' tag are wraped for default. Why is it? Will it be at view table type? Fix it

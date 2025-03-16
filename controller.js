@@ -30,11 +30,13 @@
 // March
 //    Object selection input arg dialog defines not only object selection but element layout
 //    Define unspecified event default None or Nothing
-//    dialog data callback - return data with initial appearance order regardless of user current order set
+//    +dialog data callback - return data with initial appearance order regardless of user current order set
 //    permissions - check OD creating, check all pads of OD dialog read/change permissions, so no any readable pad - the user is not allowed OD dialog at all
 //    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Dont forget about dynamic macroses (${OD} $OV) and CalcMacrosValue function. Or split them into 2 objects - one is dinamic macroses list that claim to be calculated at its apply or static macroses
 //    Create a template to check dialog structure correctness and check here database data structure with returning appropriate result (falsy value in case if incorrect database structure)
-//    Delete OD via empty view/element list
+//    +Delete OD via empty view/element list
+//    +Queue manager concept
+//    Wrap EditDatabase into one transaction
 // April
 //    object view except graph and tree
 // May
@@ -43,8 +45,9 @@
 import { controller, CompareOptionInSelectElement, qm, pool, lg, GetDialogElement, CutString } from './main.js';
 
 const INCORRECTDBCONFDIALOG   = 'Incorrect dialog structure!';
-const INCORRECTDBCONFDBNAME   = 'Cannot create new database with empty name!';
+const INCORRECTDBCONFDBNAME   = 'Cannot create new database with empty name!\nIn order to remove Object Database please set empty db name and remove all elements, views and rules';
 const UNKNOWNDBID             = 'Incorrect or nonexistent database id!';
+const ELEMENTCOLUMNNAME       = 'eid';
 
 export class Controller
 {
@@ -72,49 +75,59 @@ export class Controller
   return isNaN(+id) ? '' : id;
  }
 
- RenameElementOptions(e, excludeoption)
- {
-  if (!e) return;
-  let maxid = 0;
-  for (const origin in e.data)
-      {
-       let name, flag, style;
-       [name, flag, ...style] = origin.split('~'); // Split option to its name and flag via '~'
-       flag = `~${flag ? flag : ''}`; 
-       style = style.length ? '~' + style.join(FIELDSDIVIDER) : ''; // Join back flag string
-       if (excludeoption === name || flag.includes('*')) continue; // Exclude <excludeoption> (template) and cloned options to calculate current max id in option name
-
-       name = this.GetOptionStringId(name);
-       if (+name > maxid) maxid = +name; // Fix max id
-      }
-  for (const origin of Object.keys(e.data))
-      {
-       let name, flag, style;
-       [name, flag, ...style] = origin.split('~'); // Split option to its name and flag via '~'
-       flag = `~${flag ? flag : ''}`; 
-       style = style.length ? '~' + style.join(FIELDSDIVIDER) : ''; // Join back flag string
-       if (excludeoption === name || !flag.includes('*')) continue; // Exclude <excludeoption> (template) and non cloned options to calculate current max id in option name
-
-       name += ` (id${++maxid})`; // Add ' (id<num>)' to option name
-       flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';
-       e.data[name + flag + style] = e.data[origin]; // and rename it in element selectable data
-       delete e.data[origin];
-      }
-  return true;
- }
-
  CheckDatabaseConfigurationDialogStructure(dialog)
  {
-  if (!GetDialogElement(dialog, 'padbar/Database/settings/General/name')?.data) return INCORRECTDBCONFDBNAME;
-  if (!this.RenameElementOptions(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template')) return INCORRECTDBCONFDIALOG;
-  if (!this.RenameElementOptions(GetDialogElement(dialog, 'padbar/View/views'), 'New view template')) return INCORRECTDBCONFDIALOG;
+  let elements, views, rules;
+  if (!(elements = GetDialogElement(dialog, 'padbar/Element/elements'))) throw new Error(INCORRECTDBCONFDIALOG);
+  if (!(views = GetDialogElement(dialog, 'padbar/View/views'))) throw new Error(INCORRECTDBCONFDIALOG);
+  if (!(rules = GetDialogElement(dialog, 'padbar/Rule/rules'))) throw new Error(INCORRECTDBCONFDIALOG);
+
+  if (GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data) return true;
+  if (typeof elements.data !== 'object' || typeof views.data !== 'object' || typeof rules.data !== 'object') throw new Error(INCORRECTDBCONFDIALOG);
+  if (Object.keys(elements.data).length !== 1 || Object.keys(views.data).length !== 1 || Object.keys(rules.data).length !== 1) throw new Error(INCORRECTDBCONFDBNAME);
  }
 
- AdjustDatabase(dialog, odid)
+ CorrectProfileIds(e, excludeoption, lastid, check)
  {
+  const nonclonedids = [];
+  const clonedids = [];
+  const checkids = [];
+  for (const option of Object.keys(e.data))
+      {
+       let name, flag, style;
+       [name, flag, ...style] = option.split('~'); // Split option to its name and flag via '~'
+       flag = `~${flag ? flag : ''}`; 
+       style = style.length ? '~' + style.join(FIELDSDIVIDER) : ''; // Join back flag string
+       if (excludeoption === name) continue; // Option is <excludeoption> (template)? Continue
+       if (!e.data[option].uniq.flag.includes('!')) e.data[option].uniq.flag += '!';
+       if (!flag.includes('*')) // Option is old (noncloned)?
+          {
+           nonclonedids.push(+this.GetOptionStringId(option)); // Add profile id to <nonclonedids> and continue
+           continue;
+          }
+       name += ` (id${++lastid})`; // Add ' (id<num>)' to option name
+       clonedids.push(lastid); // Add profile id to <clonedids>
+       flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';
+       e.data[name + flag + style] = e.data[option]; // and rename it in element selectable data
+       delete e.data[option];
+       if (typeof check !== 'string') continue;
+       [, flag] = e.data[name + flag + style][check]?.data?.split('~', 2);
+       if ((flag || '').includes('!')) checkids.push(lastid);
+      }
+  return [nonclonedids, clonedids, checkids];
+ }
+
+ AdjustDatabase(dialog, odid, lastelementid, lastviewid)
+ {
+  let elementnonclonedids, elementclonedids, elementcheckids, viewclonedids;
   dialog.create.data = 'SAVE';
-  let dbname = CutString(GetDialogElement(dialog, 'padbar/Database/settings/General/name')?.data, 10);
-  dialog.title.data = `Database '${dbname}' configuration (id${odid})`;
+  let dbname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data;
+  if (typeof dbname !== 'string') dbname = '';
+  dialog.title.data = `Database '${CutString(dbname.split('/').pop(), 10)}' configuration (id${odid})`;
+  [elementnonclonedids, elementclonedids, elementcheckids] = this.CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid, 'uniq');
+  [, viewclonedids] = this.CorrectProfileIds(GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
+  delete dialog.create.expr;
+  return [elementnonclonedids, elementclonedids, elementcheckids, viewclonedids];
  }
  
  CalcMacrosValue(name, value, collect = [])
@@ -142,7 +155,8 @@ export class Controller
        if (!tables.includes(`head_${id}`) || !tables.includes(`data_${id}`) || !tables.includes(`uniq_${id}`)) continue;
        if (!id || id in this.ods) continue; // Undefined id or OD with id <id> already sucked
        const dialog = await pool.query(...qm.Table(`head_${id}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make());
-       if (this.CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog)) continue;
+       try { this.CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog); }
+       catch { continue; }
        this.ods[id] = { dialog: dialog.rows[0].dialog };
       }
  }
@@ -150,9 +164,21 @@ export class Controller
  async EditDatabase(msg, wsclient)
  {
   if (!wsclient) return; // No valid web socket client in controller clients map? Return
+  let lastelementid = 0, lastviewid = 0, oldids = [];
   try {
-       const error = this.CheckDatabaseConfigurationDialogStructure(msg.data);
-       if (error) throw new Error(error);
+       if (!this.CheckDatabaseConfigurationDialogStructure(msg.data))
+          {
+           if (!msg.odid)
+              {
+               wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: INCORRECTDBCONFDBNAME, title: 'Error' }));
+               return;
+              }
+           for (const table of ['head_', 'uniq_', 'data_']) await pool.query(...qm.Table(`${table}${msg.odid}`).Method('DROP').Make()); // DROP TABLES
+           wsclient.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', odid: msg.odid }));
+           delete this.ods[msg.odid];
+           wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: 'Object Database is successfully removed!', title: 'Info' }));
+           return;
+          }
        if (!msg.odid)
           {
            const tablelist = await pool.query(...qm.Table().ShowTables().Make()); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
@@ -170,19 +196,39 @@ export class Controller
                                                                                       timestamp: {value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP'},
                                                                                       userid: 'INTEGER',
                                                                                       //username: `CHAR(${USERNAMEMAXCHAR})`,
-                                                                                      dialog: 'JSON' }).Make());
+                                                                                      dialog: 'JSON',
+                                                                                      lastelementid: 'INTEGER',
+                                                                                      lastviewid: 'INTEGER',
+                                                                                    }).Make());
           }
-       this.AdjustDatabase(msg.data, msg.odid); // Adjust database dialog structure and write it to 'head_<odid>' table below
-       await pool.query(...qm.Table(`head_${msg.odid}`).Method('WRITE').Fields({ userid: wsclient.userid, dialog: {value: JSON.stringify(msg.data), escape: true} }).Make());
-       // Todo0 - Renew element and view props in memory (depending on macroses too)
-       // Todo0 - Renew uniq data tables with adding/removing columns
+        else
+          {
+           const lastids = await pool.query(...qm.Table(`head_${msg.odid}`).Method('SELECT').Fields(['lastelementid', 'lastviewid']).Order('id').Limit(1).Make()); // Calculate max (last) element/view ids of current OD configuration to set new element/view ids properly for the new OD instance came from client. For creating OD last element/view ids are zero
+           [lastelementid, lastviewid] = [lastids?.rows?.[0]?.lastelementid, lastids?.rows?.[0]?.lastviewid];
+           const e = GetDialogElement(this.ods[msg.odid].dialog, 'padbar/Element/elements');
+           if (e?.data && typeof e.data === 'object')
+              for (const option in e.data)
+                  if (!CompareOptionInSelectElement('New element template', option)) oldids.push(+this.GetOptionStringId(option));
+         }
+       const [elementnonclonedids, elementclonedids, elementuniqids, viewclonedids] = this.AdjustDatabase(msg.data, msg.odid, lastelementid, lastviewid); // Adjust database dialog structure and write it to 'head_<odid>' table below
+       await pool.query(...qm.Table(`head_${msg.odid}`).Method('WRITE').Fields({ userid: wsclient.userid,
+                                                                                 dialog: {value: JSON.stringify(msg.data), escape: true},
+                                                                                 lastelementid: elementclonedids.length ? elementclonedids.at(-1) : lastelementid,
+                                                                                 lastviewid: viewclonedids.length ? viewclonedids.at(-1) : lastviewid }).Make());
+       for (const id of oldids) if (!elementnonclonedids.includes(id))
+           {
+            await pool.query(...qm.Table(`data_${msg.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
+            await pool.query(...qm.Table(`uniq_${msg.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
+           }
+       for (const id of elementclonedids) await pool.query(...qm.Table(`data_${msg.odid}`).Method('CREATE').Fields({ [ELEMENTCOLUMNNAME + id]: 'JSON' }).Make());
+       for (const id of elementuniqids) await pool.query(...qm.Table(`uniq_${msg.odid}`).Method('CREATE').Fields({ [ELEMENTCOLUMNNAME + id]: 'varchar(125)' }).Make());
        this.ods[msg.odid] = { dialog: msg.data };
        this.SendViewsToClients(msg.odid);
       }
   catch (error)
       {
        wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: error.message, title: 'Error' }));
-       //console.error(error);
+       //console.e  rror(error);
        lg(error);
       }
  }
@@ -205,7 +251,7 @@ export class Controller
   for (const [, value] of clients)
       {
        if (!value.auth) continue;
-       e = GetDialogElement(this.ods[id].dialog, 'padbar/Database/settings/General/name') 
+       e = GetDialogElement(this.ods[id].dialog, 'padbar/Database/settings/General/dbname') 
        if (!e) throw new Error(INCORRECTDBCONFDIALOG);
        const msg = { type: 'SIDEBARSET', odid: id, path: e.data, ov: {} };
        e = GetDialogElement(this.ods[id].dialog, 'padbar/View/views');

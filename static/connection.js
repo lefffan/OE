@@ -140,6 +140,7 @@ export class Connection extends Interface
                this.sidebar = new Sidebar(null, this);
 	          break;
 	     case 'SIDEBARSET':
+	     case 'SIDEBARDELETE':
 	          this.sidebar.Handler(event);
 	          break;
 	     case 'DIALOG':
