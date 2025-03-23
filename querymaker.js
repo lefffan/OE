@@ -111,7 +111,6 @@ export class QueryMaker
  // Column escaping: truthy or falsy vlaue
  // Column sign: = <> > < 
  // Todo0 - make js types to DB types conversion in this.values array while using its elements directly in a query string
- 
  Fields(fields)
  {
   if (typeof fields === 'string')

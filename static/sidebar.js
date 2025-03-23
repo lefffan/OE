@@ -303,27 +303,26 @@ export class Sidebar extends Interface
    			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
 				   case 'New Database':
+                            this.parentchild.CallController({ type: 'CREATEDATABASE' });
+					   break;
 				   case 'Configure Database':
-                            this.parentchild.CallController({type: event.data[0], data: event.data});
+                            this.parentchild.CallController({ type: 'GETDATABASE', data: { odid: event.data[1] } });
 					   break;
                        default:
                             if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.parentchild.socket.close();
 				  }
 	          break;
-
-               break;
-          case 'SIDEBARSET': // { type: 'SIDEBARSET', odid:, path:, ov: { 1: [path1, path2..], 2: [..] } }
-               this.SidebarAdd(event.path, event.odid);
-               for (const ovid in event.ov) 
-                   for (const path in event.ov[ovid]) 
-                       this.SidebarAdd(event.ov[ovid][path], event.odid, ovid);
-               this.RemoveEmptyFolders(this.tree, event.odid);
+          case 'SIDEBARSET': // { type: 'SIDEBARSET', data: { odid:, path:, ov: { 1: [path1, path2..], 2: [..] } } }
+               this.SidebarAdd(event.data.path, event.data.odid);
+               for (const ovid in event.data.ov) 
+                   for (const path in event.data.ov[ovid]) 
+                       this.SidebarAdd(event.data.ov[ovid][path], event.data.odid, ovid);
+               this.RemoveEmptyFolders(this.tree, event.data.odid);
                this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();
                break;
           case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', odid: } 
-          lg('hui', this.tree, event.odid);
-               this.RemoveEmptyFolders(this.tree, event.odid);
+               this.RemoveEmptyFolders(this.tree, event.data.odid);
                this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();
                break;

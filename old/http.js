@@ -5,7 +5,8 @@
 
 import http from 'http';
 import fs from 'fs';
-import { lg, controller } from './main.js';
+import { GenerateRandomString, controller } from './main.js';
+import { lg } from './main.js';
 
 const staticdocs = {
     '/application.js': '/static/application.js',
@@ -38,9 +39,26 @@ function Connection(req, res)
               res.end();  
               break;
          case 'POST':
-              let msg = '';
-              req.on('data', (chunk) => { msg += chunk.toString(); }); 
-              req.on('end', () => { controller.MessageIn(msg, res); }); 
+              let postdata = '';
+              req.on('data', (chunk) => { postdata += chunk.toString(); }); 
+              req.on('end', () => { FromClient(postdata, res); }); 
               break;
         }
+}
+
+function FromClient(event, res)
+{
+ let response;
+ event = JSON.parse(event);
+ switch (event.type)
+        {
+         case 'LOGIN':
+              res.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
+              // Todo0 - Compare here user/pass from event.username and event.password from corresponded ones in DB. If match, send back event 'WEBSOCKET' for the client connect wss or login error: response = { type: 'LOGINERROR' };
+              if (!event.username || !event.password) response = { type: 'LOGINERROR', data: 'Wrong username or password!' };
+               else response = { type: 'CREATEWEBSOCKET', username: event.username, userid: '0', protocol: 'ws', ip: '127.0.0.1', port: '8002', authcode: controller.AddClinetAuthCode(GenerateRandomString(12), 123) }; // Todo0 - set user id as a 2nd arg
+              break;
+        }
+ res.write(JSON.stringify(response));
+ res.end()
 }

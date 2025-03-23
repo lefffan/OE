@@ -932,7 +932,7 @@ export class DialogBox extends Interface
   	 if (typeof this.props.callback === 'function')
 		{
 		 this.ParseDialogData(this.data, true, false);
-		 this.props.callback(this.data, e.type === 'button' ? e.name : target.attributes['data-id'].value);
+		 this.props.callback({ type: 'DIALOGCALLBACK', id: this.props?.id, data: { dialog: this.data, button: e.type === 'button' ? e.name : target.attributes['data-id'].value } }); // Old version: this.props.callback(this.data, e.type === 'button' ? e.name : target.attributes['data-id'].value);
 		}
 
   if (SetFlag(e, 'interactive') || e.type === 'table')
