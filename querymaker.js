@@ -21,6 +21,8 @@
 // \dt [*.*] list tables [of all schemas]
 // \c postgres postgres; 
 // DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
+// \d <table> - DESCRIBE TABLE
+
 import { lg } from './main.js';
 
 const PRIMARYKEYSTARTVALUE = 3;

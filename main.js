@@ -12,6 +12,7 @@ import { QueryMaker } from './querymaker.js';
 const RANDOMSTRINGCHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const { Pool, Client } = pg
 export const pool = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' });
+
 export const qm = new QueryMaker();
 export const USERNAMEMAXCHAR  = 64;
 export const WSIP = '127.0.0.1';
@@ -28,15 +29,23 @@ function WSMessage(msg)
 
 function WSError(err)
 {
- console.error(err);
+ console.log(err);
+}
+
+function WSClose(code)
+{
+ console.log(`Sockect was closed with code ${code}`);
+ controller.clients.delete(this);
 }
 
 // Var <client>/<this> is a ws connection object that is passed first at websocket init and stored in <clients> map object
-function WSNewConnection(client)
+function WSNewConnection(client, req)
 {
- controller.clients.set(client, { socket: client }); // { auth: true|false, userid:, }
+ console.log('Sockect is opened');
+ controller.clients.set(client, { socket: client, ip: req.socket.remoteAddress }); // { auth: true|false, userid:, }
  client.on('message', WSMessage);
  client.on('error', WSError);
+ client.on('close', WSClose);
 }
 
 export function lg(...data)
@@ -70,10 +79,16 @@ export function GetDialogElement(dialog, path)
  return dialog;
 }
 
-function GetOptionInSelectElement(e, option)
+export function GetOptionInSelectElement(e, option)
 {
  if (!e?.data || e.type !== 'select' || typeof e.data !== 'object') return;
  for (const name in e.data) if (CompareOptionInSelectElement(option, name)) return e.data[name];
+}
+
+export function GetOptionNameInSelectElement(e, option)
+{
+ if (!e?.data || e.type !== 'select' || typeof e.data !== 'object') return;
+ for (const name in e.data) if (CompareOptionInSelectElement(option, name)) return name;
 }
 
 export function CompareOptionInSelectElement(string, option)

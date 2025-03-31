@@ -383,12 +383,13 @@ export class DialogBox extends Interface
 	  const e = profile[elementname];
 	  if (e.type === 'select' && typeof e.data === 'object' && Array.isArray(e.options)) // Profile clone/remove breaks default appearance initial sort order for already inited selections, so set it back as it was at initial time
 		 {
-		  const flag = e.flag, newdata = {};
+		  const flag = e.flag;
+		  const newdata = {};
 		  e.flag = '';
-		  SetFlag(e, 'sort', true);
+		  SortSelectableElementData(e);
 		  for (const option of e.options) newdata[option.origin] = e.data[option.origin];
 		  [e.data, e.flag] = [newdata, flag];
-		 }
+		}
 	  if (syntax && !CheckElementSyntax(e) && delete profile[elementname]) continue;
 	  if (e.type === 'select' && typeof e.data === 'object')
 		 {
@@ -928,12 +929,16 @@ export class DialogBox extends Interface
  ButtonApply(e, target)
  {
   if (!['button', 'table'].includes(e.type) || SetFlag(e, 'readonly')) return;			// Return for disabled (or non button/table type) element
-  if (SetFlag(e, 'appliable') || (e.type === 'table' && target.attributes['data-id']))	// Button (or table cell) is appliable? Call back specified function to process dialog data and subevent (<element name> for button and <cell name starting with _> for table) caused dialog apply
-  	 if (typeof this.props.callback === 'function')
-		{
-		 this.ParseDialogData(this.data, true, false);
-		 this.props.callback({ type: 'DIALOGCALLBACK', id: this.props?.id, data: { dialog: this.data, button: e.type === 'button' ? e.name : target.attributes['data-id'].value } }); // Old version: this.props.callback(this.data, e.type === 'button' ? e.name : target.attributes['data-id'].value);
-		}
+  if (typeof this.props.callback === 'function')
+  if (SetFlag(e, 'appliable') || (e.type === 'table' && target.attributes['data-id']))	// Call back specified function to process dialog data (for appliable button/tablecell) and 'DIALOGCALLBACK' event with button applied (<element name> for button and <cell name starting with _> for table) 
+	 {
+	  this.ParseDialogData(this.data, true, false);
+	  this.props.callback({ type: 'DIALOGCALLBACK', id: this.props?.id, data: { dialog: this.data, button: e.type === 'button' ? e.name : target.attributes['data-id'].value } });
+	 }
+   else
+	 {
+	  this.props.callback({ type: 'DIALOGCALLBACK', id: this.props?.id, data: { button: e.type === 'button' ? e.name : target.attributes['data-id'].value } });
+	 }
 
   if (SetFlag(e, 'interactive') || e.type === 'table')
 	 {

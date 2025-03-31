@@ -3,7 +3,7 @@ import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 
 // Todo - OV description as a hint on taskbar OV navigation
-// Todo0 - Highliught clicked result, hint every branch in search result with its full path
+// Todo0 - Highlight clicked result, hint every branch in search result with its full path
 // Todo0 - insert comments for all code
 // Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
 // Todo0 - Escape chars '<>' (or may be others) in OV/OD names
@@ -11,6 +11,7 @@ import { ContextMenu } from './contextmenu.js';
 // Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
 // Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
 // Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
+// Todo0 - Search bar display/remove via lupa push should be without sidebar redraw blinking
 
 const WEIGHTS  = { 'view': 1, 'database': 2, 'folder': 3 };
 const ARROW    = [ SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(), // bright green 139,188,122
@@ -321,7 +322,7 @@ export class Sidebar extends Interface
                this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();
                break;
-          case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', odid: } 
+          case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', data: { odid: } } 
                this.RemoveEmptyFolders(this.tree, event.data.odid);
                this.SidebarSort(this.tree[0].sort);
                this.SidebarShow();

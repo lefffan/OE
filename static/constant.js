@@ -145,13 +145,13 @@ const DATABASEPAD = { settings: { type: 'select', head: 'Select object database 
     Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as a database name, others before - as a folders. Empty folders are ignored` }, 
     description: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, }, 
                                                                                                   Permissions: {
-    30: { type: 'textarea', data: '', head: `Hide this dialog 'Database' section dialog for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored), so the restriction is applied for the user that matches the list.
+    od: { type: 'textarea', data: '', head: `Restrict this 'Object Database' configuraion for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored), so the restriction is applied for the user that matches the list.
 Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char. Empty list matches none.
 Note that user 'root' is a super user with no any restrictions applied regardless of any lists, so good practice is to use that super user account for recovery purposes only` },
-    40: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
-    50: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
-    60: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
-    70: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`, flag: '*' }, },
+    Database: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
+    Element: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
+    View: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
+    Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`, flag: '*' }, },
                                                                                                   Macroses: {
     80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros. 
 Each one may be used both for informative purposes and for any constant definitions, which may be used in any database configuration settings via js style quoted expression \${<macros name>}.
@@ -231,10 +231,14 @@ export const NEWOBJECTDATABASE = {
     padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
     title: { type: 'title', data: 'New Database Configuration' },
     create: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
-    cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '' },
+    cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
 };
 
-export const msgcontrol = [ { type: 'GETDATABASE', expire: 10, limit: 1 }, { type: 'DIALOG', callback: '', limit: 1 } ];
+export const msgcontrol = [ //{ type: 'GETDATABASE', expire: 610, limit: 1, limitreport: 'Wait for previous Object Database configuring request or try again later after request timeout!', e_xpirereport: 'Object Database request server timeout! Please try it again' },
+                            //{ type: 'SETDATABASE', expire: '0' },
+                            { type: 'DIALOG', limit: '0-0' },
+                            { type: 'DIALOGCALLBACK', expire: '0' },
+                          ];
 
 /*
     //20: { type: 'textarea', path: 'Element/New element|+*|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
