@@ -5,19 +5,56 @@
 // Todo0 - Node SNMP https://github.com/calmh/node-snmp-native
 // Todo1 - process event 'Server has closed connection due to timeout', should this event be on client or server side (via any incoming msg)?
 // Todo1 - Create a template from frontend NEWOBJECTDATABASE to check dialog structure correctness
-
-// Todo list:
-// April and first half of May
 //    Comment and adjust other sourcse
 //    Divide todo list for specific js sources
 //    Object selection input arg dialog defines not only object selection but element layout
 //    Define unspecified event default None or Nothing
-//    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text).
-//        Dont forget about dynamic macroses (${OD} $OV) and CalcMacrosValue function. Or split them into 2 objects - one is dinamic macroses list that claim to be calculated at its apply or static macroses
-//    permissions - check OD creating, check all pads of OD dialog read/change permissions, so no any readable pad - the user is not allowed OD dialog at all
+//    Auth process, user OD with its dialog and customization etc, permissions - check OD creating
 //    object view except graph and tree
-// May (second half)
-//    Auth process, user OD with its dialog and customization etc..
+//    Add 'client side warning message' near with 'log rule msg'. How to set comments on rule msg?
+//    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Undefined macroses are empty strings. Mmacros strategy definition:
+//		Builtin macroses ${OD} ${OV} ${oid>} ${eid>} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}
+//		Object element props retriving ${oid: 1, eid: 2: prop: 'value'} (for handler cmd line only)
+//        Dialog defined (for OD conf and handler cmd line only)
+//		Db conf macroses (for OD conf only)
+//        User specific
+//        Global system user
+
+// Controller and event handlers
+// Todo - Single/Multipile select as a native handler that allows to select predefined values (for a example company clients)
+// Todo - Negative queue value (the scheduler sleep for) in msec on crontab line
+// Todo - Task manager restrict call (or/and call with no task delete option) for the user in his property settings and send only active handler list instead of their wrapeed dialog structure
+// Todo - Every user event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds. The record in event/message queue is removed after the handler responce or timeout occur
+//        Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, so controller call is not perfomed until response or timeout
+// Todo - Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog
+// Todo - Single OV click: OV is already open ? bring OV to top or refresh if already on top : open in a current view or in a new view if no any view exist.
+//		  Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
+// Todo - UPDATE handler command (in a addition to SET/RESET) creates new object version only in case of at least one user-defined element changed
+//		  Multiple SET system calls (SET1, SET2, ... for a example) in a addition to UPDATE to apply different rules depending on a SET system call number.
+// Todo - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
+// Todo - Event command line are not single line, but multiple. Controller runs first line handler, gets its data, other lines handlers may run in detached mode or may be used as a comments
+// Todo - Release CHANGE event subscribing feature to allow non-native object (another words - object subscribes for CHANGE event of other object in DB) elements react on
+// Todo - Controller dialog message: how to escape divider char '/'? Via '\/'?
+// Todo - event 'VIEWREFRESH' occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event (handler commands as an answeers for 'VIEWREFRESH' events depends on a view type - SET|EDIT commands, for a example, are for table type only).
+//		  This event 'VIEWREFRESH' is useful for some actions to be made at view OPEN, for a example, some objects elements data refresh (counters for a example) or execution of a script doing some external actions in 'ignore' mode
+// Todo - How to call dialog to add new object instead of retreiving element data from vitrual object (id=-1)
+// Todo - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects. And 'COPY' to copy data to the buffer
+//			May these system calls 'NEWOBJECT' and 'DELETEOBJECT' release will be similar to user self-titled events, for example - user creates a new object via context click with 'new object row' as an args, so system call 'NEWOBJECT' does with 'data' property as an arg for all creating new object elements
+// Todo - Discover new object:
+//		  Object selection: SELECT NONE
+//		  Define handler for any one element for event SCHEDULE 
+//		  In case of no any object selected in object selection process the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
+//		 		The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
+//		  So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
+// Todo0 - handlers: cmd line, user defined plain text stdout, builtin node-native handler, node js script. All these handlers are accessed via profiles in which the arg dialog may be defined.
+//		   Each event has its handler profile (that is defined in system user customization). App has event profiles that consists of event list with defined handler profiles. Each element in OD may have default event profile (excel for a example, or chat)
+
+// Rules
+// Todo - when a rule is rejected for the event CHANGE - old element data is set. If element data is overwriten in element layout 'value' prop, the old element data is set anyway.
+// Todo - add rule action 'do nothing' (for log only goal and some db sql actions), serch is continued
+// Add CHANGE event new sence, so it applies at any object change. It seems it is unneseccasry, jusy imply rules checking both for events and handler system calls
+// Add alias to SET system call (PUT ADD WRITE PUSH) to add specific rules to
+
 // Links:
 // https://node-postgres.com/apis/client
 // https://github.com/brianc/node-postgres/wiki/FAQ#14-how-do-i-install-pg-on-windows
@@ -113,6 +150,10 @@ export class Controller
                    client.terminate();
                   }
 	          break;
+          case 'GETVIEW':
+               //if (msg.data) this.ods[msg.data.odid].layout[id]
+               // { type: 'GETVIEW', data: { odid: event.data[1], ovid: event.data[2], newwindow: true } });
+               break;
           default:
                return; // Return for unknown msg type
 	    }

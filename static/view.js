@@ -1,9 +1,92 @@
 import { app } from './application.js';
+import { AdjustString, TAGHTMLCODEMAP, lg } from './constant.js';
 import { Interface } from './interface.js';
 
 export class View extends Interface
 {
  static style = {};
+
+ constructor(...args)
+ {
+  if (!args[2]?.control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: {}, closeesc: {} };
+  args[3] = { class: 'defaultbox selectnone', style: 'width: 100px; height: 100px; background-color: RGB(230,230,230);' };
+  super(...args);
+  this.elementDOM.innerHTML = `${this.id}`;
+  //this.ParseLayout(`{"row":"", "col":"hui|pizda||1", "hint":"h", "x":"0", "y":"0" }\n{"row":"", "col":"", "x":"0", "y":"0", "event":"r" }\n{"row":"q", "col":"", "y":"1", "x":"0", "attributes":"aa" }`);
+  //lg(this.layout);
+ }
+
+ // +----------------------------------------------------+
+ // | row:                                               |
+ // |   0|1|2|3|4..||NEW|TITLE|expression (o, e, n, q)   |
+ // | col:                                               |
+ // |   id|owner|e1|e2..|count(*)|${e1_prop}||           |
+ // +----------------------------------------------------+
+ // |                                                    |
+ // |  x (o, e, n, q),                                   |
+ // |  y (o, e, n, q),                                   |
+ // |  value PLAIN/SELECT/FUNCTION                       |
+ // |  style, styleundef[G]                              |
+ // |  hint                                              |
+ // |  event[G],                                         |
+ // |  collapsecol, collapserow, collapseundef[G]        |
+ // |  attributes[G], rotate[G]                          |
+ // |                                                    |
+ // +----------------------------------------------------+
+ /*ParseLayout(layout)
+ {
+  this.layout = { fixedrows: {}, expressionrows: {}, values: [], table: {}, cols: [] };
+
+  for (let json of layout.split('\n'))
+      {
+       // First step - parse json
+       try { json = JSON.parse(json); }     // or parse it to object
+       catch { continue; }
+       let target;
+
+       // Second step - check json on semantic errors. Json with only one prop row/col defined is incorrect. Both props should be defined or undefined
+       if ((typeof json.row !== 'string' && typeof json.col === 'string') || (typeof json.row === 'string' && typeof json.col !== 'string')) continue;
+
+       // Third step - set cell/table prop 'event'
+       if (typeof json.event === 'string') this.layout.event = { value: json.event, x: typeof json.x === 'string' ? json.x : undefined, y: typeof json.y === 'string' ? json.y : undefined }; // Fix last used event property
+
+       // Next - set table props 'attributes', 'rotate', 'collapseundef' and 'styleundef'
+       for (const prop of LAYOUTTABLEPROPS) if (typeof json[prop] === 'string') this.layout.table[prop] = prop === 'attributes' ? AdjustString(json[prop], TAGHTMLCODEMAP) : json[prop]; // and copy table layout props to layout.table
+
+       // Fifth step - check x/y props correctness
+       if (typeof json.x !== 'string' || typeof json.y !== 'string' || !json.x || !json.y || regexp.test(json.x) || regexp.test(json.y)) continue; // Continue for incorrect x/y props
+
+       // Next step - define cell props target (fixed row, expression row or independent value) with checking x/y/value props first
+       if (typeof json.row !== 'string' && typeof json.col !== 'string') // Both row/col are undefined? JSON is correct and value prop is used to retreive cell data instead of selection
+          {
+           if (typeof json.value !== 'string') continue;
+           target = this.layout.values[this.layout.values.push({}) - 1]; // Continue for unexisting json row/col/value props or set target object to fix other layout props
+          }
+        else // Row/col are defined, so retreive cell data from selection
+          {
+           json.row = json.row.trim();
+           json.col = json.col.trim();
+           if (['NEW', 'TITLE', ''].includes(json.row) || !/[^0-9]|^0/.test(json.row)) target = 'fixedrows'; // Row property string is NEW|TITLE|| or digit only with nonzero 1st char?
+            else if (!regexp.test(json.row)) target = 'expressionrows'; // Row property string contains digits with expression chars?
+           if (target !== 'fixedrows' && target !== 'expressionrows') continue; // Row string is incorrect, continue
+           if (!(json.row in this.layout[target])) this.layout[target][json.row] = {}; // Create row prop in layout 'fixedrows'/'expressionrows' objects
+           target = this.layout[target][json.row]; // and set the target to use below
+          }
+
+       // Last step - set cell props to target
+       let columns = [];
+       if (json.col) columns = json.col.split('|'); // Get splited json.col to <columns> array
+       for (const col of columns) if (col && this.layout.cols.indexOf(col) === -1) this.layout.cols.push(col); // and add all its non empty columns only once
+       if (!json.col) columns = this.layout.cols; // For empty jscon use all defined before columns (otherwise array <columns> contains this json specified columns only)
+       for (const prop of LAYOUTCELLPROPS) if (typeof json[prop] === 'string') // Go through all cell specific string props and choose string type only
+       for (const col of columns) if (col) col in target ? target[col][prop] = json[prop] : target[col] = { prop: json[prop] }; // Set json cell props for every column 
+      }
+ }
+ */
+
+ Handler()
+ {
+ }
 }
 
 // View
@@ -36,9 +119,9 @@ export class View extends Interface
 //		  Event CONFIRMDIALOG handler:  php /usr/local/src/tabels/handlers/_.php <event> <data>
 //		  Display selected cells sum for 'number' cell type
 // Todo - Emodzi symbols as an element text causes db sql error. Should it be fixed?
-// Todo - Object selection input args dialog data defines macroses specified in object selection string. Undefined macroses are empty strings. Dialog data interface props are macros names. No macroses in object selection string - no dialog call at OV open.
-//          make object selection macroses defining via two ways - auto (all macroses in object selection are retreived automatically via dialog) or static (via user defined dialog). Empty static dialog calls no dialog and all macro in selection are retrieves in macroses list if exist
 // Todo - Setka via css https://dbmast.ru/fon-v-vide-diagonalnoj-setki-na-css
+// Todo - View area specific style with background, radius and so on
+// Todo - smooth scrolling for rows more than 500 - event preventdefault on scroll event plus settimeout (dispatch scrolling event, 100);
 
 // Tree view
 // Todo - Second query in object selection (add it to the help/doc) should point to the second point of the tree. No second point - until the end of the tree. Point to point tree may be multipath
@@ -76,7 +159,6 @@ export class View extends Interface
 // Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event
 // Todo - Downloading big files don't show progress indicator. Check it
 // Todo - What if non table area selecting when dragging starts from 'no table area' and ends at 'table area'? One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
-// Todo - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo - Autonavigate command for OV, for a example single mouse cell click edit the text in. Mouse single click emulate command (NONE|DBLCLICK|KEYPRESS) or new user event 'CLICK'? Usefull for chats
 // Todo - Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
 // Todo - element cell style based not only oid/eid combinations, but on element cell value (so empty style attr [style=""] hides the row or styles it by some color, for a example)
@@ -88,6 +170,17 @@ export class View extends Interface
 //		  Example: create 'chat' or 'excel' event profile and set 'excel' as a default one for needful elements. Then these element interaction will act as an excel manner with KEYPRESS and F2 editing cell, DEL deleting cell text and etc..
 // Todo - View examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 //										arp table history for one ip/mac
-// Todo - Border svg for a cell
+// Todo - Background svg for a cell
 // Todo - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses
 // Todo - chars №№ being in 'td' tag are wraped for default. Why is it? Will it be at view table type? Fix it
+
+
+// Element layout and Object Selection
+// Todo - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
+// hiderow/hidecolumn - regexp feature with flag i for all cells in rows/columns match successful case
+// Todo - virt cell depends on oid,eid
+// Todo - sql request in 'Element Layout' section in 'value' prop should select among its view object selection, but not from all objects! (see models piechart among switches with one or zero active clients)
+// Todo - Any <td> style in element layout (colors, backgrounds, wires, etc..) for the tree/table view types may be customized depending on current object elements values 
+// Todo - Sort by header click for look like default element layout when header line at the top, bottom, left, right
+// Todo - second and all next queries (for non Tree view types only) do query in previous query results
+

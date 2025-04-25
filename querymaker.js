@@ -22,6 +22,12 @@
 // \c postgres postgres; 
 // DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
 // \d <table> - DESCRIBE TABLE
+// CREATE TABLE metr(); alter table metr add time TIMESTAMPTZ; SELECT create_hypertable('metr', by_range('time')); SELECT add_dimension('metr', by_range('id'));
+// set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
+// $query = $db->prepare("CREATE TABLE `data_1` (id MEDIUMINT NOT NULL, mask TEXT, lastversion BOOL DEFAULT 1, version MEDIUMINT NOT NULL, owner CHAR(64), datetime DATETIME DEFAULT NOW(), eid1 JSON, eid2 JSON, eid3 JSON, eid4 JSON, eid5 JSON, eid6 JSON, PRIMARY KEY (id, version)) ENGINE InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+// $query = $db->prepare("CREATE TABLE `uniq_1` (id MEDIUMINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)) AUTO_INCREMENT=".strval(STARTOBJECTID)." ENGINE InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
+// $query = $db->prepare("ALTER TABLE `uniq_1` ADD eid1 BLOB(65535), ADD UNIQUE(eid1(".USERSTRINGMAXCHAR."))");
+
 
 import { lg } from './main.js';
 
@@ -34,9 +40,10 @@ export class QueryMaker
   lg('New Query Maker!');
  }
 
- Table(table = '')
+ Table(table = '', hypertable)
  {
   this.table = table;
+  this.hypertable = hypertable;
   delete this.method;
   delete this.index;
   delete this.mode;
@@ -139,14 +146,12 @@ export class QueryMaker
        if (field.escape) this.args.push(field.value);                                                                               // Set arg array value to escapable for a true escape flag
        this.values[i] = field.escape ? `$${this.args.length}` : this.method === 'CREATE' ? field.value : `'${field.value}'`;        // Set <values> array element to direct value string or 'escaped' one ($i+1)
        if (typeof field.sign === 'string' && field.sign) this.signs[i] = field.sign;                                                // Set compare sign for where expressions
-       if (typeof field.constraint !== 'string' || !field.constraint) continue;                                                     // Field constraint does exist?
-       this.values[i] += ' ' + field.constraint;                                                                                    // Add it to the <value> array
-       if (field.constraint === 'PRIMARY') this.values[i] += ` KEY GENERATED ALWAYS AS IDENTITY (START ${PRIMARYKEYSTARTVALUE})`;   // and 'KEY' command for 'PRIMARY' constraint
+       if (typeof field.constraint === 'string' && field.constraint) this.values[i] += ' ' + field.constraint;                      // Field constraint does exist? Add it to the <value> array
       }
   return this;
  }
 
- // Method joins fields and values: <outerseparator><field><innerseparator><value>
+ // Method joins fields and values: <outerseparator><field1><innerseparator><value1><outerseparator><field2><innerseparator><value2>..
  Join(outerseparator, innerseparator)
  {
   let clause = '';
@@ -163,7 +168,6 @@ export class QueryMaker
        clause += clause ? innerseparator : '';                                   // Insert innerseparator for non empty clause
        clause += innerseparator ? this.values[i] : '';                           // Insert field value in case of true innerseparator
       }
-  // Todo2 - Process ORDER here
   return clause;
  }
  
@@ -194,22 +198,33 @@ export class QueryMaker
   return this.limit ? ` LIMIT ${this.limit}` : ``;
  }
  
+ GetWhereClause()
+ {
+  // Select general fields from this.table with 'where' clause if exists
+  const clause = this.Join(' AND ');
+  return clause ? ' WHERE ' + clause : '';
+ }
+
  BuildQuery()
  {
   this.query = '';
   switch (this.method)
          {
           case 'SELECT':
-               // Select general fields from this.table with 'where' clause if exists
-               this.query = this.Join(' AND ');
-               if (this.query) this.query = ' WHERE ' + this.query;
-               this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.query}${this.GetOrderClause()}${this.GetLimitClause()}`;
+               this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.GetWhereClause()}${this.GetOrderClause()}${this.GetLimitClause()}`;
                break;
           case 'CREATE':
                // Add index for the column
+               if (this.hypertable)
+                  {
+                   this.query = `SELECT create_hypertable('${this.table}', by_range('${this.hypertable}'))`;
+                   break;
+                  }
                if (this.index)
                   {
-                   this.query = `CREATE INDEX CONCURRENTLY ON ${this.table} (${this.Join(',', '')})`; // Join field names only
+                   //this.query = `CREATE INDEX CONCURRENTLY IF NOT EXISTS ON ${this.table} (${this.Join(',', '')})`; // Join field names only
+                   const field = Object.keys(this.fields)[0];
+                   this.query = `CREATE ${this.fields[field] === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX CONCURRENTLY IF NOT EXISTS ${this.table}_${field}_index ON ${this.table} ${this.fields[field] === 'HASH' ? 'USING HASH ' : ''}(${field})`; // Join 1st field name only
                    break;
                   }
                // Create table in case of no columns defined
@@ -218,13 +233,18 @@ export class QueryMaker
                    this.query = `CREATE TABLE ${this.table}()`; // Or should be like that: this.query = `CREATE TABLE IF NOT EXISTS ${this.table}()`;
                    break;
                   }
-               // Add columns at the end for default
+               // Add columns (or table constraint) at the end for default
                if (true)
                   {
-                   for (const i in this.fields) if (!this.signs[i]) this.query += `ALTER TABLE ${this.table} ADD COLUMN ${this.fields[i]} ${this.values[i]};`; // Insert non where clause (undefined signs[i]) fields only
+                   for (const i in this.fields) if (!this.signs[i]) this.query += `ALTER TABLE ${this.table} ADD ${this.fields[i]} ${this.values[i]};`; // Insert non where clause (undefined signs[i]) fields only
                    break;
                   }
           case 'WRITE':
+               if (this.hypertable)
+                  {
+                   this.query = `SELECT add_dimension('${this.table}', by_range('${this.hypertable}'));`;
+                   break;
+                  }
                // signs.length is more then zero, so WHERE clause is present, so updating existing row. Otherwise insert new table row (WHERE clause is not present for zero signs.length)
                if (this.signs.length)
                   {
@@ -242,10 +262,23 @@ export class QueryMaker
                    this.query = `DROP TABLE IF EXISTS ${this.table}`;
                    break;
                   }
+               // At least one column is defined, so drop correpsponded index for this.index true value
+               if (this.index)
+                  {
+                   const field = Object.keys(this.fields)[0];
+                   this.query = `DROP INDEX CONCURRENTLY IF EXISTS ${this.table}_${field}_index`;
+                   break;
+                  }
+               // Delete rows
+               if (this.query = this.GetWhereClause())
+                  {
+                   this.query = `DELETE FROM TABLE ${this.table}${this.query}`;
+                   break;
+                  }
                // Delete columns at the end for default. Todo0 - Statement 'DROP COLUMN' doesn't remove column physically. Fix it. See https://postgrespro.ru/docs/postgresql/14/sql-altertable for details
                if (true)
                   {
-                   for (const i in this.fields) if (!this.signs[i]) this.query += `ALTER TABLE ${this.table} DROP COLUMN IF EXISTS ${this.fields[i]};`;
+                   for (const i in this.fields) if (!this.signs[i]) this.query += `ALTER TABLE ${this.table} DROP COLUMN IF EXISTS ${this.fields[i]}`;
                    break;
                   }
           default:

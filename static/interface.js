@@ -7,6 +7,7 @@
 // Todo2 - requestIdleCallback for idle tasks
 // Todo0 - While resizing all animation is being applied and slowing GUI?
 // Todo2 - Change box minimize icon from low line to upper line
+// Todo2 - Check opera bug mouseup event at right mouse btn release while dragging while mouse guesters enabled in opera settings
 
 import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';

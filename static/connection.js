@@ -3,6 +3,7 @@ import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
+import { View } from './view.js';
 
 const DIALOGTIMEOUTERROR = 'Dialog timeout, please try it again';
 const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
@@ -74,6 +75,9 @@ export class Connection extends Interface
  {
   switch (event.type)
 	    {
+	     case 'LOGOUT':
+	          this.socket.close();
+	          break;
 	     case 'mouseup':
                let menu = this.username ? [['Help'], ['Logout ' + CutString(this.username)]] : [['Help']];
 	          new ContextMenu(menu, this, event);
@@ -84,7 +88,7 @@ export class Connection extends Interface
 				   case 'Help':
 					   break;
                        default:
-                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.socket.close();
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.Handler({ type: 'LOGOUT' });
 				  }
 	          break;
 	    }
@@ -124,6 +128,11 @@ export class Connection extends Interface
                             new DialogBox(...MessageBox(this, DIALOGTIMEOUTERROR, 'Error')); // Dialog data is apliable, but no initiated msg - display an error. This is a code error, so check a source code first - initiated msg absence is an expire case that is handled at Queue control functionality
                             return;
                       }
+               break;
+	     case 'GETVIEW':
+               if (msg.data.newwindow) new View(null, this, {});
+                else this.ChangeActive(this.preactiveid);
+               return;
                break;
           default:
                return; // Return for unknown msg type
@@ -204,6 +213,8 @@ export class Connection extends Interface
 // |        | CREATEDATABASE[LOCAL] -> DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->dialog) ->   |            |                                   |         |                
 // |        |                                <- SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
 // |        |                        		    		                                             |            |                                   |         |                
+// |        | GETVIEW[WS] (id/data->ovid/odid) ->                                                   |            |                                   |         |                
+// |        |                                                          <- SETVIEW[WS] (id,)         |            |                                   |         |                
 // +--------+                                                                                       +------------+                                   +---------+                                     
 
  EventMatch(control, msg)

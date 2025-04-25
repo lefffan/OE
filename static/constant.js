@@ -1,5 +1,6 @@
 export const HTMLINNERENCODEMAP		    = [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode/decode each other
 export const TAGATTRIBUTEENCODEMAP		= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
+export const TAGHTMLCODEMAP		        = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
 export const EFFECTS					= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 export const EFFECTSHINT				= "effect appearance. Possible values:<br>'hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall' and 'rise'.<br>All other values make no effect.";
@@ -188,17 +189,21 @@ settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
         refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' },
     }, 
     Selection: {
-        10: { type: 'textarea', head: 'Selection query~Object selection is a part of the sql query string, that selects objects for the view. Empty string selection - all objects, error selection - no objects. See appropriate help section for details', data: '' },
-        20: { type: 'textarea', head: 'Object selection input args', data: '', flag: '*' },
-        30: { type: 'text', head: 'Object selection property name', data: 'value', },
-        40: { type: 'text', head: 'Object selection property max chars', data: '', },
-        50: { type: 'text', head: 'Object selection link name', data: '', },
+        query: { type: 'textarea', head: 'Selection query~Object selection is a part of the sql query string, that selects objects for the view. Empty string selection - all objects, error selection - no objects. See appropriate help section for details', data: '' },
+        propname: { type: 'text', head: 'Object selection property name', data: 'value', },
+        maxchars: { type: 'text', head: 'Object selection property max chars', data: '', },
+        linkname: { type: 'text', head: 'Object selection link name', data: '', },
+    }, 
+    Macroses: {
+        autoset: { type: 'checkbox', data: 'Auto', head: `This 'Object View' profile dialog call mode~Client side dialog is called before 'View' openштп to let user define macros values manually.
+Input dialog structure JSON in text area below or set it to 'Auto' for the  dialog with all undefined macroses text fields to input to be created automatically.
+All 'Object Database' configuration or/and this 'Object View' profile (selection, layout..) specific settings containing macroses may be (re)defined by the user` },
+        dialog: { type: 'textarea', head: ``, data: '', flag: '*' },
     }, 
     Layout: {
-        10: { type: 'radio', head: `Template~Select object view template from 'Table' (this template displays objects with its elements in a form of a table, element JSON property 'value' is displayed by default), 
+        template: { type: 'radio', head: `Template~Select object view template from 'Table' (this template displays objects with its elements in a form of a table, element JSON property 'value' is displayed by default), 
 'Tree' (displays the tree of objects acting as a nodes connected with each other via 'link' element property) or 'Map' (objects are placed on geographic map by 'geo' element property value)`, data: 'Table/Tree/Map' },
-        48: { type: 'textarea', path: 'View/New view/Layout', head: `Layout~Element layout defines what elements should be displayed and how for the selected template. Empty layout is a default behaviour, see appropriate help section for details.`, data: '', flag: '*' },
-        
+        layout: { type: 'textarea', path: 'View/New view/Layout', head: `Layout~Element layout defines what elements should be displayed and how for the selected template. Empty layout is a default behaviour, see appropriate help section for details.`, data: '', flag: '*' },
     },
     Appearance: {
         a: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random/New window', head: 'Window position~Select view window position at the opening', flag: '*' },
@@ -217,14 +222,14 @@ settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
 
 const RULEPAD = {
     rules: { type: 'select', head: 'Rule profile~Set rule properties and clone this template to create new rule. Rules are tested in alphabetical order one by one until the rule query is successful, the rule action is applied then', data: { 'New rule template~+': {
-        10: { type: 'textarea', head: `Rule message~Non empty rule message is displayed at client side dialog box and logged (if set, see 'Log rule message' checkbox below)`, data: '', flag: '*' }, 
+        10: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
         20: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
         30: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. 
 Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or commented via '#' lines are ignored. Emtpy query - test is successful. Error queries are ignored. 
 Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. 
-Query may contain some macroses (${'${'}oid}, ${'${'}eid}, ${'${'}OD}, ${'${'}OV}, ${'${'}event}, ${'${'}modifier}, etc) to apply for specified events/objects/elements/views only. 
+Query may contain some macroses (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. 
 Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test` }, 
-        40: { type: 'checkbox', data: 'Log rule message', flag: '*' }, }, }, }
+        40: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' }, }, }, }
 };
 
 export const NEWOBJECTDATABASE = {
@@ -299,7 +304,7 @@ First '_' character in a view name string keeps unnecessary views off sidebar, s
     73: { path: 'Rule/New rule', type: 'textarea', head: 'Rule query', data: '', hint: `Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the rule analyzer to be tested on all rule profiles in alphabetical order one by one until the rule query is successful. 
 Rule query is a list of one by line truncated SQL query strings without a SELECT statement that is added automatically. Empty or commented via '#' lines are ignored, but no any query specified causes successful result. 
 Non-empty and non-zero result of all query strings - the match is successful; any empty, error or zero char '0' result - no match. When a match is found, the action corresponding to the matching rule profile is performed, no any rule profile match - no any action made. 
-Query may contain any macroses such as user or system defined ones (${'${'}oid}, ${'${'}eid}, ${'${'}OD}, ${'${'}OV}, ${'${'}event}, ${'${'}modifier}, etc), so that rules may be applied to the specified events/objects/elements/views only, see 'macros' and 'Rules' help section for details. 
+Query may contain any macroses such as user or system defined ones (${'${'}oid}, ${'${'}eid}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc), so that rules may be applied to the specified events/objects/elements/views only, see 'macros' and 'Rules' help section for details. 
 Be aware of using rules for unspecified events, it may cause CPU overload due to every event query call. Examples: ` }, 
     74: { path: 'Rule/New rule', type: 'checkbox', data: 'Log rule message', flag: '*' }, 
 

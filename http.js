@@ -17,6 +17,7 @@ const staticdocs = {
     '/' : '/static/index.html',
     '/interface.js': '/static/interface.js',
     '/sidebar.js': '/static/sidebar.js',
+    '/view.js': '/static/view.js',
    };
 
 http.createServer(Connection).listen(8001);

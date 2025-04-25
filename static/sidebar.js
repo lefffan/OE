@@ -286,7 +286,13 @@ export class Sidebar extends Interface
                const subtree = this.GetDOMElementSubtree(event.target);
                if (event.button === 0)
                   {
-                   if (!subtree?.[0] || subtree[0].type === 'view' || subtree.length < 2) break;
+                   if (!subtree?.[0]) break;
+                   if (subtree[0].type === 'view')
+                      {
+                       this.parentchild.CallController({ type: 'GETVIEW', data: { odid: subtree[0].odid, ovid: subtree[0].id } });
+                       break;
+                      }
+                   if (subtree.length < 2) break;
                    subtree[0].wrap = !subtree[0].wrap;
                    this.ToggleSubtreeWrap(subtree);
                    break;
@@ -295,7 +301,7 @@ export class Sidebar extends Interface
                   {
                    const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + CutString(this.username)]];
                    if (event.target.attributes['data-odid'] !== undefined) contextmenuoptions[1] = ['Configure Database', event.target.attributes['data-odid'].value];
-                   if (event.target.attributes['data-ovid'] !== undefined) contextmenuoptions[1] = ['Open in a new window', event.target.attributes['data-ovid'].value];
+                   if (event.target.attributes['data-ovid'] !== undefined) contextmenuoptions[1] = ['Open in a new window', event.target.attributes['data-odid'].value, event.target.attributes['data-ovid'].value];
                    new ContextMenu(contextmenuoptions, this, event);
                    break;
                   }
@@ -309,8 +315,11 @@ export class Sidebar extends Interface
 				   case 'Configure Database':
                             this.parentchild.CallController({ type: 'GETDATABASE', data: { odid: event.data[1] } });
 					   break;
+				   case 'Open in a new window':
+                            this.parentchild.CallController({ type: 'GETVIEW', data: { odid: event.data[1], ovid: event.data[2], newwindow: true } });
+					   break;
                        default:
-                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.parentchild.socket.close();
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.parentchild.Handler({ type: 'LOGOUT' });
 				  }
 	          break;
           case 'SIDEBARSET': // { type: 'SIDEBARSET', data: { odid:, path:, ov: { 1: [path1, path2..], 2: [..] } } }
