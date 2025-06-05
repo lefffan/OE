@@ -4,15 +4,6 @@
 // Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
 // Todo - problems of deploying - can i use postgre db on commerisal base? 
 // Todo - db readonly replicas?
-// Todo0 - TimeScaleDB
-//			           https://github.com/timescale/timescaledb/blob/main/tsl/README.md
-//			           https://docs.timescale.com/self-hosted/latest/install/installation-windows/
-//			           https://www.timescale.com
-// Todo0 - Postgres https://postgrespro.ru/docs/postgresql/14/sql-createtableas
-//                  https://postgrespro.ru/windows https://stackoverflow.com/questions/64439597/ways-to-speed-up-update-postgres-to-handle-high-load-update-on-large-table-is-i
-//                  https://www.crunchydata.com/blog/tuning-your-postgres-database-for-high-write-loads
-//                  https://serverfault.com/questions/117708/managing-high-load-of-a-postgresql-database
-//                  https://node-postgres.com/features/types
 // Todo0 - step1 (head_table: serial id, DIALOG JSON; uniq_table: serial id, value; data_table: serial id, date, user, version, eid1, eid1)
 // CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
 // SELECT current_database(); SELECT current_schema(); SELECT current_user;
@@ -64,10 +55,10 @@ export class QueryMaker
   return this;
  }
 
- // Method makes result query to create index instead of column
- Index()
+ // CREATE/DROP method makes result query to create/drop index instead of create/drop column
+ Index(indexmethod = 'btree')
  {
-  this.index = true;
+  this.index = indexmethod;
   return this;
  }
 
@@ -222,9 +213,8 @@ export class QueryMaker
                   }
                if (this.index)
                   {
-                   //this.query = `CREATE INDEX CONCURRENTLY IF NOT EXISTS ON ${this.table} (${this.Join(',', '')})`; // Join field names only
-                   const field = Object.keys(this.fields)[0];
-                   this.query = `CREATE ${this.fields[field] === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX CONCURRENTLY IF NOT EXISTS ${this.table}_${field}_index ON ${this.table} ${this.fields[field] === 'HASH' ? 'USING HASH ' : ''}(${field})`; // Join 1st field name only
+                   //this.query = `CREATE ${this.fields[field] === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX CONCURRENTLY IF NOT EXISTS ${this.table}_${field}_index ON ${this.table} USING ${this.index} ('${field}')`; // Join 1st field name only
+                   this.query = `CREATE ${this.values[0] === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX ${this.table}_${this.fields[0]}_index ON ${this.table} USING ${this.index} (${this.fields[0]})`; // Join 1st field name only
                    break;
                   }
                // Create table in case of no columns defined
@@ -242,7 +232,7 @@ export class QueryMaker
           case 'WRITE':
                if (this.hypertable)
                   {
-                   this.query = `SELECT add_dimension('${this.table}', by_range('${this.hypertable}'));`;
+                   this.query = `SELECT add_dimension('${this.table}', by_range('${this.hypertable}', 1000));`;
                    break;
                   }
                // signs.length is more then zero, so WHERE clause is present, so updating existing row. Otherwise insert new table row (WHERE clause is not present for zero signs.length)
@@ -265,8 +255,8 @@ export class QueryMaker
                // At least one column is defined, so drop correpsponded index for this.index true value
                if (this.index)
                   {
-                   const field = Object.keys(this.fields)[0];
-                   this.query = `DROP INDEX CONCURRENTLY IF EXISTS ${this.table}_${field}_index`;
+                   //this.query = `DROP INDEX CONCURRENTLY IF EXISTS ${this.table}_${field}_index`;
+                   this.query = `DROP INDEX IF EXISTS ${this.table}_${this.fields[0]}_index`;
                    break;
                   }
                // Delete rows

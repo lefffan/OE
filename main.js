@@ -67,7 +67,7 @@ export function CutString(string, length = RANDOMSTRINGCHARS.length)
 }
 
 // Function search specified element in splited path, zero based array has elements for non odd indexed and 'select' element option for odd indexes
-export function GetDialogElement(dialog, path)
+export function GetDialogElement(dialog, path, getdata)
 {
  if (!dialog || typeof dialog !== 'object') return;
  path = path.split('/')
@@ -76,7 +76,21 @@ export function GetDialogElement(dialog, path)
       dialog = +i%2 ? GetOptionInSelectElement(dialog, path[i]) : dialog[path[i]];
       if (!dialog) return;
      }
- return dialog;
+
+ if (!getdata) return dialog;
+
+ if (dialog.type === 'select' && typeof dialog.data === 'object') return dialog.data;
+
+ if (['select', 'multiple', 'checkbox', 'radio'].includes(dialog.type) && typeof dialog.data === 'string')
+    for (const option of dialog.data.split('/'))
+        {
+         const [name, flag] = option.split(FIELDSDIVIDER, 2);
+         if (flag && flag.includes('!')) return name;
+        }
+
+ if (['textarea', 'text', 'password'].includes(dialog.type) && typeof dialog.data === 'string') return dialog.data;
+
+ return;
 }
 
 export function GetOptionInSelectElement(e, option)

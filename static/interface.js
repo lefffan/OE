@@ -24,26 +24,43 @@ const REFRESHMININTERVAL			= 50;
 const ELEMENTPUSHOFFSET				= 3;
 
 // Function processes child response event. Nested event prop (event.event) is passed to the parent child handler
-function ProcessChildEvent(child, event)
+function ProcessChildEvent(child, events)
 {
- if (!child || !event) return;															// Return for undefined child
- if (event.event && child.parentchild.Handler) child.parentchild.Handler(event.event);	// Pass nested event to the parent child handler
+ if (!child || !events) return;  // Return for undefined child
+ if (typeof events === 'string') events = [ { type: events } ];
+ if (!Array.isArray(events)) events = [ events ];
+ //if (event.subevent && child.parentchild.Handler) child.parentchild.Handler(event.subevent);	// Pass nested event to the parent child handler
 
- switch (event.type)																	// Process event
+ for (const event of events)
+ switch (event.type)																			// Process event
 		{
-	 	 case 'KILLME':																	// Destroy child event
-	      	  if (child !== app) child.parentchild.KillChild(child.id);					// Call parent child kill function with current child id. For non application childs only
+	 	 case 'KILLME':																			// Destroy child event
+	      	  if (child !== app) child.parentchild.KillChild(child.id);							// Call parent child kill function with current child id. For non application childs only
 	      	  break;
-	 	 case 'BRINGTOTOP':																// Bring to top all childs bundle from current nested one until the root one (app)
-			  child.ChangeActive(0);													// Set current child active among its childs
-	      	  while (child.parentchild)													// Cycle until parent exists
+	 	 case 'BRINGTOTOP':																		// Bring to top all childs bundle from current nested one until the root one (app)
+			  child.ChangeActive(0);															// Set current child active among its childs
+	      	  while (child.parentchild)															// Cycle until parent exists
 		    	    {
-		     		 child.parentchild.ChangeActive(child.id);							// Set current child active in parent child container
-		     		 child = child.parentchild;											// and go to parent one
+		     		 child.parentchild.ChangeActive(child.id);									// Set current child active in parent child container
+		     		 child = child.parentchild;													// and go to parent one
 		    	    }
 	      	  break;
+		 default:
+			  if (event.broadcast)
+				 {
+				  if (child.parentchild)
+				  	 for (const baby of child.parentchild.childs)
+					  	 if (baby !== child.parentchild && baby !== child && baby.Handler)
+						 	baby.Handler(event);												// Otherwise dispatch event to the parent child handler
+				 }
+			   else
+			   	 {
+				  if (child.parentchild.Handler) child.parentchild.Handler(event);				// Otherwise dispatch event to the parent child handler
+				 }
 		}
- return event;
+
+ //return event;
+ return true;
 }
 
 // Function calculates pixels number the element is scrolled from the left
@@ -274,11 +291,12 @@ export class Interface
 	     // Other child settings
 	     this.childs = {0: this};																			// list of child objects sorted by id
 	     this.zindexes = [0];																				// list of child ids sorted by z-index
+	     this.aindexes = [0];																				// list of child ids sorted by active state (last active is at the end of array)
 	     this.activeid = 0;																					// Active child id - 0 is current object used as a parent for its child, 1 - first child and etc..
 	     this.maxchildid = 0;																				// Child max id ever been inserted
 
 	     // Stop constructor for root child (app) that has no parent. Root element is always document.body
-		 lg('Next child is inserted:', this);
+		 // lg('Next child is inserted:', this);
 	     if (!this.parentchild) return;
 
 	     // Set scc filter for all childs with overlay 'MODAL' mode
@@ -296,6 +314,7 @@ export class Interface
 	     this.elementDOM.setAttribute('data-child', this.attributes['data-child'] = this.parentchild.attributes['data-child'] + '_' + this.id);
 	     this.parentchild.childs[this.id] = this;
 	     this.parentchild.zindexes.push(this.id);
+		 this.parentchild.aindexes.push(this.id);
 		 this.parentchild.ChangeActive(this.id);
 
 		 // Position the child
@@ -352,9 +371,15 @@ export class Interface
  // Function activates child
  ChangeActive(id)
  {
+  if (!['number', 'string'].includes(typeof id)) return;						// Return for non number/string id types
   if (this.activeid === id) return;											// Active child is being activated again - return
+  if (id)
+	 {
+	  const layer = this.aindexes.indexOf(id);								//
+      if (layer > 0) this.aindexes.splice(layer, 1);						//
+      if (layer > 0) this.aindexes.push(id);								//
+	 }																		//
   if (this.activeid) this.childs[this.activeid].StyleActiveChild(false);	// If old active child is not me, remove the old child styling (div element shadow)
-  this.preactiveid = this.activeid;											// Active child id is to be changing to id <id>, so set last active id to current active id <this.activeid>
   if (!(this.activeid = id)) return;										// If new active child is me - do nothing. Parent child will activate me in case
   this.childs[id].StyleActiveChild();										// Make new active child shadowed
   while (true)
@@ -383,6 +408,7 @@ export class Interface
  // Function kills specified child, rebuilds z-indexes and deletes its element from child array with 'removeonhide' flag seting to true (to remove element from the DOM)
  KillChild(id)
  {
+  this.aindexes.splice(this.aindexes.indexOf(id), 1);																			//
   //if (typeof id === 'string') id = +id;																						// Pisec
   if (app.control?.child === this.childs[id])																					// Current captured control is on killing child? Release it
 	 {
@@ -394,8 +420,7 @@ export class Interface
   this.childs[id].Hide();																										// Hide and kill the child
   this.zindexes.splice(this.childs[id].zindex, 1);																				// Remove appropriate child z-index element
   for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);	// and decrement all z-index values
-  if (this.preactiveid === id) this.preactiveid = 0;																										// If killing child is last active, set it to child container (zero child id)
-  if (this.activeid === id) this.childs[this.activeid = this.preactiveid].StyleActiveChild();									// Activate last active child if killing child is active. Old code version activates top child: this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();
+  if (this.activeid === id) this.childs[this.activeid = this.aindexes.at(-1)].StyleActiveChild();								// Activate last active child if killing child is active. Old code version activates top child: this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();
   this.childs[id].destructor();																									// Call child desctructir
   const ismodal = this.childs[id].props.overlay === 'MODAL';
   delete this.childs[id];	

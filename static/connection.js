@@ -71,6 +71,20 @@ export class Connection extends Interface
   this.Login();
  }
 
+ ReleaseViewFromSidebar(id)
+ {
+  const view = this.childs[id];
+  if (!view.odid) return;
+  delete this.sidebar.od[view.odid]['ov'][view.ovid].childid;
+  delete this.sidebar.od[view.odid]['ov'][view.ovid].status;
+ }
+
+ KillChild(id)
+ {
+  this.ReleaseViewFromSidebar(id);
+  super.KillChild(id);
+ }   
+
  Handler(event)
  {
   switch (event.type)
@@ -92,6 +106,12 @@ export class Connection extends Interface
 				  }
 	          break;
 	    }
+ }
+
+ GetLastActiveViewId()
+ {
+  for (let i = this.aindexes.length - 1; i > 0; i--)
+      if (this.childs[this.aindexes[i]].odid) return this.aindexes[i];
  }
 
  CallController(msg)
@@ -130,15 +150,30 @@ export class Connection extends Interface
                       }
                break;
 	     case 'GETVIEW':
-               if (msg.data.newwindow) new View(null, this, {});
-                else this.ChangeActive(this.preactiveid);
-               return;
+               // Single OV click: OV is already open ? set OV active or refresh if already active : open in a current active view or in a new view if no any view exist
+               // Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
+               // OV click: OV status (-2...100), last active window, force new window (boolean, automatically set to true in case of no last active window)
+               const currentviewid = this.GetLastActiveViewId();
+               const view = this.sidebar.od[msg.data.odid]['ov'][msg.data.ovid];
+
+               if (view.status === undefined || view.status === -2) // Negative status -2 (or undefined) means OV is not opened
+                  {
+                   if (!msg.data.newwindow && currentviewid) msg.data.childid = currentviewid; // No context menu 'open in a new window' clicked and any view is opened? Fix child id to open new view in
+                   this.ChangeActive(msg.data.childid);
+                   [view.footnote, view.status] = [0, -1];
+                   break; // Break anyway
+                  }
+
+               this.ChangeActive(view.childid); // Bring it to top already pending/opened view
+               if (view.status === -1) return; // Negative status -1 means OV is server pending, so do nothing. Todo0 - how to cancel server pending?
+               if (this.childs[currentviewid].odid !== msg.data.odid || this.childs[currentviewid].ovid !== msg.data.ovid) return; // Status is 0 or more (opened and loading its data or has already loaded). Current active view doesn't match clicked view? Just return, bringing to top was done before
+               [view.footnote, view.status, msg.data.childid] = [0, -1, currentviewid]; // Current active view is the view that was clicked via sidebar? Force refresh!
                break;
           default:
                return; // Return for unknown msg type
          }
 
-  lg('Sending msg to websocket: ', msg);
+  //lg('Sending msg to websocket: ', msg);
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
   try { this.socket.send(JSON.stringify(msg)); }
   catch {}
@@ -147,7 +182,7 @@ export class Connection extends Interface
  FromController(msg)
  {
   msg = this.EventControl(msg);
-  lg('Receving msg from websocket: ', msg);
+  //lg('Receving msg from websocket: ', msg);
   switch (msg.type)
 	    {
 	     case 'LOGINACK':
@@ -174,6 +209,11 @@ export class Connection extends Interface
                if (typeof msg.data?.dialog === 'string') delete this.msgqueue[msg.id];
                if (msg.data?.dialog && typeof msg.data.dialog === 'object') new DialogBox(msg.data.dialog, this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', callback: this.CallController.bind(this), id: msg.id }, { class: 'dialogbox selectnone' });
 	          break;
+	     case 'SETVIEW':
+               if (msg.data.childid) this.ReleaseViewFromSidebar(msg.data.childid);
+                else msg.data.childid = new View(null, this, {}).id;
+               this.childs[msg.data.childid].Handler(msg);
+               break;
          }
  }
 
@@ -213,8 +253,10 @@ export class Connection extends Interface
 // |        | CREATEDATABASE[LOCAL] -> DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->dialog) ->   |            |                                   |         |                
 // |        |                                <- SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
 // |        |                        		    		                                             |            |                                   |         |                
-// |        | GETVIEW[WS] (id/data->ovid/odid) ->                                                   |            |                                   |         |                
-// |        |                                                          <- SETVIEW[WS] (id,)         |            |                                   |         |                
+// |        | GETVIEW[Sidebar:WS] (id/data->ovid/odid/childid) -> GETVIEW[Connection:WS]            |            |                                   |         |                
+// |        |                                <- SETVIEW[Connection:WS] (id/data->ovid/odid/childid) |            |                                   |         |                
+// |        |                        		    		                                             |            |                                   |         |                
+// |        |                                                   <- SETVIEW[WS] (id/data->ovid/odid) |            |                                   |         |                
 // +--------+                                                                                       +------------+                                   +---------+                                     
 
  EventMatch(control, msg)
@@ -229,6 +271,7 @@ export class Connection extends Interface
            if (((option[0] === '!' && option.substring(1) !== msg[prop]) || (option[0] !== '!' && option === msg[prop])) && (match = true)) break;
        if (!match) break;
       }
+  if (match) lg('The message below matches the given control', msg);
   return match;
  }
 

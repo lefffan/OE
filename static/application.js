@@ -69,7 +69,75 @@ export class Application extends Interface
 export let app;
 window.onload = function () { new Connection(null, app = new Application()); }; // Connection args: data, parent
 
-// Megacom appliance information systems
+// Application architecture:
+// Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
+// Todo - app containers via docker?
+// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'
+// Todo - Application global users allowed all. For a example - root user. Better create user list array for that kind of users
+// Todo - Multiple user instance is allowed via 'instanse number' in user properties settings: 0 - user is turned off and not allowed to login, 1 - only one single instanse allowed, 2-... multiple instanses allowed
+// Todo - At the end of app stable version make new customization
+// Todo - add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality
+// Todo - helpdesk/jira/CRM example in Help context menu
+// Todo - Browser favicon is changed to show unread msges presence
+// Todo - Every user defined element (eid1, eid2..) has its external data like streams (cameras, streams), files (documents, audio, video, image) and TSDB (data is set via system call SET<TSDBID>])
+//		  App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props, streams, files, TSDB
+//		  Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
+// 		  - value is user defined cell value (starting with SELECT is an sql query, or a FUNCTION that works at client side calculating cell range sum, for example, like in excel)
+// 		  - cell text has three custom tags (audio, img, video and chart)
+// 		  - Chart as a start OV event to display graphic instead of a table
+// Todo - output OD info (view number, element number.. etc) in OD configuration dialog
+// Todo - Main goal is automize app configuration and fit that configuration to some template than can be easily set by the user
+// Todo - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
+// Todo - Ctrl + Tab switches between childs in a connection child
+// Todo - Keep user last login datetime in user db
+// Todo - Customize scrollbars via user customization and other non-css props (for a example 'animation appearance')
+
+// Presentation:
+// Todo - Y-combinator practice:
+//		  https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
+//		  https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
+//	      https://tass.ru/ekonomika/14542887
+//		  https://rb.ru/longread/where-to-go-with-business-idea/
+//		  https://vc.ru/flood/60006-kuda-startapu-poyti-za-nastavnikami-i-investorami-desyat-krupnyh-akseleratorov-rossii
+// Todo - big amount of data with faster and quick perfomance
+// Todo - data is native
+// Todo - data constructor
+// Todo - voting
+// Todo - keep last twoversions
+// Todo - don't add objects more than 100
+// Todo - cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
+// Todo - to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!
+
+// Links:
+// https://node-postgres.com/apis/client
+// https://github.com/brianc/node-postgres/wiki/FAQ#14-how-do-i-install-pg-on-windows
+// Fix my project link https://github.com/lefffan/OE/blob/main/static/constant.js
+// https://yoksel.github.io/url-encoder/
+// https://postgrespro.ru/docs/postgresql/14/sql-commands
+// https://postgrespro.ru/docs/postgresql/14/datatype-datetime  https://postgrespro.ru/docs/postgrespro/9.5/functions-datetime
+// https://docs.timescale.com/use-timescale/latest/write-data/
+// https://eax.me/timescaledb/
+// https://eax.me/postgresql-triggers/
+// https://eax.me/timescaledb-caggs-implementation/
+// https://eax.me/tag/postgresql/page/2/
+// https://eax.me/postgresql-window-functions/
+// https://www.postgresql.org/docs/current/rules-materializedviews.html
+// https://docs.timescale.com/getting-started/latest/queries/
+// https://docs-timescale-com.translate.goog/getting-started/latest/queries/?_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=ru&_x_tr_pto=rq&_x_tr_hist=true
+// https://docs.timescale.com/api/latest/hyperfunctions/histogram/
+// https://github.com/timescale/timescaledb/blob/main/tsl/README.md
+// https://docs.timescale.com/self-hosted/latest/install/installation-windows/
+// https://www.timescale.com
+// https://postgrespro.ru/docs/postgresql/14/sql-createtableas
+// https://postgrespro.ru/windows https://stackoverflow.com/questions/64439597/ways-to-speed-up-update-postgres-to-handle-high-load-update-on-large-table-is-i
+// https://www.crunchydata.com/blog/tuning-your-postgres-database-for-high-write-loads
+// https://serverfault.com/questions/117708/managing-high-load-of-a-postgresql-database
+// https://node-postgres.com/features/types
+// https://ru.stackoverflow.com/questions/1087780/javascriptcanvas-Построить-график-функции
+// https://ru.stackoverflow.com/questions/1431512/Построить-график-используя-json-данные-js
+// https://htmlacademy.ru/blog/js/canvas-chart
+
+// Megacom appliance information systems:
 // Todo - discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
 // Todo - add startel nodes
 // Todo - discuss wich tabs to create as they are in our current mrtg. Left/right/N-Z/Fiziki?
@@ -112,45 +180,3 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
 // Todo - Paraga mail functional  
 // Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata
-
-// Application architecture
-// Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
-// Todo - app containers via docker?
-// Todo - Make logs and handlers manager accessable in 'System Manage' context menu
-// Todo - Application global users allowed all. For a example - root user.
-// Todo - Name application database tables: data_odid, uniq_odid and head_odid to ease transfering object databases with its structures! https://postgrespro.ru/docs/postgresql/14/reference
-// Todo - Multiple user instance is allowed via checked option in user properties settings
-// Todo - At the end of app stable version make new customization
-// Todo - add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality
-// Todo - helpdesk/jira/CRM example in Help context menu
-// Todo - Favicon change to show unread msges presence
-// Todo - Shortcut key calls OV to open at sidebar focus
-// Todo - another native object element like 'datetime' is 'timestamp' to fix TSDB data changes. Timestamp not only for TSDB, but for any objects - usefull for compare object creating time with current changes to calculate how many seconds/minutes have passed
-// Todo - Every user defined element (eid1, eid2..) has its external data like streams (cameras, streams), files (documents, audio, video, image) and TSDB (data is set via system call SET<TSDBID>])
-//		  App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props, streams, files, TSDB
-//		  Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
-// 		  - vlaue is user defined cell value (starting with SELECT is an sql query, or a FUNCTION that works at client side calculating cell range sum, for example, like in excel)
-// 		  - cell text has three custom tags (audio, img, video and chart)
-// 		  - Chart as a start OV event to display graphic instead of a table
-// Todo - output OD info (view number, element number.. etc) in OD configuration dialog
-// Todo - Main goal is automize app configuration and fit that configuration to some template than can be easily set by the user
-// Todo - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
-// Todo - Ctrl + Tab switches between childs in a connection child
-// Todo - Keep user last login datetime in user db
-// Todo - Customize scrollbars via user customization and other non-css props (for a example 'animation appearance')
-
-// Presentation
-// Todo - Y-combinator practice:
-//		  https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
-//		  https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
-//	      https://tass.ru/ekonomika/14542887
-//		  https://rb.ru/longread/where-to-go-with-business-idea/
-//		  https://vc.ru/flood/60006-kuda-startapu-poyti-za-nastavnikami-i-investorami-desyat-krupnyh-akseleratorov-rossii
-// Todo - big amount of data with faster and quick perfomance
-// Todo - data is native
-// Todo - data constructor
-// Todo - voting
-// Todo - keep last twoversions
-// Todo - don't add objects more than 100
-// Todo - cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
-// Todo - to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!

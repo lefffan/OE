@@ -144,7 +144,8 @@ const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'ONCHANGE', 
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: { General: {
     dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. 
     Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as a database name, others before - as a folders. Empty folders are ignored` }, 
-    description: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, }, 
+    description: { type: 'textarea', data: '', head: 'Database description' },
+    history: { type: 'checkbox', data: 'Keep object versions~!', head: 'Database object history', flag: '*' }, }, 
                                                                                                   Permissions: {
     od: { type: 'textarea', data: '', head: `Restrict this 'Object Database' configuraion for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored), so the restriction is applied for the user that matches the list.
 Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char. Empty list matches none.
@@ -168,10 +169,10 @@ name: { type: 'textarea', head: 'Name~Element name, used as a default element ti
 description: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
 //30: { type: 'select', head: 'Хуета', data: '!1!/2~!/3/Test~!~color: red;/A/Zest/q/w/e/r/t/' }, 
 //40: { type: 'table', head: 'Table', data: {a: {1:'hui', 2:'piz'}, b:{1:'hui2', _2:'piz2'}} }, 
-uniq: { type: 'checkbox', head: `Type~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'unique' },
+type: { type: 'text', head: 'Element column type~', data: 'JSON' },
+index: { type: 'radio', head: `Element column index~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'None~!/btree/UNIQUE btree/hash', flag: '*' },
 //40: { type: 'select', head: `Default event profile~Specify handler profile to use it for this element all defined client events as a default one (in case of no appropriate event defined below)`, data: 'None/Content editable/Chat', flag: '*' },
 event: { type: 'textarea', head: `Event profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
-// Event profile -> Event -> Name, Modifiers, Step1 -> Handler(customm, virtual, NodeJS source, predefined1, predefined2..), input args definition (${} - auto dialog arg definition, empty - no dialog, non empty - dialog), Stderr/Stdout/ControllerCall processing (!Apply/Message/Ignore/), Redirect to Next step, Log, timeout in sec, retries
 //44: { type: 'select', head: 'Event list~Event list is a list client events, each event has its name, modifier keys and other settings. To create new event (the handler below will be called on) just clone "New event template"', data: { 'New event template': {
     //50: { type: 'select', head: 'Select event', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
     //60: { type: 'checkbox', head: 'Select modifier key~For the mouse and keyboards events only. Also note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser), so may not cancel client side default behaviour and may never occur', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },
@@ -185,34 +186,37 @@ settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
         name: { type: 'textarea', data: '', flag: '+Enter view name', head: `Name~Enter here view name list (one by line). All names will be sidebar displayed according their paths. Usually second and other ones are used as alias names to be placed in favorites` },
         description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '', flag: '*' },
         hide: { type: 'checkbox', head: `Hide from sidebar~The option keeps unnecessary views off sidebar. Hidden views may be called from event handlers and via shortcut keys yet`, data: 'Hide' },
-        shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
+        shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window. For sidebar focus only`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
         refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' },
     }, 
     Selection: {
-        query: { type: 'textarea', head: 'Selection query~Object selection is a part of the sql query string, that selects objects for the view. Empty string selection - all objects, error selection - no objects. See appropriate help section for details', data: '' },
-        propname: { type: 'text', head: 'Object selection property name', data: 'value', },
-        maxchars: { type: 'text', head: 'Object selection property max chars', data: '', },
-        linkname: { type: 'text', head: 'Object selection link name', data: '', },
+            select: { type: 'text', head: 'SELECT~Object selection is a part of the sql query string, that selects objects for the view. Empty string selection - all objects, error selection - no objects. See appropriate help section for details', data: '', flag: '!' },
+            from: { type: 'select', head: 'FROM', data: 'Interactive actual data~!/Actual data/Interactive historical data/Historical data/Time series data/None' },
+            where: { type: 'textarea', head: 'WHERE', data: '' }, 
+            groupby: { type: 'textarea', head: 'GROUP BY, HAVING', data: '', expr: '/Interactive actual data~!|Interactive historical data~!/from' },
+            limit: { type: 'textarea', head: 'ORDER BY, LIMIT, OFFSET, FETCH', data: '', flag: '*' },
+            linkname: { type: 'text', head: 'Object selection link name', data: '' },
     }, 
     Macroses: {
-        autoset: { type: 'checkbox', data: 'Auto', head: `This 'Object View' profile dialog call mode~Client side dialog is called before 'View' openштп to let user define macros values manually.
-Input dialog structure JSON in text area below or set it to 'Auto' for the  dialog with all undefined macroses text fields to input to be created automatically.
+        autoset: { type: 'checkbox', data: 'Auto', head: `This 'View' dialog call mode~Client side dialog is called before 'View' opening, allowing user to define macros values manually.
+Enter dialog structure JSON in text area below or set it to 'Auto' for the dialog (with all undefined macroses input fields) to be created automatically.
 All 'Object Database' configuration or/and this 'Object View' profile (selection, layout..) specific settings containing macroses may be (re)defined by the user` },
         dialog: { type: 'textarea', head: ``, data: '', flag: '*' },
     }, 
     Layout: {
         template: { type: 'radio', head: `Template~Select object view template from 'Table' (this template displays objects with its elements in a form of a table, element JSON property 'value' is displayed by default), 
-'Tree' (displays the tree of objects acting as a nodes connected with each other via 'link' element property) or 'Map' (objects are placed on geographic map by 'geo' element property value)`, data: 'Table/Tree/Map' },
+'Tree' (displays the tree of objects acting as a nodes connected with each other via 'link' element property) or 'Map' (objects are placed on geographic map by 'geo' element property value)`, data: 'Table~!/Tree/Map' },
         layout: { type: 'textarea', path: 'View/New view/Layout', head: `Layout~Element layout defines what elements should be displayed and how for the selected template. Empty layout is a default behaviour, see appropriate help section for details.`, data: '', flag: '*' },
     },
     Appearance: {
         a: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random/New window', head: 'Window position~Select view window position at the opening', flag: '*' },
-        b: { type: 'radio', head: 'Window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
+        b: { type: 'radio', head: 'Initial window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
         c: { type: 'text', head: 'Width and height in pixels via comma', data: '', expr: '/Auto~!|Full screen~!/b', flag: '*' },
         d: { type: 'checkbox', head: 'Control', data: 'Resize~!/Full screen~!/Escape/Close icon\n~!/Always on top/Modal', flag: '*' },
         e: { type: 'checkbox', head: 'Bring to top on event', data: 'New data/Data delete/Data change' },
         f: { type: 'checkbox', head: `Auto open in a new window on event`, data: 'New data/Data delete/Data change', flag: '*' },
-        g: { type: 'text', head: 'Lifetime', data: '', flag: '' },
+        g: { type: 'checkbox', data: `Window bottom reach next data portion output` },
+        h: { type: 'text', head: 'Lifetime', data: '', flag: '' },
     }, 
     Permissions: {
         10: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
@@ -300,7 +304,7 @@ First '_' character in a view name string keeps unnecessary views off sidebar, s
     61: { type: 'textarea', path: 'View/New view/Permissions', head: `Write access restricted users/groups`, data: '', flag: '*' },
 
     71: { path: 'Rule/New rule|+|Rule profile name|Add new rule profile name. Rule profiles are tested in alphabetical order until the query is successful', type: 'textarea', head: 'Rule message', data: '', hint: `Rule message is a match case message displayed at client side dialog box and optionally logged. For non-empty messages only. Macroses are allowed`, flag: '*' }, 
-    72: { path: 'Rule/New rule', type: 'select', head: 'Rule action', data: '!Accept/Reject/Pass', hint: `'Accept' action permits incoming event passes it to the controller, 'Reject' action cancels it, 'Pass' action does nothing and doesn't terminate the search continuing from the next rule, useful for event logging and rule disabling without removing` }, 
+    72: { path: 'Rule/New rule', type: 'select', head: 'Rule action', data: '!Accept/Reject/Pass', hint: `'Accept' action permits incoming event passes it to the controller, 'Reject' action cancels it, 'Pass' option doesn't apply any action on rule query result and continues from the next rule, useful for 'transparent' event logging and/or some sql actions` }, 
     73: { path: 'Rule/New rule', type: 'textarea', head: 'Rule query', data: '', hint: `Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the rule analyzer to be tested on all rule profiles in alphabetical order one by one until the rule query is successful. 
 Rule query is a list of one by line truncated SQL query strings without a SELECT statement that is added automatically. Empty or commented via '#' lines are ignored, but no any query specified causes successful result. 
 Non-empty and non-zero result of all query strings - the match is successful; any empty, error or zero char '0' result - no match. When a match is found, the action corresponding to the matching rule profile is performed, no any rule profile match - no any action made. 

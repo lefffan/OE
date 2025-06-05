@@ -11,91 +11,36 @@ export class View extends Interface
   if (!args[2]?.control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: {}, closeesc: {} };
   args[3] = { class: 'defaultbox selectnone', style: 'width: 100px; height: 100px; background-color: RGB(230,230,230);' };
   super(...args);
-  this.elementDOM.innerHTML = `${this.id}`;
   //this.ParseLayout(`{"row":"", "col":"hui|pizda||1", "hint":"h", "x":"0", "y":"0" }\n{"row":"", "col":"", "x":"0", "y":"0", "event":"r" }\n{"row":"q", "col":"", "y":"1", "x":"0", "attributes":"aa" }`);
-  //lg(this.layout);
  }
 
- // +----------------------------------------------------+
- // | row:                                               |
- // |   0|1|2|3|4..||NEW|TITLE|expression (o, e, n, q)   |
- // | col:                                               |
- // |   id|owner|e1|e2..|count(*)|${e1_prop}||           |
- // +----------------------------------------------------+
- // |                                                    |
- // |  x (o, e, n, q),                                   |
- // |  y (o, e, n, q),                                   |
- // |  value PLAIN/SELECT/FUNCTION                       |
- // |  style, styleundef[G]                              |
- // |  hint                                              |
- // |  event[G],                                         |
- // |  collapsecol, collapserow, collapseundef[G]        |
- // |  attributes[G], rotate[G]                          |
- // |                                                    |
- // +----------------------------------------------------+
- /*ParseLayout(layout)
+ Handler(msg)
  {
-  this.layout = { fixedrows: {}, expressionrows: {}, values: [], table: {}, cols: [] };
-
-  for (let json of layout.split('\n'))
-      {
-       // First step - parse json
-       try { json = JSON.parse(json); }     // or parse it to object
-       catch { continue; }
-       let target;
-
-       // Second step - check json on semantic errors. Json with only one prop row/col defined is incorrect. Both props should be defined or undefined
-       if ((typeof json.row !== 'string' && typeof json.col === 'string') || (typeof json.row === 'string' && typeof json.col !== 'string')) continue;
-
-       // Third step - set cell/table prop 'event'
-       if (typeof json.event === 'string') this.layout.event = { value: json.event, x: typeof json.x === 'string' ? json.x : undefined, y: typeof json.y === 'string' ? json.y : undefined }; // Fix last used event property
-
-       // Next - set table props 'attributes', 'rotate', 'collapseundef' and 'styleundef'
-       for (const prop of LAYOUTTABLEPROPS) if (typeof json[prop] === 'string') this.layout.table[prop] = prop === 'attributes' ? AdjustString(json[prop], TAGHTMLCODEMAP) : json[prop]; // and copy table layout props to layout.table
-
-       // Fifth step - check x/y props correctness
-       if (typeof json.x !== 'string' || typeof json.y !== 'string' || !json.x || !json.y || regexp.test(json.x) || regexp.test(json.y)) continue; // Continue for incorrect x/y props
-
-       // Next step - define cell props target (fixed row, expression row or independent value) with checking x/y/value props first
-       if (typeof json.row !== 'string' && typeof json.col !== 'string') // Both row/col are undefined? JSON is correct and value prop is used to retreive cell data instead of selection
-          {
-           if (typeof json.value !== 'string') continue;
-           target = this.layout.values[this.layout.values.push({}) - 1]; // Continue for unexisting json row/col/value props or set target object to fix other layout props
-          }
-        else // Row/col are defined, so retreive cell data from selection
-          {
-           json.row = json.row.trim();
-           json.col = json.col.trim();
-           if (['NEW', 'TITLE', ''].includes(json.row) || !/[^0-9]|^0/.test(json.row)) target = 'fixedrows'; // Row property string is NEW|TITLE|| or digit only with nonzero 1st char?
-            else if (!regexp.test(json.row)) target = 'expressionrows'; // Row property string contains digits with expression chars?
-           if (target !== 'fixedrows' && target !== 'expressionrows') continue; // Row string is incorrect, continue
-           if (!(json.row in this.layout[target])) this.layout[target][json.row] = {}; // Create row prop in layout 'fixedrows'/'expressionrows' objects
-           target = this.layout[target][json.row]; // and set the target to use below
-          }
-
-       // Last step - set cell props to target
-       let columns = [];
-       if (json.col) columns = json.col.split('|'); // Get splited json.col to <columns> array
-       for (const col of columns) if (col && this.layout.cols.indexOf(col) === -1) this.layout.cols.push(col); // and add all its non empty columns only once
-       if (!json.col) columns = this.layout.cols; // For empty jscon use all defined before columns (otherwise array <columns> contains this json specified columns only)
-       for (const prop of LAYOUTCELLPROPS) if (typeof json[prop] === 'string') // Go through all cell specific string props and choose string type only
-       for (const col of columns) if (col) col in target ? target[col][prop] = json[prop] : target[col] = { prop: json[prop] }; // Set json cell props for every column 
-      }
- }
- */
-
- Handler()
- {
+  switch (msg.type)
+         {
+          case 'SETVIEW':
+               this.odid = msg.data.odid;
+               this.ovid = msg.data.ovid;
+               let inner = `child id: ${this.id}, db id ${msg.data.odid}, view id ${msg.data.ovid}, sequence ${msg.id}`;
+               if (msg.data.error) inner += ' ' + msg.data.error;
+               this.elementDOM.innerHTML = inner;
+               //if (msg.data.error) break;
+               const view = this.parentchild.sidebar.od[this.odid]['ov'][this.ovid];
+               view.status = 0;
+               view.childid = this.id;
+               break;
+         }
  }
 }
 
 // View
-// Todo - all view changes comes to clint side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.
-//		  Initiator client apply all changes for this odid/ovid, non-initiator client for this odid/ovid also apply changes (if user has appropriate permissions),
+// Todo - all view changes comes to client side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.
+//		  Initiator client apply all changes for this odid/ovid, non-initiator client for this odid/ovid also apply changes (if user has appropriate permissions, but if OV is opened, the user have ),
 //		  and for other ovids with this odid client side check matched object ids with their elements and add 'new notification' in a sidebar
 //        Combinations - opened|notopened, initiator|notinitiator, random-select|notrandom-select, source-view|notsource-view-but-has-its-oideid-combination
 // Todo - regexp search should be implemented to all types of view including tree and map. Should js range be used instead of span highlighting in regexp search? Not only regexp search but search on mask with only one asterisk as a special char or just plain text
-// Todo - In context menu description display Od and OV description from OV structure, application version, tel number for additional help tab 'Contacts' and mail functional - please contact us support@tabels.app
+// Todo - In context menu description display Od and OV description from OV structure,
+// Todo - application version, tel number and other contacts (something like 'please contact us support@tabels.app') in a extra tab on help context menu. Help contex menu is the for all modes (connection/view/sidebar)
 // Todo - Build view via adding its elements (objects) with limited count, continuing later via settimout(callback, 0) just to not freeze user interface
 //		  Load/reload view process is divided into two stages - receving server data and parsing it to fit element layout. First stage displays loading circle at view item in a sidebar.
 //		  Data parsing second stage displays circle progress indicator of loaded data portions. Both stages are allowed to be cancelled via clicking inside the view rectangle. Should Esc key stop OV open process also?
@@ -163,17 +108,12 @@ export class View extends Interface
 // Todo - Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
 // Todo - element cell style based not only oid/eid combinations, but on element cell value (so empty style attr [style=""] hides the row or styles it by some color, for a example)
 // Todo - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711
-// Todo - Pagination is not implemented, should it be usable via OV dirs with page ranges per view in this dir or via next portion of objects displayed by reaching screen bottom at scrolling (object portion number should be set in user customization misc configuration)?
-// Todo - Every element has its default event profile defined is 'system' user settings. Event profile is a list of user events and its executed handlers. All handlers for any event may have dialog data to pre-configure script input args. 
-//		  These args can be changed either in 'system' user settings or element event handler section. 'Dialog' args in element event handler do not affect to predefined handler and are specific for this element event only. To reset this dialog args data change handler and then get it back - predefined handler with its args will be set
-// 		  In case of default event profile specified the user event is handle by element event handler and in case of absent one - by default profile event handler
-//		  Example: create 'chat' or 'excel' event profile and set 'excel' as a default one for needful elements. Then these element interaction will act as an excel manner with KEYPRESS and F2 editing cell, DEL deleting cell text and etc..
+
 // Todo - View examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 //										arp table history for one ip/mac
 // Todo - Background svg for a cell
 // Todo - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses
 // Todo - chars №№ being in 'td' tag are wraped for default. Why is it? Will it be at view table type? Fix it
-
 
 // Element layout and Object Selection
 // Todo - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'

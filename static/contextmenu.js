@@ -22,7 +22,8 @@ export class ContextMenu extends Interface
   switch (event.type)
 	    {
 	     case 'mouseup':     // Handle only 'mouseup' event, child outside 'mousedown' event will never be dispathced to this nonsticky context menu
-	          return event.target.classList.contains('contextmenuitem') ? { type: 'KILLME', event: { type: 'CONTEXTMENU', data: this.data[event.target.attributes['data-item'].value] } } : undefined;
+	          //return event.target.classList.contains('contextmenuitem') ? { type: 'KILLME', subevent: { type: 'CONTEXTMENU', data: this.data[event.target.attributes['data-item'].value] } } : undefined;
+              return event.target.classList.contains('contextmenuitem') ? [ { type: 'CONTEXTMENU', data: this.data[event.target.attributes['data-item'].value] }, { type: 'KILLME'} ] : undefined;
 	    }
  }
 

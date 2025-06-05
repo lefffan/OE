@@ -3,7 +3,6 @@
 
 import { FIELDSDIVIDER, lg, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, CutString, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
 
-const ODUNIQCOLUMNVALUEMAXCHAR  = 125;
 const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME     = 'Cannot create new database with empty name!\nIn order to remove Object Database please set empty db name and remove all elements, views and rules';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
@@ -12,38 +11,6 @@ const SUPERUSER                 = 'root';
 const LAYOUTCELLPROPS           = ['x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow'];
 const LAYOUTTABLEPROPS          = ['attributes', 'rotate', 'collapseundef', 'styleundef'];
 const regexp                    = /[^oenq\+\-\;\&\|\!\*\/0123456789\.\%\>\<\=\(\) ]/;
-
-// Function is called at controller creation (constructor)
-export async function ReadAllDatabase()
-{
- let showtables, tables;
- try {
-      showtables = await pool.query(...qm.Table().ShowTables().Make());
-      tables = [];
-     }
- catch
-     {
-      return;
-     }
-
- for (const table of showtables.rows) tables.push(table.tablename);                                                              // Fill tables array to my DB sql tables
- for (const table of tables)
-     {
-      const id = GetTableNameId(table);
-      if (!tables.includes(`head_${id}`) || !tables.includes(`data_${id}`) || !tables.includes(`uniq_${id}`)) continue;         // OD is correct with all three tables exist
-      if (!id || id in controller.ods) continue;        
-      let dialog;                                                                                                               // Undefined id or OD with id <id> already sucked
-      try {
-           dialog = await pool.query(...qm.Table(`head_${id}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make());  // Get OD structure dialog last version from head_id table
-           CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog);                                                // and check it
-          }
-      catch
-          {
-           continue;
-          }
-      controller.ods[id] = { dialog: dialog.rows[0].dialog };
-     }
-}
 
 export function GetTableNameId(name)
 {
@@ -75,11 +42,10 @@ export function CheckDatabaseConfigurationDialogStructure(dialog)
  if (Object.keys(elements.data).length !== 1 || Object.keys(views.data).length !== 1 || Object.keys(rules.data).length !== 1) throw new Error(INCORRECTDBCONFDBNAME);
 }
 
-export function CorrectProfileIds(e, excludeoption, lastid, check)
+export function CorrectProfileIds(e, excludeoption, lastid)
 {
  const nonclonedids = [];
  const clonedids = [];
- const checkids = [];
  for (const option of Object.keys(e.data))
      {
       let [name, flag, ...style] = option.split(FIELDSDIVIDER);                         // Split option to its name and flag via FIELDSDIVIDER char '~'
@@ -99,13 +65,10 @@ export function CorrectProfileIds(e, excludeoption, lastid, check)
       flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';   // Remove clonable/removable/cloned flags and add clonable/removable ones only
       e.data[name + flag + style] = e.data[option];                                     // and rename it in element selectable data
       delete e.data[option];
-      if (!check) continue;
-      if (!e.data[name + flag + style][check].flag.includes('!'))
-         e.data[name + flag + style][check].flag += '!';                                // Make readonly 'check' element feature
-      [, flag] = e.data[name + flag + style][check]?.data?.split(FIELDSDIVIDER, 2);     // Get 'check' element 1st option selected/non-selected flag value
-      if ((flag || '').includes('!')) checkids.push(lastid);                            // and push to 'check' ids array if selected
+      if ('type' in e.data[name + flag + style])
+         e.data[name + flag + style].type.flag += '!';                                  // Make readonly element column type
      }
- return [nonclonedids, clonedids, checkids];
+ return [nonclonedids, clonedids];
 }
 
 // Todo1 - adjust all views layout text areas commenting error jsons as a error ones
@@ -115,13 +78,13 @@ export function AdjustDatabase(dialog, odid, lastelementid, lastviewid)
  let dbname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data; // Get db name
  if (typeof dbname !== 'string') dbname = '';
  dialog.title.data = `Database '${CutString(dbname.split('/').pop(), 10)}' configuration (id${odid})`; // Change dialog title 
- const [elementnonclonedids, elementclonedids, elementuniqids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid, 'uniq');
+ const [elementnonclonedids, elementclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid);
  const [, viewclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
  CorrectProfileIds(GetDialogElement(dialog, 'padbar/Rule/rules'));
  delete dialog.create.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
- return [elementnonclonedids, elementclonedids, elementuniqids, viewclonedids];
+ return [elementnonclonedids, elementclonedids, viewclonedids];
 }
- 
+
 export function CalcMacrosValue(name, value, collect = [])
 {
  collect.push(name);
@@ -164,7 +127,7 @@ export async function EditDatabase(msg, client)
               await transaction.query('ROLLBACK');
               return;
              }
-          for (const table of ['head_', 'uniq_', 'data_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Otherwise empty db name means OD removing, so drop corresponded tables
+          for (const table of ['head_', 'data_', 'metr_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Otherwise empty db name means OD removing, so drop corresponded tables
           for (const [, value] of controller.clients) value.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', data: { odid: msg.data.odid } })); // and send OD remove msg to all wss clients
           delete controller.ods[msg.data.odid]; // Delete OD from app memory
           client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
@@ -197,13 +160,15 @@ export async function EditDatabase(msg, client)
                                                                                           ownerid: 'INTEGER',
                                                                                           owner: 'VARCHAR(125)',
                                                                                           datetime: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
-                                                                                          date: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_DATE' },
-                                                                                          time: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                          date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
+                                                                                          time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
                                                                                           PRIMARY: 'KEY(id, version)',
                                                                                         }).Make());
           await transaction.query(...qm.Table('metr_' + msg.data.odid).Method('CREATE').Make());
           await transaction.query(...qm.Table('metr_' + msg.data.odid).Method('CREATE').Fields({ id: 'INTEGER',
                                                                                           datetime: { value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                          date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
+                                                                                          time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
                                                                                           value: 'FLOAT',
                                                                                         }).Make());
           await transaction.query(...qm.Table('metr_' + msg.data.odid, 'datetime').Method('CREATE').Make());
@@ -218,19 +183,40 @@ export async function EditDatabase(msg, client)
              for (const option in e.data)
                  if (!CompareOptionInSelectElement('New element template', option)) oldids.push(+GetOptionStringId(option));
          }
-      const [elementnonclonedids, elementclonedids, elementuniqids, viewclonedids] = AdjustDatabase(msg.data.dialog, msg.data.odid, lastelementid, lastviewid); // Adjust database dialog structure and write it to 'head_<odid>' table below
+      const [elementnonclonedids, elementclonedids, viewclonedids] = AdjustDatabase(msg.data.dialog, msg.data.odid, lastelementid, lastviewid); // Adjust database dialog structure and write it to 'head_<odid>' table below
       await transaction.query(...qm.Table(`head_${msg.data.odid}`).Method('WRITE').Fields({ userid: client.userid,
                                                                                      dialog: {value: JSON.stringify(msg.data.dialog), escape: true},
                                                                                      lastelementid: elementclonedids.length ? elementclonedids.at(-1) : lastelementid,
                                                                                      lastviewid: viewclonedids.length ? viewclonedids.at(-1) : lastviewid }).Make());
-      for (const id of oldids) if (!elementnonclonedids.includes(id)) // Old OD version element ids (oldids) doesn't exist in new OD version noncloned elements? If so - element was removed by client, drop corresponded columns below
+      // Old OD version element ids (oldids) doesn't exist in new OD version noncloned elements? If so - element was removed by client, so corresponded column should be dropped                                                                                     
+      for (const id of oldids)
           {
+           if (elementnonclonedids.includes(id)) continue;
            await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
-           await transaction.query(...qm.Table(`uniq_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
+           await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
           }
-      for (const id of elementclonedids) await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Fields({ [ELEMENTCOLUMNNAME + id]: 'JSON' }).Make()); // Create new elements from cloned ids
-      ///**/ for (const id of elementclonedids) await transaction.query(...qm.Table('data_' + msg.data.odid).Method('WRITE').Fields({ id: {value: 'INTEGER', constraint: 'PRIMARY'}, }).Make());
-      for (const id of elementuniqids) await transaction.query(...qm.Table(`uniq_${msg.data.odid}`).Method('CREATE').Fields({ [ELEMENTCOLUMNNAME + id]: `varchar(${ODUNIQCOLUMNVALUEMAXCHAR})` }).Make()); // Create new uniq elements from uniq ids
+      // Go through all OD elements and create a new column for data/metr tables associated with a new elements got from cloned ids. Create/drop column indexes also
+      const e = GetDialogElement(msg.data.dialog, 'padbar/Element/elements');
+      if (e) for (const option in e.data)
+         {
+          const [name] = option.split(FIELDSDIVIDER, 1); // Split option to its name via FIELDSDIVIDER char '~'
+          if (name === 'New element template') continue;
+          const id = +GetOptionStringId(name);
+          const index = GetDialogElement(msg.data.dialog, `padbar/Element/elements/${option}/index`, true);
+          if (elementclonedids.indexOf(id) === -1) // Old element
+             {
+              if (index === GetDialogElement(controller.ods[msg.data.odid].dialog, `padbar/Element/elements/${option}/index`, true)) continue;
+              if (index === 'None')
+                 await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Index().Fields(`${ELEMENTCOLUMNNAME}${id}`).Make()); // Drop index
+               else
+                 await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${ELEMENTCOLUMNNAME}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
+              continue;
+             }
+          // New element
+          await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Fields({ [`${ELEMENTCOLUMNNAME}${id}`]: e.data[option].type.data }).Make()); // Create new elements from cloned ids
+          await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('CREATE').Fields({ [`${ELEMENTCOLUMNNAME}${id}`]: 'VARCHAR(125)' }).Make()); // Create new elements from cloned ids
+          if (index !== 'None') await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${ELEMENTCOLUMNNAME}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
+         }
       await transaction.query('COMMIT');
      }
  catch (error)
@@ -244,14 +230,9 @@ export async function EditDatabase(msg, client)
      {
       transaction.release();
      }
- controller.ods[msg.data.odid] = { dialog: msg.data.dialog, layout: {} }; // Refresh dialog data in memory
- SendViewsToClients(msg.data.odid); // Refresh OD tree with its vews and folders to all wss clients
  if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!`, title: 'Warning' } }));
- for (const option of Object.keys(GetDialogElement(msg.data.dialog, 'padbar/View/views').data))
-     {
-      const id = GetOptionStringId(option);
-      if (id) controller.ods[msg.data.odid].layout[id] = ParseLayout(GetDialogElement(msg.data.dialog, `padbar/View/views/${option}/settings/Layout/layout`).data);
-     }
+ SuckLayoutAndQuery(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
+ SendViewsToClients(msg.data.odid); // Refresh OD tree with its vews and folders to all wss clients
 }
 
 // { type: 'SIDEBARSET', odid: 13, path: 'System/Users', ov: { 1: ['test/view1a', '/vie1b'], 2: ['/folder/View2c', 'test/view2d'] } }
@@ -324,6 +305,56 @@ function DialogProfileCompare(profile1, profile2)
  return true;
 }
 
+// Function is called at controller creation (constructor)
+export async function ReadAllDatabase()
+{
+ let showtables, tables;
+ try {
+      showtables = await pool.query(...qm.Table().ShowTables().Make());
+      tables = [];
+     }
+ catch
+     {
+      return;
+     }
+
+ for (const table of showtables.rows) tables.push(table.tablename);                                                              // Fill tables array to my DB sql tables
+ for (const table of tables)
+     {
+      const odid = GetTableNameId(table);
+      if (!tables.includes(`head_${odid}`) || !tables.includes(`data_${odid}`) || !tables.includes(`metr_${odid}`)) continue;    // OD is correct with all three tables exist
+      if (!odid || odid in controller.ods) continue;        
+      let dialog;                                                                                                                // Undefined odid or OD with id <odid> already sucked
+      try {
+           dialog = await pool.query(...qm.Table(`head_${odid}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make()); // Get OD structure dialog last version from head_id table
+           CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog);                                                 // and check it
+          }
+      catch
+          {
+           continue;
+          }
+      SuckLayoutAndQuery(dialog.rows[0].dialog, odid);
+     }
+}
+
+function SuckLayoutAndQuery(dialog, odid)
+{
+ controller.ods[odid] = { dialog: dialog, query: {}, layout: {}, interactive: {} };
+ const views = GetDialogElement(dialog, 'padbar/View/views', true) || {};
+ for (const option of Object.keys(views))
+     {
+      const ovid = GetOptionStringId(option);
+      if (!ovid) continue;
+      const layout = ParseViewLayout(GetDialogElement(dialog, `padbar/View/views/${option}/settings/Layout/layout`, true));
+      if (!layout) continue;
+      const query = ParseViewQuery(dialog, layout, option, odid);
+      if (!query) continue;
+      controller.ods[odid].query[ovid] = query;
+      controller.ods[odid].layout[ovid] = layout;
+      controller.ods[odid].interactive[ovid] = IsViewInteractive(dialog, option);
+     }
+}
+
 // +----------------------------------------------------+
 // | row:                                               |
 // |   0|1|2|3|4..||NEW|TITLE|expression (o, e, n, q)   |
@@ -341,33 +372,35 @@ function DialogProfileCompare(profile1, profile2)
 // |  attributes[G], rotate[G]                          |
 // |                                                    |
 // +----------------------------------------------------+
-function ParseLayout(jsons)
+function ParseViewLayout(jsons)
 {
- const layout = { fixedrows: {/*['NEW', 'TITLE', '', 'NUMBERED']*/}, expressionrows: {/*'<expressions>'*/}, values: [], table: {}, cols: [] };
+ if (typeof jsons !== 'string') return;
+
+ const layout = { fixedrows: {/*['NEW', 'TITLE', '', 'NUMBERED']*/}, expressionrows: {/*'<expressions>'*/}, values: [], table: {}, cols: [] }; // Priority: any, expression and then numbered rows
 
  for (let json of jsons.split('\n'))
      {
        // First step - parse json
-       try { json = JSON.parse(json); }     // or parse it to object
+       try { json = JSON.parse(json); }
        catch { continue; }
        let target;
 
-       // Second step - check json on semantic errors. Json with only one prop row/col defined is incorrect. Both props should be defined or undefined
+       // Second step - check json on semantic errors. Json with only one prop row/col defined is incorrect. Both props should be defined or both undefined
        if ((typeof json.row !== 'string' && typeof json.col === 'string') || (typeof json.row === 'string' && typeof json.col !== 'string')) continue;
 
-       // Third step - set cell/table prop 'event'
+       // Third step - set cell/table specific 'event' property
        if (typeof json.event === 'string') layout.event = { value: json.event, x: typeof json.x === 'string' ? json.x : undefined, y: typeof json.y === 'string' ? json.y : undefined }; // Fix last used event property
 
-       // Next - set table props 'attributes', 'rotate', 'collapseundef' and 'styleundef'
+       // Next step - set table specific properties 'attributes', 'rotate', 'collapseundef' and 'styleundef'
        for (const prop of LAYOUTTABLEPROPS) if (typeof json[prop] === 'string') layout.table[prop] = json[prop]; // and copy table layout props to layout.table // old version: //for (const prop of LAYOUTTABLEPROPS) if (typeof json[prop] === 'string') layout.table[prop] = prop === 'attributes' ? AdjustString(json[prop], TAGHTMLCODEMAP) : json[prop]; // and copy table layout props to layout.table
 
        // Fifth step - check x/y props correctness
        if (typeof json.x !== 'string' || typeof json.y !== 'string' || !json.x || !json.y || regexp.test(json.x) || regexp.test(json.y)) continue; // Continue for incorrect x/y props
 
-       // Next step - define cell props target (fixed row, expression row or independent value) with checking x/y/value props first
-       if (typeof json.row !== 'string' && typeof json.col !== 'string') // Both row/col are undefined? JSON is correct and value prop is used to retreive cell data instead of selection
+       // Penultimate step - define cell specific properties target object (fixed row, expression row or independent value) with checking x/y/value props first
+       if (typeof json.row !== 'string' && typeof json.col !== 'string') // Both row/col are undefined? JSON is correct and value prop is used to retreive cell value instead of db selection data via row/col
           {
-           if (typeof json.value !== 'string') continue;
+           if (typeof json['value'] !== 'string') continue;
            target = layout.values[layout.values.push({}) - 1]; // Continue for unexisting json row/col/value props or set target object to fix other layout props
           }
         else // Row/col are defined, so retreive cell data from selection
@@ -384,11 +417,52 @@ function ParseLayout(jsons)
        // Last step - set cell props to target
        let columns = [];
        if (json.col) columns = json.col.split('|'); // Get splited json.col to <columns> array
-       for (const col of columns) if (col && layout.cols.indexOf(col) === -1) layout.cols.push(col); // and add all its non empty columns only once
-       if (!json.col) columns = layout.cols; // For empty jscon use all defined before columns (otherwise array <columns> contains this json specified columns only)
+       for (const col of columns) if (col && layout.cols.indexOf(col) === -1) layout.cols.push(col.trim()); // and add all its non empty columns only once
+       if (!json.col) columns = layout.cols; // For empty json use all defined before columns (otherwise array <columns> contains this json specified columns only)
        for (const prop of LAYOUTCELLPROPS) if (typeof json[prop] === 'string') // Go through all cell specific string props and choose string type only
-       for (const col of columns) if (col) col in target ? target[col][prop] = json[prop] : target[col] = { prop: json[prop] }; // Set json cell props for every column 
+       for (const col of columns) if (col) col in target ? target[col][prop] = json[prop] : target[col] = { [prop]: json[prop] }; // Set json cell props for every column 
      }
 
- return layout;
+ return layout.cols.length ? layout : undefined;
+}
+
+// {"row":"", "col":"id|eid1|eid2||", "x":"0", "y":"0"}
+// {"row":"", "col":"id|eid1|datetime::varchar(11)|", "x":"0", "y":"0"}
+// if (['Actual data', 'Historical data'].includes(from) && !groupby && layout.cols.indexOf('id') === -1) query += query ? ',id' : 'id';
+// if (['Actual data', 'Historical data'].includes(from) && !groupby && layout.cols.indexOf('lastversion') === -1) query += query ? ',lastversion' : 'lastversion';
+function ParseViewQuery(dialog, layout, viewprofile, odid)
+{
+ if (!layout || typeof layout !== 'object') return;
+
+ // Initializate all statements of the result query
+ let select = 'SELECT ' + layout.cols.join(','); // Join via comma all columns to select statement
+ let from = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true);
+ let where = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/where`, true);
+ let groupby = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/groupby`, true);
+ let limit = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/limit`, true);
+ if (typeof from !== 'string' || typeof where !== 'string' || typeof groupby !== 'string' || typeof limit !== 'string') return; // Return undefined for incorrect statements
+ from = from.trim(); // Otherwise trim them all
+ where = where.trim();
+ groupby = ['Interactive actual data', 'Interactive historical data'].includes(from) ? '' : groupby.trim();
+ limit = limit.trim();
+ 
+ // Adjust 'select' columns (add 'id' for interactive data), 'where' (add lastversion true check for actual data) and 'from' (define sql table)
+ if (IsViewInteractive(dialog, viewprofile) && layout.cols.indexOf('id') === -1) select += ',id';
+ if (IsViewActual(dialog, viewprofile)) where = where ? `WHERE (${where}) AND lastversion = TRUE` : `WHERE lastversion = TRUE`;
+ if (from === 'Time series data') from = ` FROM metr_${odid}`; else from = from === 'None' ? '' : ` FROM data_${odid}`;
+ if (where) where = ' ' + where;
+ if (groupby) groupby = ' ' + groupby;
+ if (limit) limit = ' ' + limit;
+
+ return `${select}${from}${where}${groupby}${limit}`;
+}
+
+function IsViewInteractive(dialog, viewprofile)
+{
+ return ['Interactive actual data', 'Interactive historical data'].includes(GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true));
+}
+
+function IsViewActual(dialog, viewprofile)
+{
+ return ['Interactive actual data', 'Actual data'].includes(GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true));
 }
