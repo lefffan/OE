@@ -1,17 +1,116 @@
 import { app } from './application.js';
-import { AdjustString, TAGHTMLCODEMAP, lg } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, AdjustString, TAGHTMLCODEMAP, lg } from './constant.js';
 import { Interface } from './interface.js';
+
+const TITLEVIRTUALROWID     = -2;
+const NEWVIRTUALROWID       = -1;
+const UNDEFINEDSELECTION    = 'Undefined database object selection!';
+const MAXVIEWTABLEWIDTH     = 131072;
+const MAXVIEWTABLEHEIGHT    = 131072;
+const ELEMENTCOLUMNPREFIX   = 'eid';
+
+function CheckXYpropsCorrectness(object)
+{
+ return typeof object.x === 'string' && typeof object.y === 'string' && object.x && object.y && !NONEXPRESSIONCHARS.test(object.x) && !NONEXPRESSIONCHARS.test(object.y);
+}
 
 export class View extends Interface
 {
- static style = {};
+ static style = {
+	               // dialog box title
+                 ".ovbox": { "position": "absolute;", "overflow": "auto;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;" },
+	             ".ovbox h1": { "width": "100%;", "margin": "0;", "text-align": "center;", "position": "absolute;", "top": "50%;", "transform": "translateY(-50%);" },
+                };
 
  constructor(...args)
  {
-  if (!args[2]?.control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: {}, closeesc: {} };
-  args[3] = { class: 'defaultbox selectnone', style: 'width: 100px; height: 100px; background-color: RGB(230,230,230);' };
+  if (!args[2]?.control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: {}, closeesc: {} };
+  args[3] = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
   super(...args);
-  //this.ParseLayout(`{"row":"", "col":"hui|pizda||1", "hint":"h", "x":"0", "y":"0" }\n{"row":"", "col":"", "x":"0", "y":"0", "event":"r" }\n{"row":"q", "col":"", "y":"1", "x":"0", "attributes":"aa" }`);
+ }
+
+ // Function evaluates row expression and returns incoming cell for successful result or undefined
+ TestRowExpression(row, r, c, q)
+ {
+  let result;
+  try { result = eval(row); }
+  catch {}
+  return result ? true : false;
+ }
+
+ // Function binds incoming cell to main table array and object table
+ // valuetable[y][x] = objecttable[o][e] = { row:, col:, x:, y:, value:, hint:, attributes:, collapserow:, collapsecol:, o:, e:, prop: }
+ SetCell(cell, r, c, q)
+ {
+  if (!('x' in cell) || !('y' in cell) || !('value' in cell)) return; // No x or y or value cel props defined? Cell is incorrect. return
+  let x, y;
+  try {
+       x = eval(cell.x); // Evaluate cell x cooredinate
+       y = eval(cell.y); // Evaluate cell y cooredinate
+      }
+  catch {}
+  if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) return; // Cell is incorrect for non numberd x/y values
+  cell.x = x = x.toFixed(); // Fix it to integer
+  cell.y = y = y.toFixed();
+  if (x < 0 || y < 0 || x >= MAXVIEWTABLEWIDTH || y >= MAXVIEWTABLEHEIGHT) return; // Check out of range
+  if (!this.valuetable[y]) this.valuetable[y] = []; // Bind cell object to main table
+  this.valuetable[y][x] = cell;
+  if (!cell.lastversion || !cell.o || !cell.e || cell.e.indexOf(ELEMENTCOLUMNPREFIX) !== 0) return;
+  if (!this.objecttable[cell.o]) this.objecttable[cell.o] = {};
+  if (!this.objecttable[cell.o][cell.e]) this.objecttable[cell.o][cell.e] = [];
+  this.objecttable[cell.o][cell.e].push(cell); // and object table
+ }
+
+ // Function joins cells via overwriting their attributes one by one
+ JoinCells(...cells)
+ {
+  let result;
+  for (const cell of cells)
+      {
+       if (!cell || typeof cell !== 'object') continue; // Continue for incorrect cell
+       if (!result && (result = cell)) continue; // Assign first correct cell to the result object and continue
+       for (const prop of ['x', 'y', 'value', 'hint', 'collapserow', 'collapsecol']) if (typeof cell[prop] === 'string') result[prop] = cell[prop]; // Copy this string props
+       if (cell.attributes && typeof cell.attributes === 'object') // Property 'attributes' instead of direct copy is parsed to its own props (html attributes) which in turn will be overwritten by next cell props below
+          {
+           if (!result.attributes) result.attributes = {}; // Result cell contains no attributes at all, so create it empty
+           for (const attribute in cell.attributes) // Go through all attributes
+               {
+                if (typeof cell.attributes[attribute] === 'string') result.attributes[attribute] = cell.attributes[attribute]; // and overwrite all string attributes from cell.attributes to result.attributes object
+                if (attribute !== 'style') continue; // Handle object type 'style' attribue specifically, see below
+                if (!result.attributes.style) result.attributes.style = {}; // Result cell attribute 'style' doesn't contain attribute 'style'
+                for (const style in cell.attributes.style) if (typeof cell.attributes.style[style] === 'string') result.attributes.style[style] = cell.attributes.style[style]; // Copy all style string props to result.attributes.style object
+               }
+          }
+      }
+  return result; // Return result cell combined all props from cell list
+ }
+
+ // Function converts cell 'attributes' property from string to object with html attributes as a property names and its values
+ AdjustCellAttributes(cell)
+ {
+  if (typeof cell.attributes !== 'string') return cell;
+  const attributes = {};
+  const arr = cell.attributes.split('"'); // Split cell attributes string
+  for (let i = 0; i < arr.length; i = i + 2)
+      {
+       let name = arr[i].trim(), value = arr[i + 1]; // where 1st part is a name, second is a value
+       if (name[name.length - 1] !== '=' || name.length < 2) continue; // Attribute name last char is not '=' or length < 2? Continue
+       if (value === undefined) continue; // Attribute value is undefined? Continue
+       name = name.substring(0, length - 1).toLowerCase(); // Cut attribute name last char '=' and bring it to lower case
+       if (name === 'style') // HTML attribute 'style' should be processed specifically
+          {
+           const styles = value.split(';'); // Split style to its props
+           value = {}; // and store to value object
+           for (const style of styles)
+               {
+                const pos = style.indexOf(':'); // with syle name before ':' and style value after ':'
+                if (pos !== -1 || !style.substring(0, pos).trim()) value[style.substring(0, pos).trim()] = style.substring(pos); // No ':' char found or empty style name - no store
+               }
+          }
+       attributes[name] = value; // Collect all props to 'attributes' object
+      }
+  cell.attributes = attributes; // and overwrite it in cell
+  return cell;
  }
 
  Handler(msg)
@@ -19,17 +118,70 @@ export class View extends Interface
   switch (msg.type)
          {
           case 'SETVIEW':
+               // Step 1 - entitle new view description data
+               lg(msg);
                this.odid = msg.data.odid;
                this.ovid = msg.data.ovid;
-               let inner = `child id: ${this.id}, db id ${msg.data.odid}, view id ${msg.data.ovid}, sequence ${msg.id}`;
-               if (msg.data.error) inner += ' ' + msg.data.error;
-               this.elementDOM.innerHTML = inner;
-               //if (msg.data.error) break;
-               const view = this.parentchild.sidebar.od[this.odid]['ov'][this.ovid];
-               view.status = 0;
-               view.childid = this.id;
+               this.props.control.text.icon = SVGUrlHeader(250, 18) + SVGText(3, 14, `database id ${msg.data.odid}, view id ${msg.data.ovid}, sequence ${msg.id}`) + SVGUrlFooter();
+               this.RefreshControlIcons();
+               this.sidebarview = this.parentchild.sidebar.od[this.odid]['ov'][this.ovid];
+               this.sidebarview.childid = this.id;
+
+               // Step 2 - handle some errors, such as incoming error property or undefined selection
+               if (msg.data.error || !msg.data.selection) return this.DisplayView(msg.data.error ? `<h1 style="color: RGB(251,179,179);">${msg.data.error}</h1>` : `<h1 style="color: RGB(251,179,179);">${UNDEFINEDSELECTION}</h1>`);
+
+               // Step 3 - init vars for a new view
+               this.sidebarview.status = 0;
+               this.valuetable = [];
+               this.objecttable = {};
+               this.interactive = msg.data.interactive;
+               const layout = this.layout = msg.data.layout;
+               const q = msg.data.selection.length;
+               let cell;
+
+               // Step 4 - adjust (convert) layout all cell attributes from string type to object type to simplificate cell html attributes override, in a addition set cell for udnefined rows which have row/column/oid undefined, so cell content needs to be retreived from the cell.value only
+               for (const xy in layout.undefinedrows) this.SetCell(this.AdjustCellAttributes(layout.undefinedrows[xy]), undefined, undefined, q);
+               for (const row in layout.expressionrows) for (const column of layout.outputcolumns) this.AdjustCellAttributes(layout.expressionrows[row][column]);
+
+               // Step 5 - handle db selection rows with two virtual rows ('title' and 'new') before
+               for (let r = TITLEVIRTUALROWID; r < q; r++)
+                   {
+                    if (r === NEWVIRTUALROWID && !this.interactive) continue; // No lookup for new object input in case of non-interactive mode
+                    const row = r >= 0 ? msg.data.selection[r] : undefined; // Redefine selection row
+                    const o = r < 0 ? r : this.interactive ? row.id : undefined; // Assign object id to TITLEVIRTUALROWID (-2), NEWVIRTUALROWID (-1) or row.id (>) for 
+                    for (const c in layout.outputcolumns)
+                        {
+                         const column = layout.outputcolumns[c]; // Redefine layout column  
+                         cell = {};
+                         for (const i in layout.expressionrows) if (this.TestRowExpression(layout.expressionrows[i][column].row, r, +c, q)) this.JoinCells(cell, layout.expressionrows[i][column]);
+                         if (!('value' in cell) && row)
+                            {
+                             if (row[column] && typeof row[column] === 'object') cell.value = JSON.stringify(row[column]); // Bring row[column] to appropriate value depending on its type. Todo0 - fix in help: use columns with data type explicitly set via :: with alias via ' as ', cause "eid1::json->'valu'" becomes "eid1"
+                              else if (typeof row[column] === 'number') cell.value = row[column] + '';
+                                else if (typeof row[column] !== 'string') cell.value = '';
+                                 else cell.value = row[column];
+                            }
+                         [cell.o, cell.e, cell.prop, cell.lastversion] = [o, layout.elementnamecolumns[c], layout.elementpropcolumns[c], row?.lastversion];
+                         this.SetCell(cell, r, +c, q);
+                        }
+                   }
+
+               // Step 6 - hanlde result table zero height or display OV table
+               this.DisplayView(this.valuetable.length ? undefined : `<h1 style="color: #9FBDDF;">Object View has no any data matched its object selection or element layout!</h1>`); // Todo0 - check all columns on first row props
                break;
          }
+ }
+
+ DisplayView(errormsg)
+ {
+  lg(this.valuetable);
+  if (typeof errormsg === 'string')
+     {
+      this.elementDOM.innerHTML = errormsg;
+      this.sidebarview.status = 100;
+      return;
+     }
+  this.elementDOM.innerHTML = ``;
  }
 }
 
@@ -80,7 +232,7 @@ export class View extends Interface
 // Todo - loop element - show real looped object instead of read message
 // Todo - nested level input to be displayed. For example, nested level 2 diaplys main switch with its direct downlink nodes and no more deeper levels of nodes
 // Todo - keep input view parameters in a view history navigating, so open last viewed OV with input parameters used before. Access history of opened views via context menu or hot keys?
-// Todo - SVG animation: https://habr.com/ru/articles/450924/ https://habr.com/ru/articles/667116/
+// Todo - SVG animation: https://habr.com/ru/articles/450924/ https://habr.com/ru/articles/667116/ https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animateTransform https://developer.mozilla.org/ru/docs/Web/SVG/Reference/Element/animate
 
 // Table view
 // Todo - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!

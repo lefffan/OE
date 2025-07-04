@@ -22,13 +22,27 @@
 
 import { lg } from './main.js';
 
-const PRIMARYKEYSTARTVALUE = 3;
+export const ELEMENTCOLUMNPREFIX    = 'eid';
+const SYSTEMELEMENTNAMES            = [ 'id', 'version', 'lastversion', 'mask', 'ownerid', 'owner', 'datetime', 'date', 'time' ];
+const REGEXPISUSERELEMENTCOLUMN     = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*->>?'\w'$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*::jsonb?->>?'\w'$`, `i`);
+const REGEXPUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
+const PRIMARYKEYSTARTVALUE          = 3;
 
 export class QueryMaker
 {
  constructor()
  {
   lg('New Query Maker!');
+ }
+
+ // Function parsed select operand (column) and returns array of element name (id, version, edi1..) and element property name (in case of json type)
+ GetColumnElement(column)
+ {
+  if (SYSTEMELEMENTNAMES.includes(column)) return [column, null];
+  if (!REGEXPISUSERELEMENTCOLUMN.test(column)) return [null, null];
+  const first = column.indexOf("'");
+  const last = column.lastIndexOf("'");
+  return [column.match(REGEXPUSERELEMENTCOLUMNNAME)[0], first === -1 || last === -1 || first === last ? null : column.substring(first + 1, last)];
  }
 
  Table(table = '', hypertable)

@@ -46,8 +46,8 @@
 //		 In case of no any object selected in object selection process the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
 //		 		The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
 //		 So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
-// Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/pasteschedule and others) to call element event handlers. 
-//         At any client/server side element event occur specified event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 
+// Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call element event handlers. 
+//         At any client/server side element event occur - incoming event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 
 //         Event profiles of themselves are defined is 'system' user settings pad 'Event profiles':
 //         event profile: add/remove
 //                  event name: KEYPRESS/DBLCLICK/KEYA (act as a profile name together with modifier keys)         
@@ -68,7 +68,6 @@ import { WSIP, WSPORT, GenerateRandomString, lg, qm, pool } from './main.js';
 import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
 
 const UNKNOWNDBID = 'Incorrect or nonexistent database id!';
-const INCORRECTVIEWPROFILE = 'Incorrect Object View data!';
 
 export class Controller
 {
@@ -160,27 +159,18 @@ export class Controller
   msg.type = 'SETVIEW';
   if (!this.ods[msg.data?.odid])
      {
-      // client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: UNKNOWNDBID, title: 'Error' } }));
       msg.data.error = UNKNOWNDBID;
       client.send(JSON.stringify(msg));
       return;
      }
-  let selection = this.ods[msg.data.odid].query[msg.data.ovid];
-  if (!selection)
-     {
-      // client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: INCORRECTVIEWPROFILE, title: 'Error' } }));
-      msg.data.error = INCORRECTVIEWPROFILE;
-      client.send(JSON.stringify(msg));
-      return;
-     }
 
+  let selection, query = this.ods[msg.data.odid].query[msg.data.ovid];
   try {
-       selection = await pool.query(...qm.Table(selection).Make());
+       selection = await pool.query(...qm.Table(query).Make());
       }
   catch (error)
       {
-       // Old version: client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: error.message, title: 'Error' } }));
-       msg.data.error = error.message;
+       msg.data.error = `Query: ${query}<br>Error message: ${error.message}`;
        client.send(JSON.stringify(msg));
        return;
       }

@@ -5,6 +5,7 @@ import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
 import { DropDownList } from './dropdownlist.js';
+import { View } from './view.js';
 
 // Todo2 - Change application icon
 // Todo2 - Custom cursor div via css style * {cursor: none;}
@@ -24,7 +25,7 @@ export class Application extends Interface
  constructor()
  {
   const style = document.createElement('style');
-  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Sidebar.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
+  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Sidebar.style, View.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
   document.head.appendChild(style);
   
   const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];

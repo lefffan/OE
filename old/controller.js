@@ -1,52 +1,74 @@
 // Todo0 - Secure wss https://www.npmjs.com/package/ws#external-https-server
 // Todo0 - Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
-// Todo - socket rate limit: https://javascript.info/websocket#rate-limiting
-// Todo - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
-// Todo - Node SNMP https://github.com/calmh/node-snmp-native
-// https://node-postgres.com/apis/client
-// https://github.com/brianc/node-postgres/wiki/FAQ#14-how-do-i-install-pg-on-windows
-// Fix my project link https://github.com/lefffan/OE/blob/main/static/constant.js
-// https://yoksel.github.io/url-encoder/
-// ---------------------
-// PGSQL cmd docs!
-// https://postgrespro.ru/docs/postgresql/14/sql-commands
-// https://postgrespro.ru/docs/postgresql/14/datatype-datetime  https://postgrespro.ru/docs/postgrespro/9.5/functions-datetime
-// https://docs.timescale.com/use-timescale/latest/write-data/
-// https://eax.me/timescaledb/
-// https://eax.me/postgresql-triggers/
-// https://eax.me/timescaledb-caggs-implementation/
-// https://eax.me/tag/postgresql/page/2/
-// https://eax.me/postgresql-window-functions/
-// https://www.postgresql.org/docs/current/rules-materializedviews.html
-// https://docs.timescale.com/getting-started/latest/queries/
-// https://docs-timescale-com.translate.goog/getting-started/latest/queries/?_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=ru&_x_tr_pto=rq&_x_tr_hist=true
-// https://docs.timescale.com/api/latest/hyperfunctions/histogram/
-// ---------------------
-// Todo list:
-// March
-//    New dialog source
+// Todo0 - socket rate limit: https://javascript.info/websocket#rate-limiting
+// Todo0 - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
+// Todo0 - Node SNMP https://github.com/calmh/node-snmp-native
+// Todo1 - process event 'Server has closed connection due to timeout', should this event be on client or server side (via any incoming msg)?
+// Todo1 - Create a template from frontend NEWOBJECTDATABASE to check dialog structure correctness
 //    Comment and adjust other sourcse
 //    Divide todo list for specific js sources
 //    Object selection input arg dialog defines not only object selection but element layout
 //    Define unspecified event default None or Nothing
-//    permissions - check OD creating, check all pads of OD dialog read/change permissions, so no any readable pad - the user is not allowed OD dialog at all
-//    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Dont forget about dynamic macroses (${OD} $OV) and CalcMacrosValue function. Or split them into 2 objects - one is dinamic macroses list that claim to be calculated at its apply or static macroses
-//    Create a template to check dialog structure correctness and check here database data structure with returning appropriate result (falsy value in case if incorrect database structure)
-//    +Queue manager concept
-//    +dialog data callback - return data with initial appearance order regardless of user current order set
-//    Wrap EditDatabase into one transaction
-//    process next events 'Server has closed connection due to timeout
-// April
+//    Auth process, user OD with its dialog and customization etc, permissions - check OD creating
 //    object view except graph and tree
-// May
-//    Auth process, user OD with its dialog and customization etc..
+//    Add 'client side warning message' near with 'log rule msg'. How to set comments on rule msg?
+//    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Undefined macroses are empty strings. Mmacros strategy definition:
+//		Builtin macroses ${OD} ${OV} ${oid>} ${eid>} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}
+//		Object element props retriving ${oid: 1, eid: 2: prop: 'value'} (for handler cmd line only)
+//        Dialog defined (for OD conf and handler cmd line only)
+//		Db conf macroses (for OD conf only)
+//        User specific
+//        Global system user
 
-import { controller, CompareOptionInSelectElement, qm, pool, lg, GetDialogElement, CutString } from './main.js';
+// Controller and event handlers
+// Todo - Single/Multipile select as a native handler that allows to select predefined values (for a example company clients)
+// Todo - Task manager restrict call (or/and call with no task delete option) for the user in his property settings and send only active handler list instead of their wrapeed dialog structure
+// Todo - Every user event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds.
+//        The record in event/message queue is removed after the handler responce or timeout occur
+//        Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, 
+//        so controller call is not perfomed until response or timeout
+// Todo - Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog
+// Todo - UPDATE handler command (in a addition to SET/RESET) creates new object version only in case of at least one user-defined element changed
+//		Multiple SET system calls (SET1, SET2, ... for a example) in a addition to UPDATE to apply different rules depending on a SET system call number.
+//        Or add aliases to SET system call (PUT/ADD/WRITE/PUSH) to add specific rules to
+// Todo - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
+// Todo - Release CHANGE event subscribing feature to allow non-native object (another words - object subscribes for CHANGE event of other object in DB) elements react on
+// Todo - Controller dialog message: how to escape divider char '/'? Via '\/'?
+// Todo - event 'VIEWREFRESH' occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event (handler commands as an answeers for 'VIEWREFRESH' events depends on a view type - SET|EDIT commands, for a example, are for table type only).
+//		  This event 'VIEWREFRESH' is useful for some actions to be made at view OPEN, for a example, some objects elements data refresh (counters for a example) or execution of a script doing some external actions in 'ignore' mode
+// Todo - How to call dialog to add new object instead of retreiving element data from vitrual object (id=-1)
+// Todo - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects. And 'COPY' to copy data to the buffer
+//		May these system calls 'NEWOBJECT' and 'DELETEOBJECT' release will be similar to user self-titled events, for example - user creates a new object via context click with 'new object row' as an args,
+//        so system call 'NEWOBJECT' does with 'data' property as an arg for all creating new object elements
+// Todo0 - Discover new object:
+//		 Object selection: SELECT NONE
+//		 Define handler for any one element for event SCHEDULE 
+//		 In case of no any object selected in object selection process the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
+//		 		The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
+//		 So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
+// Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call element event handlers. 
+//         At any client/server side element event occur - incoming event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 
+//         Event profiles of themselves are defined is 'system' user settings pad 'Event profiles':
+//         event profile: add/remove
+//                  event name: KEYPRESS/DBLCLICK/KEYA (act as a profile name together with modifier keys)         
+//                       Modifier keys
+//                            Step1 profile
+//                                 handler type: command line/user defined plain text stdout/builtin node-native snmp/node sandbox js script/None
+//                                 handler data: command line text/user defined plain text stdout/builtin node-native snmp args/node sandbox js script text/None
+//                                 macros definition dialog: 
+//                                 Handler stdout (correct JSON): Apply/Message/Ignore/Redirect/+Log
+//                                 Handler stdout (incorrect JSON): Set/Message/Ignore/Redirect/+Log
+//                                 Handler stderr: Set/Message/Ignore/Redirect/+Log
+//                                 timeout in sec, retries
+//         Event profile consists of user added events only (not all). After user adds new event - all its builtin handlers reset their dialog args data. Handler data for SCHEDULE event has crontab file syntax (for all except sandbox/none hanlder types)
+//         Event command line are not single line, but multiple. Controller runs first line handler, gets its data, other lines handlers may run in detached mode or may be used as a comments
+//         Negative queue value (the scheduler sleep for) in msec on crontab line
 
-const INCORRECTDBCONFDIALOG   = 'Incorrect dialog structure!';
-const INCORRECTDBCONFDBNAME   = 'Cannot create new database with empty name!\nIn order to remove Object Database please set empty db name and remove all elements, views and rules';
-const UNKNOWNDBID             = 'Incorrect or nonexistent database id!';
-const ELEMENTCOLUMNNAME       = 'eid';
+import { WSIP, WSPORT, GenerateRandomString, lg, qm, pool } from './main.js';
+import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
+
+const UNKNOWNDBID = 'Incorrect or nonexistent database id!';
+const INCORRECTVIEWPROFILE = 'Incorrect Object View data!';
 
 export class Controller
 {
@@ -55,272 +77,114 @@ export class Controller
   this.clientauthcodes = {};
   this.clients = new Map();
   this.ods = {};
-  this.ReadAllDatabase();
+  ReadAllDatabase();
  }
 
- AddClinetAuthCode(string, userid)
+ AddClientAuthCode(string, data)
  {
-  this.clientauthcodes[string] = { userid: userid };
+  this.clientauthcodes[string] = data;
   // Todo0 - do Settimeout to remove expired auth codes
   return string;
  }
 
- GetOptionStringId(option)
+  // Todo0 - Compare here user/pass from corresponded pair in 'User' OD
+ Authenticate(username, password)
  {
-  [option] = option.split('~', 1);
-  let id = option.lastIndexOf('id'); // Serach id string in non-cloned option names
-  if (id === -1) return;
-  id = option.slice(id + 2, -1); // Clip num after 'id' string and convert it to number
-  return isNaN(+id) ? '' : id;
+  if (!username || !password || username !== 'root' || password !== '1') return { type: 'LOGINERROR', data: 'Wrong username or password!' };
+  return { type: 'LOGINACK', data: { username: username, userid: '0', protocol: 'ws', ip: WSIP, port: WSPORT, authcode: this.AddClientAuthCode(GenerateRandomString(12), { userid: '0', username: username }/* Todo0 - set user id here */) } };
  }
 
- CheckDatabaseConfigurationDialogStructure(dialog)
+ MessageIn(msg, client)
  {
-  let elements, views, rules;
-  if (!(elements = GetDialogElement(dialog, 'padbar/Element/elements'))) throw new Error(INCORRECTDBCONFDIALOG);
-  if (!(views = GetDialogElement(dialog, 'padbar/View/views'))) throw new Error(INCORRECTDBCONFDIALOG);
-  if (!(rules = GetDialogElement(dialog, 'padbar/Rule/rules'))) throw new Error(INCORRECTDBCONFDIALOG);
+  try { msg = JSON.parse(msg); }
+  catch { return; }
+  //lg('Incoming msg:', msg);
+  if (!msg || typeof msg !== 'object' || !msg.type) return;
 
-  if (GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data) return true;
-  if (typeof elements.data !== 'object' || typeof views.data !== 'object' || typeof rules.data !== 'object') throw new Error(INCORRECTDBCONFDIALOG);
-  if (Object.keys(elements.data).length !== 1 || Object.keys(views.data).length !== 1 || Object.keys(rules.data).length !== 1) throw new Error(INCORRECTDBCONFDBNAME);
- }
+  if (!['LOGIN', 'CREATEWEBSOCKET'].includes(msg.type) && !this.clients.get(client).auth)
+     {
+      client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: 'Unauthorized access detected, please relogin!' }));
+      client.terminate();
+      return;
+     }
 
- CorrectProfileIds(e, excludeoption, lastid, check)
- {
-  const nonclonedids = [];
-  const clonedids = [];
-  const checkids = [];
-  for (const option of Object.keys(e.data))
-      {
-       let name, flag, style;
-       [name, flag, ...style] = option.split('~'); // Split option to its name and flag via '~'
-       flag = `~${flag ? flag : ''}`; 
-       style = style.length ? '~' + style.join(FIELDSDIVIDER) : ''; // Join back flag string
-       if (excludeoption === name) continue; // Option is <excludeoption> (template)? Continue
-       if (!e.data[option].uniq.flag.includes('!')) e.data[option].uniq.flag += '!';
-       if (!flag.includes('*')) // Option is old (noncloned)?
-          {
-           nonclonedids.push(+this.GetOptionStringId(option)); // Add profile id to <nonclonedids> and continue
-           continue;
-          }
-       name += ` (id${++lastid})`; // Add ' (id<num>)' to option name
-       clonedids.push(lastid); // Add profile id to <clonedids>
-       flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';
-       e.data[name + flag + style] = e.data[option]; // and rename it in element selectable data
-       delete e.data[option];
-       if (typeof check !== 'string') continue;
-       [, flag] = e.data[name + flag + style][check]?.data?.split('~', 2);
-       if ((flag || '').includes('!')) checkids.push(lastid);
-      }
-  return [nonclonedids, clonedids, checkids];
- }
-
- AdjustDatabase(dialog, odid, lastelementid, lastviewid)
- {
-  let elementnonclonedids, elementclonedids, elementcheckids, viewclonedids;
-  dialog.create.data = 'SAVE';
-  let dbname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data;
-  if (typeof dbname !== 'string') dbname = '';
-  dialog.title.data = `Database '${CutString(dbname.split('/').pop(), 10)}' configuration (id${odid})`;
-  [elementnonclonedids, elementclonedids, elementcheckids] = this.CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid, 'uniq');
-  [, viewclonedids] = this.CorrectProfileIds(GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
-  delete dialog.create.expr;
-  return [elementnonclonedids, elementclonedids, elementcheckids, viewclonedids];
- }
- 
- CalcMacrosValue(name, value, collect = [])
- {
-  collect.push(name);
- }
-
- GetTableNameId(name)
- {
-  let pos = name.indexOf('_');
-  if (pos === -1) return;
-  name = name.substring(pos + 1);
-  return isNaN(+name) ? undefined : name;
- }
-
- async ReadAllDatabase()
- {
-  const showtables = await pool.query(...qm.Table().ShowTables().Make());
-  const tables = [];
-
-  for (const table of showtables.rows) tables.push(table.tablename);
-  for (const table of tables)
-      {
-       const id = this.GetTableNameId(table);
-       if (!tables.includes(`head_${id}`) || !tables.includes(`data_${id}`) || !tables.includes(`uniq_${id}`)) continue;
-       if (!id || id in this.ods) continue; // Undefined id or OD with id <id> already sucked
-       const dialog = await pool.query(...qm.Table(`head_${id}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make());
-       try { this.CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog); }
-       catch { continue; }
-       this.ods[id] = { dialog: dialog.rows[0].dialog };
-      }
- }
-
- async EditDatabase(msg, wsclient)
- {
-  if (!wsclient) return; // No valid web socket client in controller clients map? Return
-  let lastelementid = 0, lastviewid = 0, oldids = [];
-  try {
-       if (!this.CheckDatabaseConfigurationDialogStructure(msg.data))
-          {
-           if (!msg.odid)
-              {
-               wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: INCORRECTDBCONFDBNAME, title: 'Error' }));
+  switch (msg.type)
+	    {
+	     case 'SETDATABASE':
+               EditDatabase(msg, this.clients.get(client));
+	          break;
+	     case 'GETDATABASE':
+               if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', id: msg.id, data: { dialog: UNKNOWNDBID, title: 'Error' } }));
+                else client.send(JSON.stringify({ type: 'DIALOG', id: msg.id, data: { dialog: this.ods[msg.data.odid].dialog } }));
+	          break;
+	     case 'SIDEBARGET':
+               SendViewsToClients(null, client);
+	          break;
+          case 'LOGIN':
+               client.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
+               msg = this.Authenticate(msg.data.username, msg.data.password);
+               client.write(JSON.stringify(msg));
+               client.end()
                return;
-              }
-           for (const table of ['head_', 'uniq_', 'data_']) await pool.query(...qm.Table(`${table}${msg.odid}`).Method('DROP').Make()); // DROP TABLES
-           wsclient.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', odid: msg.odid }));
-           delete this.ods[msg.odid];
-           wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: 'Object Database is successfully removed!', title: 'Info' }));
-           return;
-          }
-       if (!msg.odid)
-          {
-           const tablelist = await pool.query(...qm.Table().ShowTables().Make()); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
-           msg.odid = 0;
-           for (const row of tablelist.rows)
-               {
-                const id = this.GetTableNameId(row.tablename);
-                if (id && +id > msg.odid) msg.odid = +id;
-               }
-           msg.odid++;
-           await pool.query(...qm.Table('head_' + msg.odid).Method('CREATE').Make()); // Create new databases and write its structure
-           await pool.query(...qm.Table('uniq_' + msg.odid).Method('CREATE').Make());
-           await pool.query(...qm.Table('data_' + msg.odid).Method('CREATE').Make());
-           await pool.query(...qm.Table('head_' + msg.odid).Method('CREATE').Fields({ id: {value: 'INTEGER', constraint: 'PRIMARY'},
-                                                                                      timestamp: {value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP'},
-                                                                                      userid: 'INTEGER',
-                                                                                      //username: `CHAR(${USERNAMEMAXCHAR})`,
-                                                                                      dialog: 'JSON',
-                                                                                      lastelementid: 'INTEGER',
-                                                                                      lastviewid: 'INTEGER',
-                                                                                    }).Make());
-          }
-        else
-          {
-           const lastids = await pool.query(...qm.Table(`head_${msg.odid}`).Method('SELECT').Fields(['lastelementid', 'lastviewid']).Order('id').Limit(1).Make()); // Calculate max (last) element/view ids of current OD configuration to set new element/view ids properly for the new OD instance came from client. For creating OD last element/view ids are zero
-           [lastelementid, lastviewid] = [lastids?.rows?.[0]?.lastelementid, lastids?.rows?.[0]?.lastviewid];
-           const e = GetDialogElement(this.ods[msg.odid].dialog, 'padbar/Element/elements');
-           if (e?.data && typeof e.data === 'object')
-              for (const option in e.data)
-                  if (!CompareOptionInSelectElement('New element template', option)) oldids.push(+this.GetOptionStringId(option));
-         }
-       const [elementnonclonedids, elementclonedids, elementuniqids, viewclonedids] = this.AdjustDatabase(msg.data, msg.odid, lastelementid, lastviewid); // Adjust database dialog structure and write it to 'head_<odid>' table below
-       await pool.query(...qm.Table(`head_${msg.odid}`).Method('WRITE').Fields({ userid: wsclient.userid,
-                                                                                 dialog: {value: JSON.stringify(msg.data), escape: true},
-                                                                                 lastelementid: elementclonedids.length ? elementclonedids.at(-1) : lastelementid,
-                                                                                 lastviewid: viewclonedids.length ? viewclonedids.at(-1) : lastviewid }).Make());
-       for (const id of oldids) if (!elementnonclonedids.includes(id))
-           {
-            await pool.query(...qm.Table(`data_${msg.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
-            await pool.query(...qm.Table(`uniq_${msg.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNNAME}${id}`).Make());
-           }
-       for (const id of elementclonedids) await pool.query(...qm.Table(`data_${msg.odid}`).Method('CREATE').Fields({ [ELEMENTCOLUMNNAME + id]: 'JSON' }).Make());
-       for (const id of elementuniqids) await pool.query(...qm.Table(`uniq_${msg.odid}`).Method('CREATE').Fields({ [ELEMENTCOLUMNNAME + id]: 'varchar(125)' }).Make());
-       this.ods[msg.odid] = { dialog: msg.data };
-       this.SendViewsToClients(msg.odid);
+	     case 'CREATEWEBSOCKET':
+               if (this.clientauthcodes[msg.data.authcode] && this.clientauthcodes[msg.data.authcode].userid === msg.data.userid)
+                  {
+                   this.clients.get(client).auth = true;
+                   this.clients.get(client).userid = this.clientauthcodes[msg.data.authcode].userid;
+                   this.clients.get(client).username = this.clientauthcodes[msg.data.authcode].username;
+                   delete this.clientauthcodes[msg.data.authcode];
+	              client.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK' }));
+                  }
+                else
+                  {
+                   client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: 'Unauthorized access detected, please relogin!' }));
+                   client.terminate();
+                  }
+	          break;
+          case 'GETVIEW':
+               this.SendView(client, msg);
+               break;
+          default:
+               return; // Return for unknown msg type
+	    }
+  //this.clients.get(client).lasttimestamp = Date.now();
+ }
+
+ // For element to be callable:
+ // - table should be 'Actual data' or 'Historical data'
+ // - columns id in result query (Interactive checkbox set in OD dialog configure is wrong way, cause explicit 'id' column mention should be defined in order exclude incorrect queries with aggr functions)
+ // - element column name ed1..N or eidN->>prop (for json/jsonb types only). In case of eidN->>prop add extra info of style/hint prop values
+ // Create layout.interactivecols array with boolean elements (whole element interactive) and strings elements (element json property interactive)
+ async SendView(client, msg)
+ {
+  msg.type = 'SETVIEW';
+  if (!this.ods[msg.data?.odid])
+     {
+      // client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: UNKNOWNDBID, title: 'Error' } }));
+      msg.data.error = UNKNOWNDBID;
+      client.send(JSON.stringify(msg));
+      return;
+     }
+  let selection = this.ods[msg.data.odid].query[msg.data.ovid];
+  if (!selection)
+     {
+      // client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: INCORRECTVIEWPROFILE, title: 'Error' } }));
+      msg.data.error = INCORRECTVIEWPROFILE;
+      client.send(JSON.stringify(msg));
+      return;
+     }
+
+  try {
+       selection = await pool.query(...qm.Table(selection).Make());
       }
   catch (error)
       {
-       wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: error.message, title: 'Error' }));
-       //console.e  rror(error);
-       lg(error);
+       // Old version: client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: error.message, title: 'Error' } }));
+       msg.data.error = `Query: ${this.ods[msg.data.odid].query[msg.data.ovid]}<br>Error message: ${error.message}`;
+       client.send(JSON.stringify(msg));
+       return;
       }
- }
-
- SendODToClient(msg, wsclient)
- {
-  if ((typeof msg.odid !== 'number' && typeof msg.odid !== 'string') || !this.ods[msg.odid]) wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: UNKNOWNDBID, title: 'Error', id: msg.id }));
-   else wsclient.socket.send(JSON.stringify({ type: 'DIALOG', data: this.ods[msg.odid].dialog, id: msg.id }));
- }
-
- // { type: 'SIDEBARSET', odid: 13, path: 'hui/Система/Users', ov: { 1: ['zest/view1a', '/vvvvvvvvvvvvvvvvvvvvvvvvvie1b'], 2: ['/ahui1/View2c', 'test/view2d']}}
- SendViewsToClients(odid, clients)
- {
-  if (typeof odid === 'number') odid += '';
-  if (typeof odid !== 'string' && (!clients || typeof clients !== 'object')) return; // No views refresh for all clients and all dbs
-  let e;
-  clients = (clients && typeof clients === 'object') ? new Map().set(clients, this.clients.get(clients)) : this.clients;
-
-  for (const id in this.ods) if (typeof odid !== 'string' || id === odid)
-  for (const [, value] of clients)
-      {
-       if (!value.auth) continue;
-       e = GetDialogElement(this.ods[id].dialog, 'padbar/Database/settings/General/dbname') 
-       if (!e) throw new Error(INCORRECTDBCONFDIALOG);
-       const msg = { type: 'SIDEBARSET', odid: id, path: e.data, ov: {} };
-       e = GetDialogElement(this.ods[id].dialog, 'padbar/View/views');
-       if (!e) throw new Error(INCORRECTDBCONFDIALOG);
-
-       for (const option in e.data)
-           {
-            if (CompareOptionInSelectElement('New view template', option)) continue;
-            const ovid = this.GetOptionStringId(option);
-            const aliases = GetDialogElement(this.ods[id].dialog, `padbar/View/views/${option}/settings/General/name`);
-            if (!aliases) throw new Error(INCORRECTDBCONFDIALOG);
-            if (typeof aliases.data !== 'string' || typeof ovid !== 'string') throw new Error(INCORRECTDBCONFDIALOG);
-            msg.ov[ovid] = [];
-            for (let alias of aliases.data.split('\n'))
-                if (alias = alias.trim()) msg.ov[ovid].push(alias);
-           }
-
-       value.socket.send(JSON.stringify(msg)); // Todo2 - should pause (via setTimeout(0, )) be between two socket msg sendings keep non blocking main thread?
-      }
+  [msg.data.layout, msg.data.selection, msg.data.interactive] = [this.ods[msg.data.odid].layout[msg.data.ovid], selection.rows, this.ods[msg.data.odid].interactive[msg.data.ovid]];
+  client.send(JSON.stringify(msg));
  }
 }
-
-// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
-// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
-// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
-// +--------+                                               +------------+                                   +---------+                                     
-// |        |  case No Auth Token:  		    		     |            |                               ... |         |                
-// |        |  {type LOGIN, user, pass} (POST) -> 	     |            |                               ... |         |                
-// |        |                      <- {type TOKEN, auth}    |            |                                   |         |                
-// |        |                        <- {type WRONGPASS}    |            |                                   |         |                
-// |        |                                     	     |            |                                   |         |                
-// |        |  case Auth Token with no WS:        	     |            |                               ... |         |                
-// |        |  {type GETWS, auth} (POST) ->			     |            |                               ... |         |                
-// |        |                  <- {type SETWS, ip, port}    |            |                                   |         |                
-// |        |        		 <- {type: 'UNAUTH|EXPIRED'}  |            |                                   |         |                
-// |        |                                     	     |            |                                   |         |                
-// |        |  case Auth Token with WS: 	       		|            |                               ... |         |                
-// |        |  {type <any-event>, auth} (WS)			     |            |                               ... |         |                
-// |        |        		 <- {type: 'UNAUTH|EXPIRED'}  |            |                                   |         |                
-// |        |                                     		|            |                                   |         |                
-// |        |  case Auth Token with/out WS:        		|            |                                   |         |                
-// |        |  {type LOGOUT, auth}                		|            |                               ... |         |                
-// |        |                                     		|            |                               ... |         |                
-// |        | User events STEP1--->                         |            | User events STEP2--->             |         |                
-// |        |   Context menu (INIT|DELETE)                  |            |   ---||---                        |         |                
-// |        |   Confirmation (CONFIRM|CONFIRMDIALOG)        |            | Controller event:                 |         |                
-// |        |   Mouse and keyboard	 	        		     |            |   SCHEDULE                        |         |                
-// |        |   Sidebar (RELOAD, NEWOD)	        		     |            |                                   |         |                
-// |        |                                     		|            |    <---STEP3 Handler system calls |         |                
-// |        |                                     		|            |                               SET |         |                
-// |        |                                     		|            |                             RESET |         |                
-// |        |                                     		|            |                            UPDATE |         |                
-// |        |                                     		|            |                               PUT |         |                
-// |        |                                     		|            |                            DIALOG |         |                
-// |        |                                     		|            |                              EDIT |         |                
-// | Client |                                		     | Controller |                              CALL | Handler |                
-// |        |                                     		|            |                             ALERT |         |                
-// |        |                                     		|            |                                   |         |                
-// |        |                                     		|            | Controller event STEP4--->        |         |                
-// |        |                                     		|            |   ONCHANGE                        |         |                
-// |        |                                     		|            |                                   |         |                
-// |        |                                     		|            |    <---STEP5 Handler system calls |         |                
-// |        |                                     		|            |                               ... |         |                
-// |        |                                     		|            |                                   |         |                
-// |        |              <---STEP6 Controller commands    |            |                                   |         |                
-// |        |                                        SET    |            |                                   |         |                
-// |        |                                     DIALOG    |            |                                   |         |                
-// |        |                                       EDIT    |            |                                   |         |                
-// |        |                                       VIEW    |            |                                   |         |                
-// |        |                                  NEWOBJECT    |            |                                   |         |                
-// |        |                               DELETEOBJECT    |            |                                   |         |                
-// |        |                                     		|            |                                   |         |                
-// +--------+                         		               +------------+                                   +---------+                                     

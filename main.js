@@ -9,8 +9,8 @@ import {} from './http.js';
 import { Controller } from './controller.js';
 import { QueryMaker } from './querymaker.js';
 
-const RANDOMSTRINGCHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const { Pool, Client } = pg
+const RANDOMSTRINGCHARS     = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const { Pool, Client }      = pg
 export const pool = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' });
 
 export const qm = new QueryMaker();

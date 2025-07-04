@@ -8,8 +8,9 @@
 // Todo0 - While resizing all animation is being applied and slowing GUI?
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo2 - Check opera bug mouseup event at right mouse btn release while dragging while mouse guesters enabled in opera settings
+// Todo2 - Any OV fullscreen doesn't call connection box overflow, sidebar fullscreen - connection box is overflowed with scrolling appeared
 
-import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';
 
 const DOMELEMENTMINWIDTH			= 50;
@@ -508,7 +509,9 @@ export class Interface
  // Close child control
  static CloseControl(userevent, control, phase)
  {
-  if (phase === 'release') return { type: 'KILLME' };
+  if (phase !== 'release') return;
+  if (control.child.props.callback) control.child.props.callback({ type: 'DIALOGCALLBACK', id: control.child.props.id, data: {} });
+  return { type: 'KILLME' };
  }
 
  ToggleControlsStatus(include, exclude, disabled)
@@ -691,6 +694,7 @@ export class Interface
 }
 
 const CHILDCONTROLTEMPLATES = {
+							   text: { area: {x1: 0, y1: 0, x2: 0, y2: 0} }, 
 							   minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 
 							   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
 							   fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 

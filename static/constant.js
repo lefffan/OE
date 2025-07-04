@@ -109,34 +109,45 @@ export function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-
  return inner;
 }
 
-export function SVGUrlHeader(viewwidth = '12', viewheight = '12')
+export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true)
 {
- return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
+ if (url) return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
+ return `<svg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'>`;
 }
 
-export function SVGUrlFooter()
+export function SVGUrlFooter(url = true)
 {
- return `%3C/svg%3E")`;
+ if (url) return `%3C/svg%3E")`;
+ return `</svg>`;
 }
 
-export function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4')
+export function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4', url = true, dashoffset, animation)
 {
  const disp = Math.round(strength/2);
  x += disp;
  y += disp;
  h -= disp * 2;
  w -= disp * 2;
- return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
+ if (url) return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
+ return `<rect pathLength='100' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} ${100 - dash}' stroke-linejoin='round'${dashoffset ? " stroke-dashoffset='" + dashoffset + "'" : ''}>${animation ? ' ' + animation : ''}</rect>`;
 }
 
-export function SVGPath(path, color, width, elementtype = 'background')
+export function SVGPath(path, color, width, url = true)
 {
- return elementtype === 'background' ? `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E` : `<path d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' />`;
+ if (url) return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
+ return `<path d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' />`;
 }
 
-export function SVGCircle(x, y, r, strength, color, fill = 'none', dash)
+export function SVGCircle(x, y, r, strength, color, fill = 'none', dash, url = true)
 {
- return `%3Ccircle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} /%3E`;
+ if (url) return `%3Ccircle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} /%3E`;
+ return `<circle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} />`;
+}
+
+export function SVGText(x, y, text, color = 'grey', font = '.8em Lato, Helvetica;', url = true)
+{
+ if (url) return `%3Ctext x='${x}' y='${y}' style='fill: ${color}; font: ${font}' %3E${text}%3C/text%3E`;
+ return `<text x="${x}" y="${y}" style="font: ${font}">${text}</text>`;
 }
 
 const CLIENTEVENTS = ['INIT', 'DELETE', 'CONFIRM', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
@@ -193,7 +204,7 @@ settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
             select: { type: 'text', head: 'SELECT~Object selection is a part of the sql query string, that selects objects for the view. Empty string selection - all objects, error selection - no objects. See appropriate help section for details', data: '', flag: '!' },
             from: { type: 'select', head: 'FROM', data: 'Interactive actual data~!/Actual data/Interactive historical data/Historical data/Time series data/None' },
             where: { type: 'textarea', head: 'WHERE', data: '' }, 
-            groupby: { type: 'textarea', head: 'GROUP BY, HAVING', data: '', expr: '/Interactive actual data~!|Interactive historical data~!/from' },
+            groupby: { type: 'textarea', head: 'GROUP BY, HAVING', data: '', e_xpr: '/Interactive actual data~!|Interactive historical data~!/from' },
             limit: { type: 'textarea', head: 'ORDER BY, LIMIT, OFFSET, FETCH', data: '', flag: '*' },
             linkname: { type: 'text', head: 'Object selection link name', data: '' },
     }, 
