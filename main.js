@@ -11,7 +11,7 @@ import { QueryMaker } from './querymaker.js';
 
 const RANDOMSTRINGCHARS     = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const { Pool, Client }      = pg
-export const pool = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' });
+export const pool = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' }); // https://node-postgres.com/apis/pool
 
 export const qm = new QueryMaker();
 export const USERNAMEMAXCHAR  = 64;
@@ -51,6 +51,11 @@ function WSNewConnection(client, req)
 export function lg(...data)
 {
  console.log(...data);
+}
+
+export function loog(...data)
+{
+ for (const object of data) console.dir(object);
 }
 
 export function GenerateRandomString(length)

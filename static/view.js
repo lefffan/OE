@@ -8,6 +8,8 @@ const UNDEFINEDSELECTION    = 'Undefined database object selection!';
 const MAXVIEWTABLEWIDTH     = 131072;
 const MAXVIEWTABLEHEIGHT    = 131072;
 const ELEMENTCOLUMNPREFIX   = 'eid';
+const EDITABLE              = 'plaintext-only';
+const NOTEDITABLE           = 'false';
 
 function CheckXYpropsCorrectness(object)
 {
@@ -18,8 +20,19 @@ export class View extends Interface
 {
  static style = {
 	               // dialog box title
-                 ".ovbox": { "position": "absolute;", "overflow": "auto;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;" },
-	             ".ovbox h1": { "width": "100%;", "margin": "0;", "text-align": "center;", "position": "absolute;", "top": "50%;", "transform": "translateY(-50%);" },
+                 ".ovbox":              { "position": "absolute;", "overflow": "auto;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);" }, // Old stable version values: "background-color": "#EEE;", "scrollbar-color": "#CCCCCC #FFFFFF;"
+	             ".ovbox h1":           { "width": "100%;", "margin": "0;", "text-align": "center;", "position": "absolute;", "top": "50%;", "transform": "translateY(-50%);" },
+		         ".ovbox table":        { "margin": "20px 0 0 0;" },
+		         ".undefinedcell":      { "padding": "10px;", "border": "1px solid #999;", "background-color": "" },
+		         ".titlecell":          { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "" },
+		         ".newobjectcell":      { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "" },
+		         ".interactivecell":    { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;" },
+		         ".noninteractivecell": { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;" },
+		         ".virtualcell":        { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;" },
+                 ".cursorcell":         { "outline": "red solid 1px;" }, 
+                 ".clipboardcell":      { "outline": "red dashed 2px;" }, 
+		         ".selectedcell":       { "background-color": "rgb(189,200,203) !important;" },
+		         [`.ovbox table tbody tr td:not([contenteditable=${EDITABLE}])`]: { "cursor": "cell;" },
                 };
 
  constructor(...args)
@@ -27,6 +40,27 @@ export class View extends Interface
   if (!args[2]?.control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: {}, closeesc: {} };
   args[3] = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
   super(...args);
+ }
+
+ // Init OV params
+ InitView(msg)
+ {
+  lg(msg);
+  this.odid = msg.data.odid;
+  this.ovid = msg.data.ovid;
+  this.props.control.text.icon = SVGUrlHeader(250, 18) + SVGText(3, 14, `database id ${msg.data.odid}, view id ${msg.data.ovid}, sequence ${msg.id}`) + SVGUrlFooter();
+  this.RefreshControlIcons();
+  this.sidebarview = this.parentchild.sidebar.od[this.odid]['ov'][this.ovid];
+  this.sidebarview.status = 0;
+  this.sidebarview.childid = this.id;
+  this.valuetableWidth = this.valuetableHeight = 0;
+  this.collapsedrows = {};
+  this.collapsedcols = {};
+  this.definedcols = {};
+  this.valuetable = [];
+  this.objecttable = {};
+  this.interactive = msg.data.interactive;
+  this.layout = msg.data.layout;
  }
 
  // Function evaluates row expression and returns incoming cell for successful result or undefined
@@ -50,10 +84,16 @@ export class View extends Interface
       }
   catch {}
   if (typeof x !== 'number' || typeof y !== 'number' || isNaN(x) || isNaN(y)) return; // Cell is incorrect for non numberd x/y values
-  cell.x = x = x.toFixed(); // Fix it to integer
-  cell.y = y = y.toFixed();
+  cell.x = x = Math.round(x); // Fix it to nearest integer
+  cell.y = y = Math.round(y);
   if (x < 0 || y < 0 || x >= MAXVIEWTABLEWIDTH || y >= MAXVIEWTABLEHEIGHT) return; // Check out of range
+  if (x >= this.valuetableWidth) this.valuetableWidth = x + 1;
   if (!this.valuetable[y]) this.valuetable[y] = []; // Bind cell object to main table
+  if ('collapserow' in cell) this.collapsedrows[y] = true;
+  if ('collapsecol' in cell) this.collapsedcols[x] = true;
+  delete cell.collapserow;
+  delete cell.collapsecol;
+  this.definedcols[x] = true;
   this.valuetable[y][x] = cell;
   if (!cell.lastversion || !cell.o || !cell.e || cell.e.indexOf(ELEMENTCOLUMNPREFIX) !== 0) return;
   if (!this.objecttable[cell.o]) this.objecttable[cell.o] = {};
@@ -85,15 +125,37 @@ export class View extends Interface
   return result; // Return result cell combined all props from cell list
  }
 
- // Function converts cell 'attributes' property from string to object with html attributes as a property names and its values
- AdjustCellAttributes(cell)
+ // Function converts all input args to objects and union them via Object.assign (with style object apparently). Target object is converted to HTML attribute string then
+ ConvertHTMLAttributeObjetsToStrings(...objects)
  {
-  if (typeof cell.attributes !== 'string') return cell;
-  const attributes = {};
-  const arr = cell.attributes.split('"'); // Split cell attributes string
-  for (let i = 0; i < arr.length; i = i + 2)
+  const result = {};
+  const style = {};
+  for (let object of objects)
       {
-       let name = arr[i].trim(), value = arr[i + 1]; // where 1st part is a name, second is a value
+       object = this.ConvertHTMLAttributeStringToObject(object);
+       if ('style' in object) Object.assign(style, object.style);
+       Object.assign(result, object);
+      }
+
+  result.style = '';
+  for (const prop in style) result.style += `${prop}: ${style[prop]}; `;
+  if (!result.style) delete result.style;
+
+  let string = '';
+  for (const prop in result) string += `${prop}="${result[prop]}" `;
+  return string.substring(0, string.length - 1);
+ }
+
+ // Function converts HTML attributes string to object with attribute names as a property names and its values
+ // Remark - objects are untouched, strings are converted, other types are converted to empty objects
+ ConvertHTMLAttributeStringToObject(string)
+ {
+  if (typeof string === 'string') string = string.trim();
+  const attributes = typeof string === 'object' && string ? string : {};
+  const array = typeof string === 'string' && string ? string.split('"') : []; // Split attributes string
+  for (let i = 0; i < array.length; i = i + 2)
+      {
+       let name = array[i].trim(), value = array[i + 1]; // where 1st part is a name, second is a value
        if (name[name.length - 1] !== '=' || name.length < 2) continue; // Attribute name last char is not '=' or length < 2? Continue
        if (value === undefined) continue; // Attribute value is undefined? Continue
        name = name.substring(0, length - 1).toLowerCase(); // Cut attribute name last char '=' and bring it to lower case
@@ -109,8 +171,7 @@ export class View extends Interface
           }
        attributes[name] = value; // Collect all props to 'attributes' object
       }
-  cell.attributes = attributes; // and overwrite it in cell
-  return cell;
+  return attributes;
  }
 
  Handler(msg)
@@ -118,55 +179,56 @@ export class View extends Interface
   switch (msg.type)
          {
           case 'SETVIEW':
-               // Step 1 - entitle new view description data
-               lg(msg);
-               this.odid = msg.data.odid;
-               this.ovid = msg.data.ovid;
-               this.props.control.text.icon = SVGUrlHeader(250, 18) + SVGText(3, 14, `database id ${msg.data.odid}, view id ${msg.data.ovid}, sequence ${msg.id}`) + SVGUrlFooter();
-               this.RefreshControlIcons();
-               this.sidebarview = this.parentchild.sidebar.od[this.odid]['ov'][this.ovid];
-               this.sidebarview.childid = this.id;
-
-               // Step 2 - handle some errors, such as incoming error property or undefined selection
+               // Step 1 - init OV params and handle some errors, such as incoming msg 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in msg)
+               this.InitView(msg);
                if (msg.data.error || !msg.data.selection) return this.DisplayView(msg.data.error ? `<h1 style="color: RGB(251,179,179);">${msg.data.error}</h1>` : `<h1 style="color: RGB(251,179,179);">${UNDEFINEDSELECTION}</h1>`);
+               const layout = this.layout;
+               const q = this.q = msg.data.selection.length;
 
-               // Step 3 - init vars for a new view
-               this.sidebarview.status = 0;
-               this.valuetable = [];
-               this.objecttable = {};
-               this.interactive = msg.data.interactive;
-               const layout = this.layout = msg.data.layout;
-               const q = msg.data.selection.length;
-               let cell;
+               // Step 2 - adjust convert layout all cell attributes from string type to object type to simplificate cell html attributes override, in a addition set cell for udnefined rows (virtual) which have row/column/oid undefined, so cell content needs to be retreived from the cell.value only
+               for (const xy in layout.undefinedrows)
+                   {
+                    const cell = layout.undefinedrows[xy];
+                    cell.attributes = this.ConvertHTMLAttributeObjetsToStrings({ class: 'virtualcell' }, this.ConvertHTMLAttributeStringToObject(cell.attributes)); // Cell HTML attributes priority: combine GUI customization and then layout attributes
+                    this.SetCell(cell, undefined, undefined, q);
+                   }
+               for (const row in layout.expressionrows) for (const column of layout.columns)
+                   {
+                    const cell = layout.expressionrows[row][column.original];
+                    cell.attributes = this.ConvertHTMLAttributeStringToObject(cell.attributes);
+                   }
 
-               // Step 4 - adjust (convert) layout all cell attributes from string type to object type to simplificate cell html attributes override, in a addition set cell for udnefined rows which have row/column/oid undefined, so cell content needs to be retreived from the cell.value only
-               for (const xy in layout.undefinedrows) this.SetCell(this.AdjustCellAttributes(layout.undefinedrows[xy]), undefined, undefined, q);
-               for (const row in layout.expressionrows) for (const column of layout.outputcolumns) this.AdjustCellAttributes(layout.expressionrows[row][column]);
-
-               // Step 5 - handle db selection rows with two virtual rows ('title' and 'new') before
+               // Step 3 - handle db selection rows with two virtual rows ('title' and 'new') before
                for (let r = TITLEVIRTUALROWID; r < q; r++)
                    {
                     if (r === NEWVIRTUALROWID && !this.interactive) continue; // No lookup for new object input in case of non-interactive mode
                     const row = r >= 0 ? msg.data.selection[r] : undefined; // Redefine selection row
-                    const o = r < 0 ? r : this.interactive ? row.id : undefined; // Assign object id to TITLEVIRTUALROWID (-2), NEWVIRTUALROWID (-1) or row.id (>) for 
-                    for (const c in layout.outputcolumns)
+                    const o = r < 0 ? r : this.interactive ? row[layout.columnidindex] : undefined; // Assign object id to TITLEVIRTUALROWID (-2), NEWVIRTUALROWID (-1) or row[id] (>=0) for interactive and undefined for noninteractive
+                    const attributes = {};
+                    if (r === TITLEVIRTUALROWID) attributes.class = 'titlecell';
+                    if (r === NEWVIRTUALROWID) attributes.class = 'newobjectcell';
+                    for (const c in layout.columns)
                         {
-                         const column = layout.outputcolumns[c]; // Redefine layout column  
-                         cell = {};
-                         for (const i in layout.expressionrows) if (this.TestRowExpression(layout.expressionrows[i][column].row, r, +c, q)) this.JoinCells(cell, layout.expressionrows[i][column]);
-                         if (!('value' in cell) && row)
+                         const column = layout.columns[c]; // Fix layout column  
+                         const cell = {};
+                         for (const i in layout.expressionrows) if (this.TestRowExpression(layout.expressionrows[i][column.original].row, r, +c, q)) this.JoinCells(cell, layout.expressionrows[i][column.original]);
+                         [cell.o, cell.e, cell.prop, cell.lastversion] = [o, column.elementname, column.elementprop, row?.[layout.columnlastversionindex]];
+                         if (typeof cell.value !== 'string')
                             {
-                             if (row[column] && typeof row[column] === 'object') cell.value = JSON.stringify(row[column]); // Bring row[column] to appropriate value depending on its type. Todo0 - fix in help: use columns with data type explicitly set via :: with alias via ' as ', cause "eid1::json->'valu'" becomes "eid1"
-                              else if (typeof row[column] === 'number') cell.value = row[column] + '';
-                                else if (typeof row[column] !== 'string') cell.value = '';
-                                 else cell.value = row[column];
+                             let value = row?.[c];
+                             if (r === TITLEVIRTUALROWID && cell.e) value = layout.systemelementnames[cell.e] ? cell.e : column.elementprofilename;
+                             if (value && typeof value === 'object') cell.value = JSON.stringify(value); // Bring cell.value to appropriate value depending on its type. Todo0 - fix in help: use columns with data type explicitly set via :: with alias via ' as ', cause "eid1::json->'valu'" becomes "eid1"
+                              else if (typeof value === 'number') cell.value = value + '';
+                               else cell.value = typeof value === 'string' ? value : '';
                             }
-                         [cell.o, cell.e, cell.prop, cell.lastversion] = [o, layout.elementnamecolumns[c], layout.elementpropcolumns[c], row?.lastversion];
+                         if (r >= 0) attributes.class = cell.e && !layout.systemelementnames[cell.e] && cell.lastversion && this.interactive ? 'interactivecell' : 'noninteractivecell';
+                         if (r === TITLEVIRTUALROWID && cell.e) attributes.title = layout.systemelementnames[cell.e] ? layout.systemelementnames[cell.e] : column.elementprofiledescription;
+                         cell.attributes = this.ConvertHTMLAttributeObjetsToStrings(attributes, this.ConvertHTMLAttributeStringToObject(cell.attributes), row?.[column.columnattributeindex] ? this.ConvertHTMLAttributeStringToObject(row[column.columnattributeindex]) : {}); // Cell HTML attributes priority: combine GUI customization first, second - then layout attributes, third - element json data retreived from db selection (for json type elements only)
                          this.SetCell(cell, r, +c, q);
                         }
                    }
 
-               // Step 6 - hanlde result table zero height or display OV table
+               // Step 4 - hanlde result table zero height or display OV table
                this.DisplayView(this.valuetable.length ? undefined : `<h1 style="color: #9FBDDF;">Object View has no any data matched its object selection or element layout!</h1>`); // Todo0 - check all columns on first row props
                break;
          }
@@ -174,6 +236,7 @@ export class View extends Interface
 
  DisplayView(errormsg)
  {
+  // Step 1 - display error message and return setting view percent loading status to 100
   lg(this.valuetable);
   if (typeof errormsg === 'string')
      {
@@ -181,7 +244,59 @@ export class View extends Interface
       this.sidebarview.status = 100;
       return;
      }
-  this.elementDOM.innerHTML = ``;
+
+  // Step 2 - init same tables vars
+  this.sidebarview.status = 100;
+  let disp = 0;
+  const undefinedcell = `<td class="undefinedcell"></td>`;
+  let undefinedrow = '<tr>';
+  for (let x = 0; x < this.valuetableWidth; x++) if (!this.collapsedcols[x] && (this.definedcols[x] || !this.layout.table.collapsecol)) undefinedrow += undefinedcell;
+  undefinedrow += '</tr>';
+  const newtable = [];
+  let inner = '';
+  this.valuetableHeight = this.valuetable.length;
+
+  // Step 3 - make result innerHTML of table cells
+  for (let y = 0; y < this.valuetableHeight; y++)
+      {
+       if (this.collapsedrows[y] && (disp = disp + 1)) continue;
+       if (!this.valuetable[y] && 'collapsedrow' in this.layout.table && (disp = disp + 1)) continue;
+       if (!this.valuetable[y])
+          {
+           inner += undefinedrow;
+           continue;
+          }
+       newtable[y - disp] = this.valuetable[y];
+       inner += '<tr>';
+       for (let x = 0; x < this.valuetableWidth; x++)
+	       {
+            const cell = this.valuetable[y][x];
+	        if (this.collapsedcols[x] || (!cell && 'collapsedcol' in this.layout.table && !this.definedcols[x]))
+               {
+                this.valuetable[y].splice(x, 1);
+                this.valuetableWidth--;
+                x--;
+                continue;
+               }
+	        if (!cell && (inner = inner + undefinedcell)) continue;
+	        inner += `<td ${cell.attributes}>${cell.value}</td>`;
+            cell.y -= disp;
+	       }
+       inner += '</tr>';
+      }
+  this.valuetable = newtable;
+  this.valuetableHeight = this.valuetable.length; // Old version: this.valuetableHeight -= disp;
+  this.elementDOM.innerHTML = `<table${typeof this.layout.table.attributes === 'string' ? ' ' + this.layout.table.attributes : ''}><tbody>${inner}</tbody></table>`;
+
+  // 1st week:
+  // Todo0 - relaese row[0-..] as a column value and row[c] - as a current cell value in a row expression
+  // Todo0 - cell.hint for <td> and other cell attributes to <td> (cell.style for a example)
+  // Todo0 - adjust cell attributes and cell innerHTML (cell.value)
+  // Todo0 - handle errors - zero length table, zero db selection, x/y out of range, no any valid layout json VIA context menu description
+  // 2nd week:
+  // Todo0 - cursor/event release - this is a big and comlicated handler section
+  // Todo1 - scale ovbox content via child management icon +-
+  // Todo1 - loading percent status animation and blue/green view icon
  }
 }
 
@@ -269,10 +384,7 @@ export class View extends Interface
 
 // Element layout and Object Selection
 // Todo - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
-// hiderow/hidecolumn - regexp feature with flag i for all cells in rows/columns match successful case
-// Todo - virt cell depends on oid,eid
 // Todo - sql request in 'Element Layout' section in 'value' prop should select among its view object selection, but not from all objects! (see models piechart among switches with one or zero active clients)
-// Todo - Any <td> style in element layout (colors, backgrounds, wires, etc..) for the tree/table view types may be customized depending on current object elements values 
 // Todo - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo - second and all next queries (for non Tree view types only) do query in previous query results
 

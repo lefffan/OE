@@ -22,11 +22,12 @@
 
 import { lg } from './main.js';
 
-export const ELEMENTCOLUMNPREFIX    = 'eid';
-const SYSTEMELEMENTNAMES            = [ 'id', 'version', 'lastversion', 'mask', 'ownerid', 'owner', 'datetime', 'date', 'time' ];
-const REGEXPISUSERELEMENTCOLUMN     = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*->>?'\w'$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*::jsonb?->>?'\w'$`, `i`);
-const REGEXPUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
-const PRIMARYKEYSTARTVALUE          = 3;
+export const ELEMENTCOLUMNPREFIX          = 'eid';
+export const SYSTEMELEMENTNAMES           = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', owner: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
+const REGEXPCUTOFFCOLUMNTYPE              = new RegExp(`::\\S+`);
+const REGEXPISUSERELEMENTCOLUMN           = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*\\s*->>?\\s*['][^']*[']$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*$`, `i`);
+const REGEXPSEARCHUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
+const PRIMARYKEYSTARTVALUE                = 3;
 
 export class QueryMaker
 {
@@ -36,13 +37,20 @@ export class QueryMaker
  }
 
  // Function parsed select operand (column) and returns array of element name (id, version, edi1..) and element property name (in case of json type)
- GetColumnElement(column)
+ GetColumnElementAndProp(column)
  {
-  if (SYSTEMELEMENTNAMES.includes(column)) return [column, null];
+  column = column.trim();
+  const match = column.match(REGEXPCUTOFFCOLUMNTYPE);
+  if (match) column = column.substring(0, match.index) + column.substring(match.index + match[0].length);
+  if (column in SYSTEMELEMENTNAMES) return [column, null];
   if (!REGEXPISUSERELEMENTCOLUMN.test(column)) return [null, null];
-  const first = column.indexOf("'");
-  const last = column.lastIndexOf("'");
-  return [column.match(REGEXPUSERELEMENTCOLUMNNAME)[0], first === -1 || last === -1 || first === last ? null : column.substring(first + 1, last)];
+  const pos = column.indexOf("'");
+  return [column.match(REGEXPSEARCHUSERELEMENTCOLUMNNAME)[0].toLowerCase(), pos === -1 ? null : column.substring(pos + 1, column.length - 1)];
+ }
+
+ ExtractJSONPropField(column, prop)
+ {
+  return `${column}->'${prop}'`;
  }
 
  Table(table = '', hypertable)
@@ -292,10 +300,11 @@ export class QueryMaker
   return this;
  }
 
- Make()
+ Make(queryconfig)
  {
   this.BuildQuery();
   lg(`query: ${this.query}`);
+  if (queryconfig) return [{ text: this.query, values: this.args, rowMode: 'array' }];
   return this.args.length ? [this.query, this.args] : [this.query];
  }
 }

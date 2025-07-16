@@ -1,8 +1,8 @@
 // Todo2 - change '*', '!' to const var and others
 // let c; c++;      if (c%2) {               const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));                        await sleep(5000);              }
 
-import { FIELDSDIVIDER, lg, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, CutString, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
-import { ELEMENTCOLUMNPREFIX } from './querymaker.js';
+import { FIELDSDIVIDER, lg, loog, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, CutString, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
+import { ELEMENTCOLUMNPREFIX, SYSTEMELEMENTNAMES } from './querymaker.js';
 
 const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME     = 'Cannot create new database with empty name!\nIn order to remove Object Database please set empty db name and remove all elements, views and rules';
@@ -13,7 +13,6 @@ const LAYOUTTABLEPROPS          = ['attributes', 'collapserow', 'collapsecol'];
 const LAYOUTEVENTPROPS          = ['event', 'x', 'y', 'row', 'col'];
 const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'attributes'];
 const NONEXPRESSIONCHARS        = /[^rcq\+\-\;\&\|\!\*\/0123456789\.\%\>\<\=\(\) ]/;
-const SQLCOLUMNALIAS            = / +as +/;
 
 export function GetTableNameId(name)
 {
@@ -342,16 +341,18 @@ export async function ReadAllDatabase()
 
 function SuckLayoutAndQuery(dialog, odid)
 {
- const jsonenames = [];
- controller.ods[odid] = { dialog: dialog, query: {}, layout: {}, interactive: {} };
+ controller.ods[odid] = { dialog: dialog, query: {}, layout: {}, interactive: {}, elementprofiles: {} };
 
  const elements = GetDialogElement(dialog, 'padbar/Element/elements', true) || {};
  for (const option of Object.keys(elements))
      {
       const eid = GetOptionStringId(option);
       if (!eid) continue;
-      const etype = (GetDialogElement(dialog, `padbar/Element/elements/${option}/type`, true) || '').trim().toLowerCase();
-      if (['json', 'jsonb'].includes(etype)) jsonenames.push(ELEMENTCOLUMNPREFIX + eid);
+      controller.ods[odid].elementprofiles[ELEMENTCOLUMNPREFIX + eid] = {
+                                            type: GetDialogElement(dialog, `padbar/Element/elements/${option}/type`, true).trim().toLowerCase(),
+                                            name: GetDialogElement(dialog, `padbar/Element/elements/${option}/name`, true),
+                                            description: GetDialogElement(dialog, `padbar/Element/elements/${option}/description`, true),
+                                           };
      }
 
  const views = GetDialogElement(dialog, 'padbar/View/views', true) || {};
@@ -359,7 +360,7 @@ function SuckLayoutAndQuery(dialog, odid)
      {
       const ovid = GetOptionStringId(option);
       if (!ovid) continue;
-      const layout = ParseViewLayout(GetDialogElement(dialog, `padbar/View/views/${option}/settings/Layout/layout`, true), jsonenames);
+      const layout = ParseViewLayout(GetDialogElement(dialog, `padbar/View/views/${option}/settings/Layout/layout`, true), odid);
       const query = ParseViewQuery(dialog, layout, option, odid);
       controller.ods[odid].query[ovid] = query;
       controller.ods[odid].layout[ovid] = layout;
@@ -374,8 +375,8 @@ function SuckLayoutAndQuery(dialog, odid)
 // |  [C] value PLAIN/SELECT/FUNCTION (x, y, r, c, q, o) | 
 // |  [C] hint                                           | 
 // |  [CT] event                                         | 
-// |  [CT] collapserow, collapsecol                      | Expression for cell and for table: non empty value define style for undefined rows, empty value hides undefined rows
-// |  [CT] attributes                                    | Cell style property in attributes (in a addition to user defined cell ccs class in user stle scheme) consists of mixed values of JSON type element style property, direct style definition in attributes
+// |  [CT] collapserow, collapsecol                      | These props set to any values - collapses whole table rows/columns (for cell) and undefined rows/columns (for table)
+// |  [CT] attributes                                    | Cell style property in attributes (in a addition to user defined cell ccs class in user style scheme) consists of mixed values of JSON type element style property, direct style definition in attributes
 // +-----------------------------------------------------+
 function CheckXYpropsCorrectness(object)
 {
@@ -389,10 +390,11 @@ function TrimObjectProps(object, props)
         if (typeof object[prop] === 'string') object[prop] = object[prop].trim(); else delete object[prop];
 }
 
-function ParseViewLayout(jsons, jsonenames)
+function ParseViewLayout(jsons, odid)
 {
  if (typeof jsons !== 'string') return;
- const layout = { expressionrows: {}, undefinedrows: {}, table: {}, event: {}, originalcolumns: [], outputcolumns: [], stylecolumns: [], hintcolumns: [], elementnamecolumns: [], elementpropcolumns: [] };
+ //const layout = { expressionrows: {}, undefinedrows: {}, table: {}, event: {}, originalcolumns: [], outputcolumns: [], stylecolumns: [], hintcolumns: [], elementnamecolumns: [], elementpropcolumns: [] };
+ const layout = { expressionrows: {}, undefinedrows: {}, table: {}, event: {}, columns: [], systemelementnames: SYSTEMELEMENTNAMES }; // columns array has next fromat: { original:, output:, extra:, elementname:, elementprop:, elementprofilename:, elementprofiledescription: }
 
  for (let json of jsons.split('\n'))
      {
@@ -420,47 +422,43 @@ function ParseViewLayout(jsons, jsonenames)
           for (const prop of LAYOUTCELLPROPS) if (typeof json[prop] === 'string') layout.undefinedrows[xy][prop] = json[prop];
           continue;
          }
-      //if (!json.row || NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist and empty (expression result is always falsy) or with non expression chars? Continue
-      if (NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist and empty (expression result is always falsy) or with non expression chars? Continue
 
-      // Next step - pasre column list in json.col via '|'
-      const currentcolumns = 'col' in json ? [] : layout.outputcolumns; // Columns list in json.col string, in case of no 'col' property - all defined columns before are used
-      if ('col' in json) for (let originalcolumn of json.col.split('|'))
+      // Next step - check row property syntax and pasre column list in json.col splited via '|' then
+      if (NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist, but incorrect, consisting of illegal expression chars? Continue. Old version check also continues for empty json.row (which is correct), not considering defined columns for correct row syntax: if (!json.row || NONEXPRESSIONCHARS.test(json.row)) continue;
+      const startcolumnindex = 'col' in json ? layout.columns.length : 0; // Fix column index to start with to defined wich columns should be processed. No prop 'col' defned - process all columns previously defined (start index = 0), otherwise start with new column index (start index = layout.columns array length)
+      if ('col' in json) for (let original of json.col.split('|'))
          {
-          if (!(originalcolumn = originalcolumn.trim())) continue;
-          let match, ename, eprop, nativecolumn = originalcolumn, outputcolumn = originalcolumn;
-          if (match = originalcolumn.match(SQLCOLUMNALIAS)) // SELECT operand (column) contains ALIAS word, so assign native column to the string before ALIAS word and output column - to ALIAS
-             {
-              nativecolumn = originalcolumn.substring(0, match.index);
-              outputcolumn = originalcolumn.substring(match[0].length + match.index);
-             }
-          if ((match = nativecolumn.indexOf('::')) !== -1) // Check column for sql type explicit set via '::' search
-             {
-              nativecolumn = nativecolumn.substring(0, match); // and assign native column to the string before ::
-              if (outputcolumn === originalcolumn) outputcolumn = nativecolumn; // so output column in case of non-aliased case (see above 'if' block)
-             }
-           if (layout.outputcolumns.indexOf(outputcolumn) !== -1 || !outputcolumn || !nativecolumn) continue; // Output columns are props of the result db query array, so should be unique. outputcolumn and nativecolumn shouldn't be empty
-           const length = layout.originalcolumns.push(originalcolumn); // Store original column
-           layout.outputcolumns.push(outputcolumn); // and output column
-           currentcolumns.push(outputcolumn); // so push output column to current column array, needed to be processed below
-           [ename, eprop] = qm.GetColumnElement(nativecolumn); // Function qm.IsElementColumn returns object element name with its prop (in case json type) or array of two nulls
-           if (!ename) continue;
-           layout.elementnamecolumns[length - 1] = ename; // Array layout.elementnamecolumns consists of system or user defined object element names
-           if (!jsonenames.includes(ename)) continue; // Array jsonenames contains json type element names, so continue for non-json object element type or get json element style and hint below,
-           layout.stylecolumns[length - 1] = `${ename}->'style'`;
-           layout.hintcolumns[length - 1] = `${ename}->'hint'`;
-           layout.elementpropcolumns[length - 1] = eprop; // storing element prop in a addition to element name
-          }
+          if (!(original = original.trim())) continue;
+          let newcolumn;
+          for (const column of layout.columns) if (column.original === original && (newcolumn = column)) break; // Go through all previously defined columns and check match for current output column. Assign newcolumn to the matched column
+          if (newcolumn) continue;
+
+          layout.columns.push(newcolumn = { original: original }); // Otherwise create new column object
+          [newcolumn.elementname, newcolumn.elementprop] = qm.GetColumnElementAndProp(original); // Function qm.GetColumnElementAndProp returns object element name (or null if original column is not an object element) with its prop (or null if object element has non-JSON type or JSON property unset)
+          if (!newcolumn.elementname) continue; // New column is not an object element (id|date|time|user|eid1|eid2..)? Continue. Otherwise
+
+          const elementprofile = controller.ods[odid].elementprofiles[newcolumn.elementname]; // New column is an object element, so get it profile props such as 'name' for header, 'description' for hint and 'type' for extra columns to query (for json/jsonb element types only)
+          if (elementprofile) [newcolumn.elementprofilename, newcolumn.elementprofiledescription, newcolumn.elementprofiletype] = [elementprofile.name, elementprofile.description, elementprofile.type]; // Unknown profile in OD properties (for system elements probably)? Store element profile name/description/type
+         }
 
       // Last step - assign cell props to layout.expressionrows[json.row] for every defined column in previous step (currentcolumns array)
-      if (!layout.expressionrows[json.row]) layout.expressionrows[json.row] = {};
-      for (const cellprop of LAYOUTCELLPROPS)
-          if (typeof json[cellprop] === 'string') // Go through all cell specific string props and choose string type only
-             for (const column of currentcolumns) // For empty/undefined json.col use all defined before columns (otherwise array <columns> contains this json specified columns only)
-                 column in layout.expressionrows[json.row] ? layout.expressionrows[json.row][column][cellprop] = json[cellprop] : layout.expressionrows[json.row][column] = { [cellprop]: json[cellprop] }; // Set json cell props for every column 
+      for (const cellprop of LAYOUTCELLPROPS) // Go through all cell specific string props
+      if (typeof json[cellprop] === 'string') // and choose string type only
+      for (let i = startcolumnindex; i < layout.columns.length; i++) // Via startcolumnindex set above - for undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
+          {
+           const column = layout.columns[i].original;
+           if (!(json.row in layout.expressionrows)) layout.expressionrows[json.row] = {};
+           if (!(column in layout.expressionrows[json.row])) layout.expressionrows[json.row][column] = {};
+           layout.expressionrows[json.row][column][cellprop] = json[cellprop]; // Set json cell props for every column 
+          }
      }
 
  return layout;
+}
+
+function GetColumnIndex(columns, search)
+{
+ for (let i = 0; i < columns.length; i++) if (columns[i].original === search) return i;
 }
 
 // {"row":"", "col":"id|eid1|eid2||", "x":"0", "y":"0"}
@@ -469,27 +467,28 @@ function ParseViewLayout(jsons, jsonenames)
 // if (['Actual data', 'Historical data'].includes(from) && !groupby && layout.cols.indexOf('lastversion') === -1) query += query ? ',lastversion' : 'lastversion';
 function ParseViewQuery(dialog, layout, viewprofile, odid)
 {
- // Initializate all statements of the result query
- let select = 'SELECT ' + layout.originalcolumns.join(','); // Join via comma all columns to select statement
- let from = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true);
- let where = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/where`, true);
- let groupby = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/groupby`, true);
- let limit = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/limit`, true);
- if (typeof from !== 'string' || typeof where !== 'string' || typeof groupby !== 'string' || typeof limit !== 'string') return; // Return undefined for incorrect statements
- from = from.trim(); // Otherwise trim them all
- where = where.trim();
- groupby = IsViewInteractive(dialog, viewprofile) ? '' : groupby.trim(); // Old version: groupby = ['Interactive actual data', 'Interactive historical data'].includes(from) ? '' : groupby.trim();
- limit = limit.trim();
- 
- // Adjust 'select' columns (add 'id' for interactive data), 'where' (add lastversion true check for actual data) and 'from' (define sql table)
- if (IsViewInteractive(dialog, viewprofile)) select += `${layout.originalcolumns.length ? ',' : ''}id,lastversion`; // Old version: if (IsViewInteractive(dialog, viewprofile) && layout.originalcolumns.indexOf('id') === -1) select += ',id'; if (IsViewInteractive(dialog, viewprofile) && !IsViewActual(dialog, viewprofile) && layout.originalcolumns.indexOf('lastversion') === -1) select += ',lastversion';
- if (from === 'Time series data') from = ` FROM metr_${odid}`; else from = from === 'None' ? '' : ` FROM data_${odid}`;
- if (IsViewActual(dialog, viewprofile)) where = where ? `WHERE (${where.substring('WHERE '.length)}) AND lastversion = TRUE` : `WHERE lastversion = TRUE`;
- if (where) where = ' ' + where;
- if (groupby) groupby = ' ' + groupby;
- if (limit) limit = ' ' + limit;
+ // Initializate SELECT statement result query
+ let select = [];
+ for (const column of layout.columns) select.push(column.original);
+ if (IsViewInteractive(dialog, viewprofile)) [layout.columnidindex, layout.columnlastversionindex] = [ GetColumnIndex(layout.columns, 'id') ?? select.push('id') - 1, GetColumnIndex(layout.columns, 'lastversion') ?? select.push('lastversion') - 1]; // Operator returns left operand if it's not nill or undefined, and returns right operand otherwise
+ for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnattributeindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'attributes')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'attributes')) - 1;
+ select = `SELECT ${select.join(',')}`; 
 
- return `${select}${from}${where}${groupby}${limit}`;
+ // Initializate FROM statement result query
+ let from = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true).trim();
+ if (from === 'Time series data') from = ` FROM metr_${odid}`; else from = from === 'None' ? '' : ` FROM data_${odid}`;
+
+ // Initializate WHERE statement result query
+ let where = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/where`, true).trim();
+ if (IsViewActual(dialog, viewprofile)) where = where ? `WHERE (${where.substring('WHERE '.length)}) AND lastversion = TRUE` : `WHERE lastversion = TRUE`;
+
+ // Initializate GROUPBY statement result query
+ const groupby = IsViewInteractive(dialog, viewprofile) ? '' : GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/groupby`, true).trim(); // Old version: groupby = ['Interactive actual data', 'Interactive historical data'].includes(from) ? '' : groupby.trim();
+
+ // Initializate LIMIT statement result query
+ const limit = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/limit`, true).trim();
+
+ return `${select} ${from} ${where} ${groupby} ${limit}`;
 }
 
 function IsViewInteractive(dialog, viewprofile)

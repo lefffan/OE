@@ -2,7 +2,7 @@
 // Todo0 - Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
 // Todo0 - socket rate limit: https://javascript.info/websocket#rate-limiting
 // Todo0 - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
-// Todo0 - Node SNMP https://github.com/calmh/node-snmp-native
+// Todo0 - Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
 // Todo1 - process event 'Server has closed connection due to timeout', should this event be on client or server side (via any incoming msg)?
 // Todo1 - Create a template from frontend NEWOBJECTDATABASE to check dialog structure correctness
 //    Comment and adjust other sourcse
@@ -132,7 +132,7 @@ export class Controller
                    this.clients.get(client).userid = this.clientauthcodes[msg.data.authcode].userid;
                    this.clients.get(client).username = this.clientauthcodes[msg.data.authcode].username;
                    delete this.clientauthcodes[msg.data.authcode];
-	              client.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK' }));
+	                client.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK' }));
                   }
                 else
                   {
@@ -166,7 +166,8 @@ export class Controller
 
   let selection, query = this.ods[msg.data.odid].query[msg.data.ovid];
   try {
-       selection = await pool.query(...qm.Table(query).Make());
+       //selection = await pool.query(...qm.Table(query).Make());
+       selection = await pool.query(...qm.Table(query).Make(true));
       }
   catch (error)
       {
