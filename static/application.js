@@ -92,7 +92,8 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo - Ctrl + Tab switches between childs in a connection child
 // Todo - Keep user last login datetime in user db
 // Todo - Customize scrollbars via user customization and other non-css props (for a example 'animation appearance')
-
+// Todo - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses and ask Rozbah what we do need for FSB and others
+// 
 // Presentation:
 // Todo - Y-combinator practice:
 //		  https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat

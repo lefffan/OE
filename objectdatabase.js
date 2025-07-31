@@ -8,10 +8,10 @@ const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME     = 'Cannot create new database with empty name!\nIn order to remove Object Database please set empty db name and remove all elements, views and rules';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
 const SUPERUSER                 = 'root';
-const LAYOUTCELLPROPS           = ['row', 'col', 'x', 'y', 'value', 'attributes', 'hint', 'collapsecol', 'collapserow'];
-const LAYOUTTABLEPROPS          = ['attributes', 'collapserow', 'collapsecol'];
+const LAYOUTCELLPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow'];
+const LAYOUTTABLEPROPS          = ['style', 'collapserow', 'collapsecol'];
 const LAYOUTEVENTPROPS          = ['event', 'x', 'y', 'row', 'col'];
-const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'attributes'];
+const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'style'];
 const NONEXPRESSIONCHARS        = /[^rcq\+\-\;\&\|\!\*\/0123456789\.\%\>\<\=\(\) ]/;
 
 export function GetTableNameId(name)
@@ -376,7 +376,7 @@ function SuckLayoutAndQuery(dialog, odid)
 // |  [C] hint                                           | 
 // |  [CT] event                                         | 
 // |  [CT] collapserow, collapsecol                      | These props set to any values - collapses whole table rows/columns (for cell) and undefined rows/columns (for table)
-// |  [CT] attributes                                    | Cell style property in attributes (in a addition to user defined cell ccs class in user style scheme) consists of mixed values of JSON type element style property, direct style definition in attributes
+// |  [CT] style                                         | Cell style property as a html attribute consists of mixed values of JSON type 'object element' style property and direct style definition here
 // +-----------------------------------------------------+
 function CheckXYpropsCorrectness(object)
 {
@@ -425,15 +425,16 @@ function ParseViewLayout(jsons, odid)
 
       // Next step - check row property syntax and pasre column list in json.col splited via '|' then
       if (NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist, but incorrect, consisting of illegal expression chars? Continue. Old version check also continues for empty json.row (which is correct), not considering defined columns for correct row syntax: if (!json.row || NONEXPRESSIONCHARS.test(json.row)) continue;
-      const startcolumnindex = 'col' in json ? layout.columns.length : 0; // Fix column index to start with to defined wich columns should be processed. No prop 'col' defned - process all columns previously defined (start index = 0), otherwise start with new column index (start index = layout.columns array length)
+      const currentcolumns = 'col' in json ? [] : layout.columns;
       if ('col' in json) for (let original of json.col.split('|'))
          {
           if (!(original = original.trim())) continue;
           let newcolumn;
           for (const column of layout.columns) if (column.original === original && (newcolumn = column)) break; // Go through all previously defined columns and check match for current output column. Assign newcolumn to the matched column
-          if (newcolumn) continue;
+          if (newcolumn && currentcolumns.push(newcolumn)) continue;
 
           layout.columns.push(newcolumn = { original: original }); // Otherwise create new column object
+          currentcolumns.push(newcolumn);
           [newcolumn.elementname, newcolumn.elementprop] = qm.GetColumnElementAndProp(original); // Function qm.GetColumnElementAndProp returns object element name (or null if original column is not an object element) with its prop (or null if object element has non-JSON type or JSON property unset)
           if (!newcolumn.elementname) continue; // New column is not an object element (id|date|time|user|eid1|eid2..)? Continue. Otherwise
 
@@ -444,9 +445,9 @@ function ParseViewLayout(jsons, odid)
       // Last step - assign cell props to layout.expressionrows[json.row] for every defined column in previous step (currentcolumns array)
       for (const cellprop of LAYOUTCELLPROPS) // Go through all cell specific string props
       if (typeof json[cellprop] === 'string') // and choose string type only
-      for (let i = startcolumnindex; i < layout.columns.length; i++) // Via startcolumnindex set above - for undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
+      for (let i = 0; i < currentcolumns.length; i++) // For undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
           {
-           const column = layout.columns[i].original;
+           const column = currentcolumns[i].original;
            if (!(json.row in layout.expressionrows)) layout.expressionrows[json.row] = {};
            if (!(column in layout.expressionrows[json.row])) layout.expressionrows[json.row][column] = {};
            layout.expressionrows[json.row][column][cellprop] = json[cellprop]; // Set json cell props for every column 
@@ -471,7 +472,7 @@ function ParseViewQuery(dialog, layout, viewprofile, odid)
  let select = [];
  for (const column of layout.columns) select.push(column.original);
  if (IsViewInteractive(dialog, viewprofile)) [layout.columnidindex, layout.columnlastversionindex] = [ GetColumnIndex(layout.columns, 'id') ?? select.push('id') - 1, GetColumnIndex(layout.columns, 'lastversion') ?? select.push('lastversion') - 1]; // Operator returns left operand if it's not nill or undefined, and returns right operand otherwise
- for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnattributeindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'attributes')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'attributes')) - 1;
+ for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnstyleindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'style')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'style')) - 1;
  select = `SELECT ${select.join(',')}`; 
 
  // Initializate FROM statement result query

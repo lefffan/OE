@@ -109,10 +109,10 @@ export function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-
  return inner;
 }
 
-export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true)
+export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
 {
  if (url) return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
- return `<svg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'>`;
+ return `<svg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg' ${extraattribute}>`;
 }
 
 export function SVGUrlFooter(url = true)

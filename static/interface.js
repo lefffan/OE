@@ -8,7 +8,7 @@
 // Todo0 - While resizing all animation is being applied and slowing GUI?
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo2 - Check opera bug mouseup event at right mouse btn release while dragging while mouse guesters enabled in opera settings
-// Todo2 - Any OV fullscreen doesn't call connection box overflow, sidebar fullscreen - connection box is overflowed with scrolling appeared
+// Todo1 - CHILDCONTROLTEMPLATES.default -> CHILDCONTROLTEMPLATES.custom
 
 import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';
@@ -163,13 +163,24 @@ function ControlElementsMatchEventTarget(control, userevent, phase)
  for (const element of control.elements)								// Iterate all DOM elements from control.elements
   if (Array.isArray(element))											// All array elements might be DOM elements directly or nested array of them. Second scenario is to keep zero element to apply some options to regardless of all other (next) ones
 	 {
-	  for (const e of element) if (e === userevent.target) return true; // Iterate nested array and return the match is successfull
+	  if (element.length === 1)
+		 {
+	  	  // New version: 
+	  	  let currenttarget = userevent.target;
+	  	  while (currenttarget !== control.child.elementDOM && currenttarget !== element[0] && currenttarget) currenttarget = currenttarget.parentNode;
+      	  if (currenttarget === element[0]) return true;
+		 }
+	   else
+	     {
+	      // Old version: 
+		  for (const e of element) if (e === userevent.target) return true; // Iterate nested array and return the match is successfull
+		 }
 	 }
    else
 	 {
-	  if (element === userevent.target) return true;					// Check single element for match otherwise
+	  if (element === userevent.target) return true; // Check single element for match otherwise
 	 }
- return false;															// Return falsy match
+ return false;										 // Return falsy match
 }
 
 // Function calls every function in control.callback array to handle init/capture/process/release control phases.
@@ -187,7 +198,7 @@ function ChangeMouseCursor(control, userevent, childclientrect)
  if (['keydown', 'keyup'].indexOf(userevent.type) !== -1 || typeof control.cursor !== 'string') return;
  const areamatch  = ControlAreaMatchMouseCursor(control, userevent, '', childclientrect);
  if (areamatch === false) return;
- if (areamatch === true || ControlElementsMatchEventTarget(control, userevent) === true) return document.body.style.cursor = control.cursor;
+ if (areamatch === true || ControlElementsMatchEventTarget(control, userevent) === true) return document.body.style.cursor = control.cursor; // document.body.style.setProperty('cursor', control.cursor, 'important');
  document.body.style.cursor = 'auto';
 }
 
@@ -214,8 +225,9 @@ export class Interface
 	  {
 	   const control = this.props.control[name];
 	   if (typeof control.area !== 'object' || typeof control.icon !== 'string') continue;		// For controls with icons only
-	   let element = this.elementDOM;															// Current element is child main DOM element
-	   if (Array.isArray(control.elements)) if (!(element = control.elements[0])) continue;		// or first DOM element in <element> control property
+	   let element = Array.isArray(control.elements) ? control.elements[0] : this.elementDOM;	// Set current control DOM element to control.elements 1st array val or to child main DOM element
+	   if (Array.isArray(element)) element = element[0];										// In case of 1st val is array set it to 1st val of its array
+	   if (!element) continue;																	// and continue for faulsy element
 	   if (!elements.has(element)) elements.set(element, {iconimage: '', iconposition: ''});	// Add map element with DOM element as a key
 	   const area = elements.get(element).area;													// Get previous control area if exist
 
@@ -677,7 +689,7 @@ export class Interface
 		  {																						// Check control event, mouse cursor is in control area and clicked element match of control DOM elements for 'capture' phase. Control is considered captures in case of all cases match
 		   lg(`Control ${prop} is captured!`);
 		   app.control = control;																// Fix captured control
-		   if ('cursor' in control) document.body.style.cursor = control.cursor;				// Set control cursor
+		   if ('cursor' in control) document.body.style.cursor = control.cursor;				// Set control cursor document.body.style.setProperty('cursor', control.cursor, 'important');
 		   CallControlHandler(control, event, 'capture');										// Call control handler
 		   return;
 		  }

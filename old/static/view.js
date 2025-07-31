@@ -13,7 +13,6 @@ const NOTEDITABLE           = 'false';
 const FOCUS_VERTICAL        = 0b001;
 const FOCUS_HORIZONTAL      = 0b010;
 const FOCUS_EDGE            = 0b100;
-const PIXELSCROLLINGGAP     = 11;
 
 function CheckXYpropsCorrectness(object)
 {
@@ -23,31 +22,126 @@ function CheckXYpropsCorrectness(object)
 export class View extends Interface
 {
  static style = {
-                 ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "padding": "23px 3px 3px 3px;", "box-sizing": "border-box;" }, // Old stable version values: "background-color": "#EEE;", "scrollbar-color": "#CCCCCC #FFFFFF;"
+	               // dialog box title
+                 ".ovbox":                      { "position": "absolute;", "overflow": "auto;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "padding": "23px 2px 2px 2px;", "box-sizing": "border-box;" }, // Old stable version values: "background-color": "#EEE;", "scrollbar-color": "#CCCCCC #FFFFFF;"
 	             ".ovbox h1":                   { "width": "100%;", "margin": "0;", "text-align": "center;", "position": "absolute;", "top": "50%;", "transform": "translateY(-50%);" },
-		         ".gridcontainer":              { "display": "grid;", "padding": "0px;", "width": "100%;", "background-color": "", "box-sizing": "border-box;", "overflow": "auto;", "border-top": "1px solid #999;", "border-left": "1px solid #999;" },
-		         ".undefinedcell":              { "padding": "10px;", "border-left": "", "border-top": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;", "background-color": "" },
-		         ".titlecell":                  { "padding": "10px;", "border-left": "", "border-top": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "" },
-		         ".newobjectcell":              { "padding": "10px;", "border-left": "", "border-top": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "" },
-		         ".interactivecell":            { "padding": "10px;", "border-left": "", "border-top": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;" },
-		         ".noninteractivecell":         { "padding": "10px;", "border-left": "", "border-top": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;" },
-		         ".virtualcell":                { "padding": "10px;", "border-left": "", "border-top": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;" },
+		         ".undefinedcell":              { "padding": "10px;", "border": "1px solid #999;", "background-color": "" },
+		         ".titlecell":                  { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "" },
+		         ".newobjectcell":              { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "" },
+		         ".interactivecell":            { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;" },
+		         ".noninteractivecell":         { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;" },
+		         ".virtualcell":                { "padding": "10px;", "border": "1px solid #999;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;" },
                  ".noninteractivecursorcell":   { "outline": "red solid 1px;" }, 
                  ".interactivecursorcell":      { "outline": "blue solid 1px;" }, 
                  ".clipboardcell":              { "outline-style": "dashed;" }, 
 		         ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
-                 "cursor interactive cell":     { "outline": "#1b74e9 solid 2px", "shadow": "", "clipboard outline": "#1b74e9 dashed 2px" },
-                 "cursor noninteractive cell":  { "outline": "red solid 1px", "shadow": "", "clipboard outline": "red dashed 2px" },
 		         [`.ovbox table tbody tr td:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
+                 "table cursor interactive cell":                                   { "outline": "#1b74e9 solid 2px", "shadow": "", "clipboard outline": "#1b74e9 dashed 2px" },
+                 "table cursor noninteractive cell":                                { "outline": "red solid 1px", "shadow": "", "clipboard outline": "red dashed 2px" },
                 };
+
+ static MouseAreaSelectControl(userevent, control, phase)
+ {
+  if (!userevent || !('cellIndex' in userevent.target)) return;
+  let newarea;
+  switch (phase)
+	     {
+          case 'capture':
+               newarea = { x1: userevent.target.cellIndex, y1: userevent.target.parentNode.rowIndex, x2: userevent.target.cellIndex, y2: userevent.target.parentNode.rowIndex };
+               control.child.MoveCursor(control.child.cursor, { x: newarea.x1, y: newarea.y1 }, FOCUS_VERTICAL | FOCUS_HORIZONTAL | FOCUS_EDGE);
+               break;
+          case 'process':
+               newarea = { x1: control.data.x1, y1: control.data.y1, x2: userevent.target.cellIndex, y2: userevent.target.parentNode.rowIndex };
+               break;
+          case 'release':
+               return;
+	     }
+  control.child.SelectTableCells(control.data, newarea);
+  control.data = newarea;
+ }
+
+ SelectTableCells(unselect, select)
+ {
+  this.HighlightTableCells(unselect);
+  this.HighlightTableCells(select, true);
+ }
+
+ HighlightTableCells(area, highlight)
+ {
+  if (!area || (area.x1 === area.x2 && area.y1 === area.y2)) return;
+  for (let y = Math.min(area.y1, area.y2); y <= Math.max(area.y1, area.y2); y++)
+  for (let x = Math.min(area.x1, area.x2); x <= Math.max(area.x1, area.x2); x++)
+      if (!highlight) this.tableDOM.rows[y].cells[x].classList.remove('selectedcell');
+       else if (this.cursor.x !== x || this.cursor.y !== y) this.tableDOM.rows[y].cells[x].classList.add('selectedcell');
+ }
+
+ AdjustAreaOrCursorCoordinates(area)
+ {
+  if ('x' in area) // This is cursor!
+     {
+      if (area.x < 0) area.x = 0;
+      if (area.y < 0) area.y = 0;
+      if (area.x >= this.valuetableWidth) area.x = this.valuetableWidth - 1;
+      if (area.y >= this.valuetableHeight) area.y = this.valuetableHeight - 1;
+     }
+   else // This is area!
+     {
+      if (area.x2 < 0) area.x2 = 0;
+      if (area.y2 < 0) area.y2 = 0;
+      if (area.x2 >= this.valuetableWidth) area.x2 = this.valuetableWidth - 1;
+      if (area.y2 >= this.valuetableHeight) area.y2 = this.valuetableHeight - 1;
+     }
+ }
+
+ MoveCursor(oldcursor, newcursor, focus = FOCUS_VERTICAL | FOCUS_HORIZONTAL)
+ {
+  this.tableDOM.focus();
+  if (oldcursor)
+     {
+      const td = this.tableDOM.rows[oldcursor.y].cells[oldcursor.x];
+      td.style.outline = 'none';
+      td.style.boxShadow = 'none';
+     }
+ if (!newcursor) return;
+
+ [this.cursor.x, this.cursor.y] = [newcursor.x, newcursor.y];
+ const cursorproperty = `table cursor ${this.valuetable[newcursor.y]?.[newcursor.x].interactive ? '' : 'non'}interactive cell`;
+ const td = this.tableDOM.rows[newcursor.y].cells[newcursor.x];
+ if (View.style[cursorproperty].outline) td.style.outline = View.style[cursorproperty].outline;
+ if (View.style[cursorproperty].shadow) td.style.boxShadow = View.style[cursorproperty].shadow;
+ const container = this.elementDOM;
+
+ // Set cursor visible on horizontal (offsetLeft - from left edge to element start, offsetWidth - full element width, scrollLeft - scrolled element part)
+ if (focus & FOCUS_HORIZONTAL)
+ if (td.offsetLeft <= container.scrollLeft + 1)
+	{
+	 container.scrollLeft = (focus & FOCUS_EDGE) ? td.offsetLeft - 1 + container.offsetWidth : td.offsetLeft - 1;
+    }
+  else if (td.offsetLeft + td.offsetWidth > container.scrollLeft + container.offsetWidth)
+    {
+     container.scrollLeft = (focus & FOCUS_EDGE) ? Math.max(td.offsetLeft, td.offsetLeft + td.offsetWidth - container.offsetWidth + 11) : Math.min(td.offsetLeft, td.offsetLeft + td.offsetWidth - container.offsetWidth + 11);
+    }
+
+ // Set cursor visible on horizontal
+ if (focus & FOCUS_VERTICAL)
+ if (td.offsetTop <= container.scrollTop + 1)
+    {
+     container.scrollTop = (focus & FOCUS_EDGE) ? td.offsetTop - 1  + container.offsetHeight : td.offsetTop - 1;
+    }
+  else if (td.offsetTop + td.offsetHeight > container.scrollTop + container.offsetHeight)
+    {
+     container.scrollTop = (focus & FOCUS_EDGE) ? Math.max(td.offsetTop, td.offsetTop + td.offsetHeight - container.offsetHeight + 11) : Math.min(td.offsetTop, td.offsetTop + td.offsetHeight - container.offsetHeight + 11);
+    }
+ }
 
  constructor(...args)
  {
-  const mouseareaselect = { elements: [], button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', callback: [View.MouseAreaSelectControl] };
-  if (!args[2]?.control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, mouseareaselect: mouseareaselect, default: {}, drag: {}, fullscreendblclick: {}, closeesc: {} };
+  const mouseareaselect = { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', callback: [View.MouseAreaSelectControl] };
+  if (!args[2]?.control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, mouseareaselect: mouseareaselect, default: {}, drag: {}, closeesc: {} };
   args[3] = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
   super(...args);
-  this.props.control.drag.elements = this.props.control.fullscreendblclick.elements = [this.elementDOM];
+  this.cursor = {};
+  this.props.control.fullscreendblclick.elements = [this.elementDOM];
  }
 
  // Init OV params
@@ -186,12 +280,26 @@ export class View extends Interface
   switch (msg.type)
          {
           case 'keydown':
-               if (msg.getModifierState('ScrollLock')) break;
-               const pagerowsnumber = Math.trunc(this.gridcontainer.clientHeight * this.valuetableHeight / this.gridcontainer.scrollHeight);
+               const pagerowsnumber = Math.trunc(this.elementDOM.clientHeight * this.valuetableHeight / this.elementDOM.scrollHeight);
                const cursordisp = { ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 }, ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, Home: { x: 0, y: -MAXVIEWTABLEHEIGHT }, End: { x: 0, y: MAXVIEWTABLEHEIGHT }, PageUp: { x: 0, y: -pagerowsnumber }, PageDown: { x: 0, y: pagerowsnumber } };
                if (msg.code in cursordisp)
-               if (msg.shiftKey) this.MoveCursor(this.cursor, { x1: this.cursor.x1, y1: this.cursor.y1, x2: this.cursor.x2 + cursordisp[msg.code].x, y2: this.cursor.y2 + cursordisp[msg.code].y }) ? msg.preventDefault() : null;
-                else this.MoveCursor(this.cursor, { x1: this.cursor.x1 + cursordisp[msg.code].x, y1: this.cursor.y1 + cursordisp[msg.code].y, x2: this.cursor.x1 + cursordisp[msg.code].x, y2: this.cursor.y1 + cursordisp[msg.code].y }) ? msg.preventDefault() : null;
+               if (msg.shiftKey)
+                  {
+                   const newarea = this.props.control.mouseareaselect.data ? Object.assign({}, this.props.control.mouseareaselect.data) : { x1: this.cursor.x, y1: this.cursor.y, x2: this.cursor.x, y2: this.cursor.y };
+                   newarea.x2 += cursordisp[msg.code].x;
+                   newarea.y2 += cursordisp[msg.code].y;
+                   this.AdjustAreaOrCursorCoordinates(newarea);
+
+                   this.SelectTableCells(this.props.control.mouseareaselect.data, newarea);
+                   this.props.control.mouseareaselect.data = newarea;
+                  }
+                else
+                  {
+                   const newcursor = { x: this.cursor.x + cursordisp[msg.code].x, y: this.cursor.y + cursordisp[msg.code].y };
+                   this.MoveCursor(this.cursor, newcursor, FOCUS_VERTICAL | FOCUS_HORIZONTAL | FOCUS_EDGE);
+                   this.SelectTableCells(this.props.control.mouseareaselect.data);
+                   delete this.props.control.mouseareaselect.data;
+                  }
                break;
           case 'SETVIEW':
                // Step 1 - init OV params and handle some errors, such as incoming msg 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in msg)
@@ -239,7 +347,7 @@ export class View extends Interface
                          if (r >= 0) attributes.class = cell.e && !layout.systemelementnames[cell.e] && cell.lastversion && this.interactive ? 'interactivecell' : 'noninteractivecell';
                          cell.interactive = (r === NEWVIRTUALROWID && cell.e && !layout.systemelementnames[cell.e]) || attributes.class === 'interactivecell' ? true : false;
                          if (r === TITLEVIRTUALROWID && cell.e) attributes.title = layout.systemelementnames[cell.e] ? layout.systemelementnames[cell.e] : column.elementprofiledescription;
-                         cell.attributes = this.ConvertHTMLAttributeObjetsToStrings(attributes, this.ConvertHTMLAttributeStringToObject(cell.attributes), row?.[column.columnstyleindex] ? this.ConvertHTMLAttributeStringToObject(row[column.columnstyleindex]) : {}); // Cell HTML attributes priority: combine GUI customization first, second - then layout attributes, third - element json data retreived from db selection (for json type elements only)
+                         cell.attributes = this.ConvertHTMLAttributeObjetsToStrings(attributes, this.ConvertHTMLAttributeStringToObject(cell.attributes), row?.[column.columnattributeindex] ? this.ConvertHTMLAttributeStringToObject(row[column.columnattributeindex]) : {}); // Cell HTML attributes priority: combine GUI customization first, second - then layout attributes, third - element json data retreived from db selection (for json type elements only)
                          this.SetCell(cell, r, +c, q);
                         }
                    }
@@ -254,7 +362,6 @@ export class View extends Interface
  {
   // Step 1 - display error message and return setting view percent loading status to 100
   lg(this.valuetable);
-  this.props.control.mouseareaselect.elements = [];
   if (typeof errormsg === 'string')
      {
       this.elementDOM.innerHTML = errormsg;
@@ -265,207 +372,70 @@ export class View extends Interface
   // Step 2 - init same tables vars
   this.sidebarview.status = 100;
   let dispx, dispy = 0;
+  const undefinedcell = `<td class="undefinedcell"></td>`;
+  let undefinedrow = '<tr>';
+  for (let x = 0; x < this.valuetableWidth; x++)
+      this.collapsedcols[x] || (!this.definedcols[x] && 'collapsecol' in this.layout.table) ? this.collapsedcols[x] = true : undefinedrow += undefinedcell;
+  undefinedrow += '</tr>';
   const newtable = [];
   let inner = '';
   this.valuetableHeight = this.valuetable.length;
-  for (let x = 0; x < this.valuetableWidth; x++) if (!this.collapsedcols[x] && !this.definedcols[x] && 'collapsecol' in this.layout.table) this.collapsedcols[x] = true;
 
-  // Step 3 - collapse main table
+  // Step 3 - make result innerHTML of table cells
   for (let y = 0; y < this.valuetableHeight; y++)
       {
        if (this.collapsedrows[y] && (dispy = dispy + 1)) continue;
        if (!this.valuetable[y] && 'collapserow' in this.layout.table && (dispy = dispy + 1)) continue;
-       if (!this.valuetable[y]) continue;
+       if (!this.valuetable[y])
+          {
+           inner += undefinedrow;
+           continue;
+          }
        newtable[y - dispy] = this.valuetable[y];
+       inner += '<tr>';
        dispx = 0;
        for (let x = 0; x < this.valuetableWidth - dispx; x++)
 	       {
-	        if (!this.collapsedcols[x + dispx]) continue;
-            this.valuetable[y].splice(x, 1);
-            x--;
-            dispx++;
-           }
+	        if (this.collapsedcols[x + dispx])
+               {
+                this.valuetable[y].splice(x, 1);
+                x--;
+                dispx++;
+                continue;
+               }
+            const cell = this.valuetable[y][x];
+	        if (!cell && (inner = inner + undefinedcell)) continue;
+	        inner += `<td ${cell.attributes}>${cell.value}</td>`;
+            cell.y -= dispy;
+	       }
+       inner += '</tr>';
       }
   this.valuetable = newtable;
-  newtable = null;
-  this.valuetableHeight -= dispy;
-  this.valuetableWidth  -= dispx;
+  this.valuetableHeight = this.valuetable.length; // Old version: this.valuetableHeight -= dispy;
+  this.valuetableWidth -= dispx;
+  this.elementDOM.innerHTML = `<table${typeof this.layout.table.attributes === 'string' ? ' ' + this.layout.table.attributes : ''}><tbody>${inner}</tbody></table>`;
+  this.tableDOM = this.elementDOM.querySelector('table');
+  this.props.control.mouseareaselect.elements = [[this.tableDOM]];
+  this.MoveCursor(null, { x: 0, y: 0 }, FOCUS_VERTICAL | FOCUS_HORIZONTAL);
 
-  // Step 4 - make result innerHTML of table cells
-  for (let y = 1; y <= this.valuetableHeight; y++)
-      {
-       const id = `${x}~${y}`;
-       if (!this.valuetable[y])
-          {
-           for (let x = 1; x <= this.valuetableWidth; x++) inner += `<div class="undefinedcell" style="grid-column=${x}; grid-row=${y};"></div>`;
-           continue;
-          }
-       for (let x = 1; x <= this.valuetableWidth; x++)
-	       {
-            const cell = this.valuetable[y][x];
-	        if (!cell && (inner = inner + `<div class="undefinedcell" style="grid-column=${x}; grid-row=${y};"></div>`)) continue;
-            inner += `<div ${cell.attributes} style="grid-column=${x}; grid-row=${y};">${cell.value}</div>`;
-            [cell.x, cell.y] = [x - 1, y - 1];
-           }
-      }
+  // 1st week:
+  // Todo0 - relaese row[0-..] as a column value and row[c] - as a current cell value in a row expression
+  // Todo0 - adjust cell attributes and cell innerHTML (cell.value)
+  // Todo0 - handle errors - zero length table, zero db selection, x/y out of range, no any valid layout json VIA context menu description
+  // Todo0 - Repair collapsecol
+  // Todo1 - add additional wrapper for the view content to not overlap view header at scrolling
+  // Todo0 - check table size at the end of table build - it may be zero length due to row/col collapse
 
-  // Step 5 - Assing table specific vars and set cursor to initial position
-  this.elementDOM.innerHTML = `<div${typeof this.layout.table.attributes === 'string' ? ' ' + this.layout.table.attributes : ''} style="grid-template-columns: repeat(${this.valuetableWidth}, auto); grid-template-rows: repeat(${this.valuetableHeight}, auto);">${inner}</div>`;
-  this.gridcontainer = this.elementDOM.querySelector('.gridcontainer');
-  this.props.control.mouseareaselect.elements.push([this.gridcontainer]);
-  this.MoveCursor(null, { x: 0, y: 0, areas: [{ x1: 0, y1: 0, x2: 0, y2: 0 }] });
- }
- 
- // Todo0 - relaese row[0-..] as a column value and row[c] - as a current cell value in a row expression
- // Todo0 - adjust cell attributes and cell innerHTML (cell.value)
- // Todo0 - handle errors - zero length table, zero db selection, x/y out of range, no any valid layout json VIA context menu description
- // Todo2 - add additional wrapper for the view content to not overlap view header at scrolling
- // Todo0 - check table size at the end of table build - it may be zero length due to row/col collapse
- // Todo0 - Ctrl a, multiple selection, per object select, cursor next object jump, enter[+shift] moves cursor down[up] (in case of selection moves among selected cells)
- // Todo1 - scale ovbox content via child management icon +-
- // Todo1 - loading percent status animation and blue/green view icon
- // Todo1 - Child interaction via msg exchange only (!) via parent child management
- // Todo0 - Document controller-client message broker and build conception when call one view, then calling the second while 1st view os not yet loaded would cancel 1st view incoming data msg
- // Todo0 - ovbox h1 is out of view box
- // Ended here - change attribute to style+hint (search for attribute word in this file).
- //              In case of error message grid container is undefined (set it to undefined dont forget), so keys are not functional (dont forget check it at keydown event)
- //              Refactor keydown event
- //              Remake - what if not prefinal overlaps previuous but previous overlap prefinal selected area? And dont forget rename overlay to overlap
- //              Finish '// Step 4 - make result innerHTML of table cells'
- static MouseAreaSelectControl(userevent, control, phase)
- {
-  if (!['capture', 'process'].include(phase)) return; // Handle 'capture' and 'process' phase only
-  const coordiantes = control.child.GetElementGridCoordinates(userevent.target); // Get event target grid x/y coordinates
-  if (!coordiantes) return; // Event is out of grid? Return
-  let newcursor;
-  if (phase === 'capture')
-     {
-      newcursor = { x: x, y: y, areas: userevent.ctrlKey ? structuredClone(control.child.cursor.areas) : [{ x1: x, y1: y, x2: x, y2: y }] }; // Clone old cursor for ctrl hold or create new cursor with new coordinates and empty area
-      if (userevent.ctrlKey) newcursor.areas.push({ x1: x, y1: y, x2: x, y2: y }); // Add new empty area for start selecting with CTRL
-     }
-   else
-     {
-      newcursor = structuredClone(control.child.cursor); // Clone deeply old cursor 
-      [newcursor.areas.at(-1).x2, newcursor.areas.at(-1).y2] = [x, y]; // and change its last area x2/y2 coordinates
-     }
-  control.child.MoveCursor(control.child.cursor, newcursor); // Move cursor :)
- }
-
- GetElementGridCoordinates(element)
- {
-  while (element && !element.id && element !== this.elementDOM) element = element.parentNode;
-  if (!element.id) return {};
-  const pos = element.id.indexOf('~');
-  return { x: element.id.substring(0, pos) - 1, y: element.id.substring(pos + 1) - 1 };
- }
-
- GetGridCoordinatesElement(x, y)
- {
-  return this.gridcontainer.querySelector(`#${x + 1}~${y + 1}`);
- }
-
- HighlightTableCells(cursor, highlight)
- {
-  if (!cursor) return;
-  let cell;
-
-  for (const area of cursor.areas)
-      {
-       for (let y = Math.min(area.y1, area.y2); y <= Math.max(area.y1, area.y2); y++)
-       for (let x = Math.min(area.x1, area.x2); x <= Math.max(area.x1, area.x2); x++)
-           if (cell = this.GetGridCoordinatesElement({ x: x, y: y }))
-           if (cursor.x === x && cursor.y === y) // Is it cursor within area?
-              {
-               cell.classList.remove('selectedcell');
-               const cursorproperty = `cursor ${this.valuetable[y]?.[x].interactive ? '' : 'non'}interactive cell`;
-               if (!highlight) cell.style.outline = 'none'; else if (View.style[cursorproperty].outline) cell.style.outline = View.style[cursorproperty].outline;
-               if (!highlight) cell.style.boxShadow = 'none'; else if (View.style[cursorproperty].shadow) cell.style.boxShadow = View.style[cursorproperty].shadow;
-              }
-            else
-              {
-               highlight ? cell.classList.add('selectedcell') : cell.classList.remove('selectedcell');
-              }
-      }
- }
-
- // Function checks whether table cell (grid item DOM element) left/right/top/bottom sides are out of visible scrolling container area due to overflow and adjusts scrolling container scrollLeft/scrollTop props
- AdjustContainerScrollingToFitTheTableCell(cell, scrollingcontainer, side)
- {
-  switch (side)
-         {
-          case 'right':
-               if (cell.offsetLeft + cell.offsetWidth >= scrollingcontainer.scrollLeft + scrollingcontainer.clientWidth) scrollingcontainer.scrollLeft = cell.offsetLeft + cell.offsetWidth - scrollingcontainer.clientWidth + PIXELSCROLLINGGAP;
-          case 'left':
-               if (cell.offsetLeft < scrollingcontainer.scrollLeft) scrollingcontainer.scrollLeft = cell.offsetLeft - PIXELSCROLLINGGAP;
-               break;
-          case 'bottom':
-               if (cell.offsetTop + cell.offsetHeight >= scrollingcontainer.scrollTop + scrollingcontainer.clientHeight) scrollingcontainer.scrollTop = cell.offsetTop +cell.offsetHeight - scrollingcontainer.clientHeight + PIXELSCROLLINGGAP;
-          case 'top':
-               if (cell.offsetTop < scrollingcontainer.scrollTop) scrollingcontainer.scrollTop = cell.offsetTop - PIXELSCROLLINGGAP;
-               break;
-          default:
-               this.AdjustContainerScrollingToFitTheTableCell(cell, scrollingcontainer, 'right');
-               this.AdjustContainerScrollingToFitTheTableCell(cell, scrollingcontainer, 'bottom');
-         }
- }
- 
- // Array of cursor/areas ({ object:, property:, maxvalue: }) to be cut to fit the range 0..maxvalue
- CutCursorCoordinatesToFitTheGrid(cursor)
- {
-  cursor.x = Math.min(Math.max(0, cursor.x), this.valuetableWidth);
-  cursor.y = Math.min(Math.max(0, cursor.x), this.valuetableHeight);
-  const area = cursor.areas.at(-1);
-  area.x1 = Math.min(Math.max(0, area.x1), this.valuetableWidth);
-  area.x2 = Math.min(Math.max(0, area.x2), this.valuetableWidth);
-  area.y1 = Math.min(Math.max(0, area.y1), this.valuetableHeight);
-  area.y2 = Math.min(Math.max(0, area.y2), this.valuetableHeight);
- }
-
- // Function removes cursor prefinal area overlay to other selected areas before
- RemoveAreaOverlays(cursor)
- {
-  if (cursor.areas.length < 3) return;
-  prefinalarea = cursor.areas.at(-2);
-  for (let i = 0 ; i < cursor.areas.length - 2; i++)
-      {
-       const currentarea = cursor.areas[i];
-       if (Math.min(prefinalarea.x1, prefinalarea.x2) <= Math.min(currentarea.x1, currentarea.x2))
-       if (Math.min(prefinalarea.y1, prefinalarea.y2) <= Math.min(currentarea.y1, currentarea.y2))
-       if (Math.max(prefinalarea.x1, prefinalarea.x2) >= Math.max(currentarea.x1, currentarea.x2))
-       if (Math.max(prefinalarea.y1, prefinalarea.y2) >= Math.max(currentarea.y1, currentarea.y2))
-          cursor.areas.splice(i--, 1);
-      }
- }
-
- // Cursor object format: { x:, y: areas: [{ x1:, y1:, x2:, y2:}, {}..] }. Prop 'areas' consists of initial cell position (x1, y1) final cell position (x2, y2).
- MoveCursor(oldcursor, newcursor)
- {
-  // Cut new cursor to fit the grid range and check old and new cursor positions (x, y and last selected area rectangle). No changes? Return
-  this.gridcontainer.focus();
-  this.CutCursorCoordinatesToFitTheGrid(newcursor);
-  if (oldcursor)
-  if (oldcursor.x === newcursor.x && oldcursor.y === newcursor.y)
-  if (oldcursor.areas.length === newcursor.areas.length)
-  if (!oldcursor.areas.length || (oldcursor.areas.at(-1).x1 === newcursor.areas.at(-1).x1 && oldcursor.areas.at(-1).x2 === newcursor.areas.at(-1).x2 && oldcursor.areas.at(-1).y1 === newcursor.areas.at(-1).y1 && oldcursor.areas.at(-1).y2 === newcursor.areas.at(-1).y2))
-     return;
-  
-  // Dehighlight old cursor and its areas and highlight new cursor with its areas not forgetiing to remove prefinal area overlay to other selected areas before
-  this.HighlightTableCells(oldcursor);
-  this.RemoveAreaOverlays(newcursor);
-  this.HighlightTableCells(newcursor, true);
-  this.cursor = newcursor;
-
-  // Cursor x/y coordinates change or undefined old cursor (initial state) forces grid container to adjust its moving side via changing scrolling offset to fit the cursor. No cursor position change (area selection change) - adjust scrolling offset for all container sides passing undefined 3rd arg to 'AdjustContainerScrollingToFitTheTableCell' function
-  const cell = !oldcursor || oldcursor.x !== newcursor.x || oldcursor.y !== newcursor.y ? GetGridCoordinatesElement(newcursor.x, newcursor.y) : GetGridCoordinatesElement(newcursor.areas.at(-1).x, newcursor.areas.at(-1).y);
-  if ((!oldcursor) || (oldcursor.x !== newcursor.x && oldcursor.y !== newcursor.y)) return this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer);
-  if (oldcursor.x !== newcursor.x) return this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer, oldcursor.x < newcursor.x ? 'right' : 'left');
-  if (oldcursor.y !== newcursor.y) return this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer, oldcursor.x < newcursor.x ? 'bottom' : 'top');
-  this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer);
+  // 2nd week:
+  // Todo0 - cursor/event release - this is a big and comlicated handler section
+  // Todo1 - scale ovbox content via child management icon +-
+  // Todo1 - loading percent status animation and blue/green view icon
+  // Todo1 - Child interaction via msg exchange via parent child management
  }
 }
 
 // View
-// Todo - all view changes comes to client side with odid/ovid with object id and its element id. Controller passes all changes data to all clients that has this view opened.
+// Todo - all view changes comes to client side with odid/ovid with object and its element ids. Controller passes all changes data to all clients that has this view opened.
 //		  Initiator client apply all changes for this odid/ovid, non-initiator client for this odid/ovid also apply changes (if user has appropriate permissions, but if OV is opened, the user have ),
 //		  and for other ovids with this odid client side check matched object ids with their elements and add 'new notification' in a sidebar
 //        Combinations - opened|notopened, initiator|notinitiator, random-select|notrandom-select, source-view|notsource-view-but-has-its-oideid-combination
@@ -483,8 +453,7 @@ export class View extends Interface
 //                  const channel = new MessageChannel();
 //                  channel.port1.onmessage = callback;
 //                  channel.port2.postMessage(null);
-//        smooth scrolling for rows more than 500 - event preventdefault on scroll event plus settimeout (dispatch scrolling event, 100);
-//        check stepable table building via adding new rows via settimeout
+// Todo - Fix error while calling all hosts, then calling 'random 2 hosts' displays 'random 2 host' view, then 'all hosts' is displayed. Build incoming message broker.
 // Todo - Voting view example
 //		  layout: {"oid":"3", "eid":"element id number for every voting", "y":"0", "x":"0", "value":"Голосовать"}
 //		  object selection: empty
@@ -497,7 +466,8 @@ export class View extends Interface
 //		  Display selected cells sum for 'number' cell type
 // Todo - Emodzi symbols as an element text causes db sql error. Should it be fixed?
 // Todo - Setka via css https://dbmast.ru/fon-v-vide-diagonalnoj-setki-na-css
-// Todo - View area specific style with background, border radius and so on
+// Todo - View area specific style with background, radius and so on
+// Todo - smooth scrolling for rows more than 500 - event preventdefault on scroll event plus settimeout (dispatch scrolling event, 100);
 
 // Tree view
 // Todo - Second query in object selection (add it to the help/doc) should point to the second point of the tree. No second point - until the end of the tree. Point to point tree may be multipath
@@ -517,9 +487,13 @@ export class View extends Interface
 // Todo - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
 // Todo - all table cells have their allowed html tags including pseudo tags that allows to insert graphics. Add <img> tag to allowed ones to have opportunity use image links instead downloaded images
 // Todo - to allow html table within table cells add <tr>, <td>, <tbody> and <table> tags to allowed ones
-// Todo - Don't call eval function in case of constants x,y values also, check it on million cycles
+// Todo - multi cell selecting - copy (excel table), delete (removes all selected objects) with new user event 'DELETE' for every removing object
+// Todo - view content refresh starts just right after parsed incoming data table width/height is calculated.
+// Todo - Optimize x,y expressions: if x=n+1, then don't call eval, but plus 1 to n. Don't call eval function in case of constants x,y values also
+// Todo - Always develop table functional to some needful excel functions!
 // Todo - only this type of view allows new object creation. Release object creation via dialog to input all elements values
 // Todo - Export OV data to xls(via csv) or txt file
+// Todo - Fetch progress for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
 // Todo - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
 // Todo - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
 // Todo - GALLERY command shows all foto for default, otherwise - specified foto. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
@@ -528,22 +502,23 @@ export class View extends Interface
 //		  All these external data may be embedded via custom tags to table cell <td>
 // Todo - macroses like in joe
 // Todo - Context menu Graph
-//        Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
 // Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event
-//        One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
-//        multi cell selecting - copy (excel table), delete (removes all selected objects) with new user event 'DELETE' for every removing object
-// Todo - Downloading big files don't show progress indicator. Check it. Bleat browser file download should display progress indicator anyway!
-//        But uploading should display - fetch progress for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
-// Todo - Autonavigate command for OV, for a example single mouse cell click edit the text in. Mouse single click emulate command (NONE|DBLCLICK|KEYPRESS) or create a new user event 'CLICK'? Usefull for chats. Event CLICK shouldn't be used as a regular event with passing to the controller due to overload, it should be used as an alias to other events, for a example DBLCLICK
+// Todo - Downloading big files don't show progress indicator. Check it
+// Todo - What if non table area selecting when dragging starts from 'no table area' and ends at 'table area'? One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
+// Todo - Autonavigate command for OV, for a example single mouse cell click edit the text in. Mouse single click emulate command (NONE|DBLCLICK|KEYPRESS) or new user event 'CLICK'? Usefull for chats
+// Todo - Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
+// Todo - element cell style based not only oid/eid combinations, but on element cell value (so empty style attr [style=""] hides the row or styles it by some color, for a example)
 // Todo - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711
+
 // Todo - View examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 //										arp table history for one ip/mac
-//                                      release also FSB request about our system ips perimetr, so every ip should have next types: client, service (web site, mail), system (ups, switch ip), net number, broadcast, free (if net number and broadcast are set correctly we can calc free nets)
-//                                      every ip - comment, name from billing, name from mrtg, type, arp history[for FSB and buhgalters], ping) vendor, iz_zokii (ЗОКИИ - это значимый объект критической информационной инфраструктуры)
+// Todo - Background svg for a cell
+// Todo - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses
+// Todo - chars №№ being in 'td' tag are wraped for default. Why is it? Will it be at view table type? Fix it
 
 // Element layout and Object Selection
 // Todo - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
 // Todo - sql request in 'Element Layout' section in 'value' prop should select among its view object selection, but not from all objects! (see models piechart among switches with one or zero active clients)
-//        Always develop table functional to some needful excel functions!
 // Todo - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo - second and all next queries (for non Tree view types only) do query in previous query results
+

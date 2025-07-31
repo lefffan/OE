@@ -354,13 +354,13 @@ export class Sidebar extends Interface
                       {
                        case undefined:
                        case -2:
-                            viewicon = SVGUrlHeader(24, 24, false) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGUrlFooter(false);
+                            viewicon = SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGUrlFooter(false);
                             break;
                        case -1:
-                            viewicon = SVGUrlHeader(24, 24, false) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + SVGUrlFooter(false);
+                            viewicon = SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + SVGUrlFooter(false);
                             break;
                        default:
-                            viewicon = SVGUrlHeader(24, 24, false) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, this.od[branch.odid]['ov'][branch.id].status, 'RGB(26,137,51)', 'none', '4', false) + SVGUrlFooter(false);
+                            viewicon = SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, this.od[branch.odid]['ov'][branch.id].status, 'RGB(26,137,51)', 'none', '4', false) + SVGUrlFooter(false);
                       }
                inner += `<td${attribute}><div class="sidebaritemicon"${attribute}>${viewicon}</div></td>`;                                               // View icon (od[branch.odid][branch.id]['status'])
                let footnote = this.od[branch.odid]['ov'][branch.id].footnote;

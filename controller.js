@@ -36,6 +36,7 @@
 // Todo - Controller dialog message: how to escape divider char '/'? Via '\/'?
 // Todo - event 'VIEWREFRESH' occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event (handler commands as an answeers for 'VIEWREFRESH' events depends on a view type - SET|EDIT commands, for a example, are for table type only).
 //		  This event 'VIEWREFRESH' is useful for some actions to be made at view OPEN, for a example, some objects elements data refresh (counters for a example) or execution of a script doing some external actions in 'ignore' mode
+//        Should VEWREFRESH be called at new OV appear in a any window or in a new window only? SHould new event SYSTMESTART (that applied for every OD at system start) be made?
 // Todo - How to call dialog to add new object instead of retreiving element data from vitrual object (id=-1)
 // Todo - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects. And 'COPY' to copy data to the buffer
 //		May these system calls 'NEWOBJECT' and 'DELETEOBJECT' release will be similar to user self-titled events, for example - user creates a new object via context click with 'new object row' as an args,
