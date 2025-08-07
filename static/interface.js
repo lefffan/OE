@@ -1,14 +1,12 @@
 // Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
-// Todo1 - Captured box is moving to out of range at the top/left parent child area. At releasing captured box - it should be at visible top/left area of parent with parent box changed to appropriate size
 // Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available) and scale 'cm' icon. Finish child controls (icons pos, dialog interaction)
-// Todo0 - vertical and horizontal scrollbar intersection is white background, fix it. Set cursor at scrollbar priority to the child control. Set cursor child control priority to default child hanlder and div elements hover
+// Todo2 - Set cursor at scrollbar priority to the child control (cursor at scrollbar track closes the box, but shouldn't). Set cursor child control priority to default child hanlder and div elements hover (resizing cursor is not shown on OV cells but should)
 // Todo2 - Dragging child with right btn hold moves neighbor childs
 // Todo1 - Control hint at cursor navigating ('close', 'fullscreen'..)
-// Todo2 - requestIdleCallback for idle tasks
-// Todo0 - While resizing all animation is being applied and slowing GUI?
+// Todo0 - While resizing all animation is being applied and slowing GUI? What is it about??
+// Todo0 - Two often right btn click generates two context menus displayed in a parent child. This may appear while click that removes non sticky child are late removing child that is not shown yet, Workaround - removing nonsticky childs function should be placed in setTimeout(0, ) or requestedCallback wrapper
 // Todo2 - Change box minimize icon from low line to upper line
-// Todo2 - Check opera bug mouseup event at right mouse btn release while dragging while mouse guesters enabled in opera settings
-// Todo1 - CHILDCONTROLTEMPLATES.default -> CHILDCONTROLTEMPLATES.custom
+// Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
 
 import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';

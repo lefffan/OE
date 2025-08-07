@@ -9,9 +9,9 @@ const INCORRECTDBCONFDBNAME     = 'Cannot create new database with empty name!\n
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
 const SUPERUSER                 = 'root';
 const LAYOUTCELLPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow'];
-const LAYOUTTABLEPROPS          = ['style', 'collapserow', 'collapsecol'];
+const LAYOUTTABLEPROPS          = ['style', 'hint', 'collapserow', 'collapsecol'];
 const LAYOUTEVENTPROPS          = ['event', 'x', 'y', 'row', 'col'];
-const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'style'];
+const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'style', 'hint'];
 const NONEXPRESSIONCHARS        = /[^rcq\+\-\;\&\|\!\*\/0123456789\.\%\>\<\=\(\) ]/;
 
 export function GetTableNameId(name)
@@ -373,10 +373,10 @@ function SuckLayoutAndQuery(dialog, odid)
 // |  [C] col: id|owner|e1|e2..|count(*)|${e1_prop}||    | sql select statement operands (columns); empty prop - any already defined col from jsons above; 
 // |  [C] x,y (r, c, q, o)                               | r, c, q, o vars based expression
 // |  [C] value PLAIN/SELECT/FUNCTION (x, y, r, c, q, o) | 
-// |  [C] hint                                           | 
-// |  [CT] event                                         | 
-// |  [CT] collapserow, collapsecol                      | These props set to any values - collapses whole table rows/columns (for cell) and undefined rows/columns (for table)
+// |  [CT] hint                                          | 
 // |  [CT] style                                         | Cell style property as a html attribute consists of mixed values of JSON type 'object element' style property and direct style definition here
+// |  [CT] collapserow, collapsecol                      | These props set to any values - collapses whole table rows/columns (for cell) and undefined rows/columns (for table)
+// |  [CT] event                                         | 
 // +-----------------------------------------------------+
 function CheckXYpropsCorrectness(object)
 {
@@ -393,7 +393,6 @@ function TrimObjectProps(object, props)
 function ParseViewLayout(jsons, odid)
 {
  if (typeof jsons !== 'string') return;
- //const layout = { expressionrows: {}, undefinedrows: {}, table: {}, event: {}, originalcolumns: [], outputcolumns: [], stylecolumns: [], hintcolumns: [], elementnamecolumns: [], elementpropcolumns: [] };
  const layout = { expressionrows: {}, undefinedrows: {}, table: {}, event: {}, columns: [], systemelementnames: SYSTEMELEMENTNAMES }; // columns array has next fromat: { original:, output:, extra:, elementname:, elementprop:, elementprofilename:, elementprofiledescription: }
 
  for (let json of jsons.split('\n'))
@@ -473,6 +472,7 @@ function ParseViewQuery(dialog, layout, viewprofile, odid)
  for (const column of layout.columns) select.push(column.original);
  if (IsViewInteractive(dialog, viewprofile)) [layout.columnidindex, layout.columnlastversionindex] = [ GetColumnIndex(layout.columns, 'id') ?? select.push('id') - 1, GetColumnIndex(layout.columns, 'lastversion') ?? select.push('lastversion') - 1]; // Operator returns left operand if it's not nill or undefined, and returns right operand otherwise
  for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnstyleindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'style')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'style')) - 1;
+ for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnhintindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'hint')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'hint')) - 1;
  select = `SELECT ${select.join(',')}`; 
 
  // Initializate FROM statement result query
