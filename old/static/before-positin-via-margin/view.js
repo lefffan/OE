@@ -27,8 +27,9 @@ export class View extends Interface
  static style = { // Todo0 - Make new class .cellmarginoffset: { "margin-top": "-1px;", "margin-left": "-1px;" }
                  ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
 	             ".ovbox h1":                   { "width": "100%;", "margin": "0;", "text-align": "center;", "position": "absolute;", "top": "50%;", "transform": "translateY(-50%);", "box-sizing": "border-box;" },
-		         ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
-		         ".gridcontainer":              { "osition": "relative;", "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
+		         ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "scrollbar-gutter": "stable;", "border": "none;", "outline": "none;" },
+		         ".viewcontainer":              { "width": "800px;", "height": "800px;", "box-sizing": "border-box;", "overflow": "none;", "border": "none;", "outline": "none;" },
+		         ".gridcontainer":              { "position": "relative;", "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
 		         ".undefinedcell":              { "padding": "10px;", "background-color": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;" },
 		         ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;" },
 		         ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "", "border-right": "1px solid #999;", "border-bottom": "1px solid #999;" },
@@ -49,9 +50,6 @@ export class View extends Interface
   args[3] = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
   super(...args);
   this.props.control.drag.elements = this.props.control.fullscreendblclick.elements = [this.elementDOM];
-  this.props.control.resize.callback.push(this.Render.bind(this));
-  this.props.control.resizex.callback.push(this.Render.bind(this));
-  this.props.control.resizey.callback.push(this.Render.bind(this));
  }
 
  // Init OV params based on incoming message
@@ -75,6 +73,7 @@ export class View extends Interface
   this.interactive = msg.data.interactive;
   this.layout = msg.data.layout;
   this.scrollingcontainer = null;
+  this.viewcontainer = null;
   this.gridcontainer = null;
  }
 
@@ -253,142 +252,37 @@ export class View extends Interface
   this.rowHeights.fill(CELLMINHEIGHT);
 
   // Step 4 - Assign table specific vars and set cursor to initial position
-  this.elementDOM.innerHTML = `<div class="scrollingcontainer"></div>`;
-  this.scrollingcontainer = this.elementDOM.querySelector('.scrollingcontainer');
-  this.scrollingcontainer.addEventListener('scroll', this.Render.bind(this));
-  this.Render();
-  this.MoveCursor(null, { x: 0, y: 0, areas: [{ x1: 0, y1: 0, x2: 0, y2: 0 }] });
- }
-
- Render(event)
- {
-  // Step 1 - define grid and visible areas. And calculates their intersection due to scroll, resize, full screen or setting cursor position event
-  const gridcontainerarea = !this.gridcontainer ? null : { x1: this.gridcontainer.offsetLeft, // Get grid area from grid container getting its offsetLeft/Top (x/y) and clientWidth/Height (x + width/y + height)
-                                                           y1: this.gridcontainer.offsetTop,
-                                                           x2: this.gridcontainer.offsetLeft + this.gridcontainer.offsetWidth - 1,
-                                                           y2: this.gridcontainer.offsetTop + this.gridcontainer.offsetHeight - 1 };
-  const visiblearea = { x1: this.scrollingcontainer.offsetLeft + this.scrollingcontainer.scrollLeft, // Get visible area from scrolling container getting its offsetLeft/Top (x/y) and clientWidth/Height (x + width/y + height)
-                        y1: this.scrollingcontainer.offsetTop + this.scrollingcontainer.scrollTop,
-                        x2: this.scrollingcontainer.offsetLeft + this.scrollingcontainer.scrollLeft + this.scrollingcontainer.clientWidth - 1,
-                        y2: this.scrollingcontainer.offsetTop + this.scrollingcontainer.scrollTop + this.scrollingcontainer.clientHeight - 1 };
-  const expandsides = this.GetAreaExpandSides(gridcontainerarea, visiblearea); // Get gridcontainerarea sides to expand visible area. Undefined this.gridcontainer (so surrent item area) returns undefined
-
-  // Step 2 - process areas no intersection case
-  if (!expandsides) // Grid container doesn't intersects (or doesn't exist) visible area
-     {
-      this.itemArea =  { x1: Math.floor(this.scrollingcontainer.scrollLeft / CELLMINWIDTH), // For visible area define item area due to default item pixel min width/height 
-                         x2: Math.floor((this.scrollingcontainer.scrollLeft + this.scrollingcontainer.clientWidth - 1) / CELLMINWIDTH),
-                         y1: Math.floor(this.scrollingcontainer.scrollTop / CELLMINHEIGHT),
-                         y2: Math.floor((this.scrollingcontainer.scrollTop + this.scrollingcontainer.clientHeight - 1) / CELLMINHEIGHT)
-                       };
-      this.DisplayGridContainer();
-      return;
-     }
-
-  // Step 3 - any intersection does exist, so check boundary item area values for every expand side - for a exmaple bottom expand side with item area y2 value equals table height - makes no sense
-  if (expandsides.includes('left') && this.itemArea.x1 === 0) expandsides.splice(expandsides.indexOf('left'), 1);
-  if (expandsides.includes('right') && this.itemArea.x2 === this.valuetableWidth - 1) expandsides.splice(expandsides.indexOf('right'), 1);
-  if (expandsides.includes('top') && this.itemArea.y1 === 0) expandsides.splice(expandsides.indexOf('top'), 1);
-  if (expandsides.includes('bottom') && this.itemArea.y2 === this.valuetableHeight - 1) expandsides.splice(expandsides.indexOf('bottom'), 1);
-  if (!expandsides.length) return; // No sides to expand for grid area to visible area? Return
-
-  // Step 4 - Sides to expand do exsit, so process them one by one for grid area to expand to visible area
-  if (expandsides.includes('left')) for (let i = this.itemArea.x2; i >= this.itemArea.x1; i--)
-     {
-      const item = this.GetGridCoordinatesElement(i, this.itemArea.y1);
-      if (item.offsetLeft > visiblearea.x2) continue;
-      this.itemArea.x1 -= Math.ceil((gridcontainerarea.x1 - visiblearea.x1) / CELLMINWIDTH); // Prefer max possible items to expand, so use CELLMINWIDTH/CELLMINHEIGHT instead of actual item widths/heights like in old version: this.itemArea.x1 -= this.GetItemNumber(this.columnWidths, i, 0, gridcontainerarea.x1 - visiblearea.x1);
-      this.itemArea.x2 = i;
-      break;
-     } 
-  if (expandsides.includes('right')) for (let i = this.itemArea.x1; i <= this.itemArea.x2; i++)
-     {
-      const item = this.GetGridCoordinatesElement(i, this.itemArea.y1);
-      if (!item) lg('wrong item for x=', i, 'y=', this.itemArea.y1);
-      if (item.offsetLeft + item.offsetWidth < visiblearea.x1) continue;
-      this.itemArea.x1 = i;
-      this.itemArea.x2 += Math.ceil((visiblearea.x2 - gridcontainerarea.x2) / CELLMINWIDTH); // Old version: this.GetItemNumber(this.columnWidths, i, this.valuetableWidth - 1, visiblearea.x2 - gridcontainerarea.x2);
-      break;
-     }
-  if (expandsides.includes('top')) for (let i = this.itemArea.y2; i >= this.itemArea.y1; i--)
-     {
-      const item = this.GetGridCoordinatesElement(this.itemArea.x1, i);
-      if (item.offsetTop > visiblearea.y2) continue;
-      this.itemArea.y1 -= Math.ceil((gridcontainerarea.y1 - visiblearea.y1) / CELLMINHEIGHT); // Old version: this.GetItemNumber(this.columnHeights, i, 0, gridcontainerarea.y1 - visiblearea.y1);
-      this.itemArea.y2 = i;
-      break;
-     } 
-  if (expandsides.includes('bottom')) for (let i = this.itemArea.y1; i <= this.itemArea.y2; i++)
-     {
-      const item = this.GetGridCoordinatesElement(this.itemArea.x1, i);
-      if (item.offsetTop + item.offsetHeight < visiblearea.y1) continue;
-      this.itemArea.y1 = i;
-      this.itemArea.y2 += Math.ceil((visiblearea.y2 - gridcontainerarea.y2) / CELLMINHEIGHT); // Old version: this.GetItemNumber(this.columnHeights, i, this.valuetableHeight - 1, visiblearea.y2 - gridcontainerarea.y2);
-      break;
-     }
-
-  // Step 5 - calculate grid area all margins from scrolling area and call DisplayGridContainer function to finish
-  this.DisplayGridContainer();
- }
-
- GetPixelSum(array, start, end)
- {
-  let sum = 0;
-  for (let i = start; i <= end; i++) sum += array[i];
-  return sum;
- }
-
- DisplayGridContainer()
- {
-  this.CutItemCoordinates(this.itemArea);
   let style = this.layout.table.style ? this.layout.table.style + ' ' : '';
-  style += `grid-template-columns: repeat(${this.itemArea.x2 - this.itemArea.x1 + 1}, auto); grid-template-rows: repeat(${this.itemArea.y2 - this.itemArea.y1 + 1}, auto);`;
-  style += `margin: ${this.GetPixelSum(this.rowHeights, 0, this.itemArea.y1 - 1)}px ${this.GetPixelSum(this.columnWidths, this.itemArea.x2 + 1, this.valuetableWidth - 1)}px ${this.GetPixelSum(this.rowHeights, this.itemArea.y2 + 1, this.valuetableHeight - 1)}px ${this.GetPixelSum(this.columnWidths, 0, this.itemArea.x1 - 1)}px;`;
+  style += `grid-template-columns: repeat(${this.valuetableWidth}, auto); grid-template-rows: repeat(${this.valuetableHeight}, auto);`;
   const title = this.layout.table.hint ? ` title="${this.layout.table.hint}"` : ``;
-  this.scrollingcontainer.innerHTML = `<div class="gridcontainer" style="${style}"${title}>${this.GetAreaInner(this.itemArea)}</div>`;
-  this.gridcontainer = this.scrollingcontainer.querySelector('.gridcontainer');
-  this.props.control.mouseareaselect.elements = [[this.gridcontainer]];
-  let item;
-  for (let i = this.itemArea.y1; i <= this.itemArea.y2; i++) if (item = this.GetGridCoordinatesElement(this.itemArea.x1, i)) this.rowHeights[i] = item.offsetHeight;
-  for (let i = this.itemArea.x1; i <= this.itemArea.x2; i++) if (item = this.GetGridCoordinatesElement(i, this.itemArea.y1)) this.columnWidths[i] = item.offsetWidth;
- }
+  this.elementDOM.innerHTML = `<div class="scrollingcontainer"><div class="viewcontainer"><div class="gridcontainer" style="${style}"${title}>${this.GetAreaInner({ x1: 0, y1: 0, x2: this.valuetableWidth - 1, y2: this.valuetableHeight - 1 })}</div></div></div>`;
 
- // Function returns how area1 overlaps/intersects area2
- GetAreaExpandSides(area1, area2)
- {
-  if (!area1 || !area2) return; // Any unassigned area - return udnefined for no intersection at all
-  area1 = this.OrderArea(area1);
-  area2 = this.OrderArea(area2);
-  if (area1.x2 < area2.x1 || area1.x1 > area2.x2 || area1.y2 < area2.y1 || area1.y1 > area2.y2) return; // Return udnefined for no intersection at all
+  this.scrollingcontainer = this.elementDOM.querySelector('.scrollingcontainer');
+  this.viewcontainer = this.elementDOM.querySelector('.viewcontainer');
+  this.gridcontainer = this.elementDOM.querySelector('.gridcontainer');
+  this.gridcontainer.style.top = '300px';
 
-  const expandsides = []; // Proceed with partly or full intersection calculating sides for area1 to expand to area2. For area1 overlapping area2 - no expand sides will be set
-  if (area1.x1 > area2.x1) expandsides.push('left');
-  if (area1.x2 < area2.x2) expandsides.push('right');
-  if (area1.y1 > area2.y1) expandsides.push('top');
-  if (area1.y2 < area2.y2) expandsides.push('bottom');
-  return expandsides;
+  this.props.control.mouseareaselect.elements.push([this.gridcontainer]);
+  //this.MoveCursor(null, { x: 0, y: 0, areas: [{ x1: 0, y1: 0, x2: 0, y2: 0 }] });
  }
 
  // 
  GetAreaInner(area, table = this.valuetable)
  {
   let inner = '';
-  const sizelimit = `box-sizing: border-box; min-width: ${CELLMINWIDTH}px; min-height: ${CELLMINHEIGHT}px;`;
-
   for (let y = area.y1; y <= area.y2; y++)
   for (let x = area.x1; x <= area.x2; x++)
       {
        const id = `x${x}y${y}`;
        const cell = table[y]?.[x];
-	   if (!cell && (inner = inner + `<div class="undefinedcell" id="${id}" style="${sizelimit}"></div>`)) continue;
+	   if (!cell && (inner = inner + `<div class="undefinedcell" id="${id}"></div>`)) continue;
        const title = cell.hint ? ` title="${cell.hint}"` : ``;
-       const style = cell.style ? ` style="${cell.style} ${sizelimit}"` : `${sizelimit}`; // box-sizing: border-box; min-width: 25px;
+       const style = cell.style ? ` title="${cell.style}"` : ``;
        inner += `<div class="${cell.class}" id="${id}"${style}${title}>${cell.value}</div>`;
       }
   return inner;
  }
-
- // Todo0 - use total cell limit instead of width/height apparently
+ 
  // Todo0 - relaese row[0-..] as a column value and row[c] - as a current cell value in a row expression
  // Todo0 - adjust cell attributes and cell innerHTML (cell.value)
  // Todo0 - handle errors - zero length table, zero db selection, x/y out of range, no any valid layout json VIA context menu description
@@ -484,12 +378,16 @@ export class View extends Interface
  }
 
  // Array of cursor/areas ({ object:, property:, maxvalue: }) to be cut to fit the range 0..maxvalue
- CutItemCoordinates(...objects)
+ CutCursorCoordinatesToFitTheGrid(cursor)
  {
-  for (const obj of objects)
-      if (obj)
-         for (const prop in obj)
-             if (typeof prop === 'string' && (prop.includes('x') || prop.includes('y'))) obj[prop] = Math.min(Math.max(0, obj[prop]), prop.includes('x') ? this.valuetableWidth - 1 : this.valuetableHeight - 1);
+  cursor.x = Math.min(Math.max(0, cursor.x), this.valuetableWidth - 1); // Cut cursor coordinates
+  cursor.y = Math.min(Math.max(0, cursor.y), this.valuetableHeight - 1); // Cut cursor coordinates
+
+  const area = cursor.areas.at(-1);
+  area.x1 = Math.min(Math.max(0, area.x1), this.valuetableWidth - 1); // Cut area
+  area.x2 = Math.min(Math.max(0, area.x2), this.valuetableWidth - 1); // Cut area
+  area.y1 = Math.min(Math.max(0, area.y1), this.valuetableHeight - 1); // Cut area
+  area.y2 = Math.min(Math.max(0, area.y2), this.valuetableHeight - 1); // Cut area
  }
 
  // Function removes cursor prefinal area overlaps other selected areas before
@@ -497,22 +395,29 @@ export class View extends Interface
  {
   for (let i = 0 ; i < cursor.areas.length - 2; i++) // Overlap for two areas and less is not needed, cause last area may be changed, so first area is not needed to compare to the second that may be changed
       {
-       let expand = this.GetAreaExpandSides(cursor.areas.at(-2), cursor.areas[i]); // Get prefinal area sides to expand to current area
-       if (expand && !expand.length && cursor.areas.splice(i--, 1)) continue; // No sides to expand (prefinal area overlaps current)? Remove current area and continue
-       expand = this.GetAreaExpandSides(cursor.areas[i], cursor.areas.at(-2)); 
-       if (!expand || expand.length) continue; // Current area doesn't overlap prefinal? Continue
+       if (this.DoesAreaOneOverlapsAreaTwo(cursor.areas.at(-2), cursor.areas[i]) && cursor.areas.splice(i--, 1)) continue; // Prefinal area overlaps every area before? Delete that areas and continue
+       if (!this.DoesAreaOneOverlapsAreaTwo(cursor.areas[i], cursor.areas.at(-2))) continue; // Current area doesn't overlap prefinal? Continue
        cursor.areas[cursor.areas.length - 2] = cursor.areas[i]; // Otherwise current area becomes prefinal. Interesting - firefox causes an error for the next line: cursor.areas.at(-2) = cursor.areas[i];
        cursor.areas.splice(i--, 1); // and current is removed
       }
  }
 
+ // Function returns 'true' for area1 completely overlaps area2, 'false' for partly overlaping and 'undefined' for no intersection at all
+ DoesAreaOneOverlapsAreaTwo(area1, area2)
+ {
+  area1 = this.OrderArea(area1);
+  area2 = this.OrderArea(area2);
+  if (area1.x1 <= area2.x1 && area1.x2 >= area2.x2 && area1.y1 <= area2.y1 && area1.y2 >= area2.y2) return true; // Full intersection
+  if (area1.x2 < area2.x1 || area1.x1 > area2.x2 || area1.y2 < area2.y1 || area1.y1 > area2.y2) return; // No intersection at all
+  return false; // Partly intersection
+ }
+
  // Cursor object format: { x:, y: areas: [{ x1:, y1:, x2:, y2:}, {}..] }. Prop 'areas' consists of initial cell position (x1, y1) final cell position (x2, y2). Return true for no cursor/area position change
  MoveCursor(oldcursor, newcursor)
  {
-  return;
   // Cut new cursor to fit the grid range and check old and new cursor positions (x, y and last selected area rectangle). No changes? Return
-  this.gridcontainer.focus();
-  this.CutItemCoordinates(newcursor, newcursor.areas.at(-1)); // Old version: this.CutCursorCoordinatesToFitTheGrid(newcursor);
+  this.grid.focus();
+  this.CutCursorCoordinatesToFitTheGrid(newcursor);
   if (oldcursor)
   if (oldcursor.x === newcursor.x && oldcursor.y === newcursor.y)
   if (oldcursor.areas.length === newcursor.areas.length)
@@ -532,6 +437,58 @@ export class View extends Interface
   if (oldcursor.x !== newcursor.x) return this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer, oldcursor.x < newcursor.x ? 'right' : 'left');
   if (oldcursor.y !== newcursor.y) return this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer, oldcursor.x < newcursor.x ? 'bottom' : 'top');
   //this.AdjustContainerScrollingToFitTheTableCell(cell, this.gridcontainer);
+ }
+
+ // 0. Calc grid container overlapping visible area - true result return, false - goto next, undefined - execute p.1 and p.4
+ // 1. Calc full visible area render - new render area
+ // 2. Then calc part of old render that is left visible and get item x,y (coordiantes in px and position in grid)
+ // 3. Union two this areas and build union area inner
+ // 4. Adjust scrolling container scrollLeft/scrollTop to move item from p.2 to old position, not edge render area values
+ // 5. Call CalculateRenderArea() via rAF, so the function will be called until grid container will completely overlaps visible area
+ CalculateRenderArea()
+ {
+  // Get visible area from scrolling container getting its offsetLeft/Top (x/y) and clientWidth/Height (x + width/y + height)
+  const visiblearea = { x1: this.scrollingcontainer.offsetLeft + this.scrollingcontainer.scrollLeft,
+                        y1: this.scrollingcontainer.offsetTop + this.scrollingcontainer.scrollTop,
+                        x2: this.scrollingcontainer.offsetLeft + this.scrollingcontainer.scrollLeft + this.scrollingcontainer.clientWidth - 1,
+                        y2: this.scrollingcontainer.offsetTop + this.scrollingcontainer.scrollTop + this.scrollingcontainer.clientHeight - 1 };
+
+  // Get grid area from grid container getting its offsetLeft/Top (x/y) and clientWidth/Height (x + width/y + height)
+  const gridcontainerarea = { x1: this.gridcontainer.offsetLeft,
+                              y1: this.gridcontainer.offsetTop,
+                              x2: this.gridcontainer.offsetLeft + this.gridcontainer.offsetWidth - 1,
+                              y2: this.gridcontainer.offsetTop + this.gridcontainer.offsetHeight - 1 };
+                    
+  const overlap = this.DoesAreaOneOverlapsAreaTwo(gridarea, visiblearea);
+  if (overlap) return;
+
+  const renderarea = {};
+  let offset;
+  [ offset, renderarea.x1, renderarea.x2 ] = this.GetItemsRange(this.columnWidths, visiblearea.x1, visiblearea.x2);
+  this.gridcontainer.style.left = `${offset}px`;
+  [ offset, renderarea.y1, renderarea.y2 ] = this.GetItemsRange(this.columnWidths, visiblearea.y1, visiblearea.y2);
+  this.gridcontainer.style.top = `${offset}px`;
+  ReCalculateSize
+ }
+
+ GetItemsRange(sizes, from, to)
+ {
+  let offset, itemstart, itemend, sum = 0;
+  for (let i = 0; i < sizes.length; i++)
+      {
+       if (itemstart === undefined && from >= sum && from < sum + sizes[i])
+          {
+           offset = sum;
+           itemstart = i;
+          }
+       if (itemstart !== undefined && to >= sum && to < sum + sizes[i])
+          {
+           itemend = i;
+           break;
+          }
+       sum += sizes[i];
+      }
+  return [ offset ?? sum - sizes.at(-1), itemstart ?? sizes.length - 1, itemend ?? sizes.length - 1 ];
  }
 }
 
