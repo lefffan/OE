@@ -1,4 +1,9 @@
-import { NODOWNLINKNONSTICKYCHILDS, lg, CutString, MessageBox, NEWOBJECTDATABASE, msgcontrol } from './constant.js';
+// Todo0: 
+// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
+// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
+// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
+
+import { NODOWNLINKNONSTICKYCHILDS, lg, CutString, MessageBox, NEWOBJECTDATABASE } from './constant.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
@@ -14,12 +19,6 @@ const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
 
 export class Connection extends Interface
 {
- destructor()
- {
-  this.socket?.close();
-  super.destructor();
- }
-
  constructor(...args)
  {
   const props = { flags: NODOWNLINKNONSTICKYCHILDS,
@@ -90,7 +89,7 @@ export class Connection extends Interface
   switch (event.type)
 	    {
 	     case 'LOGOUT':
-	          this.socket.close();
+	          this.Logout();
 	          break;
 	     case 'mouseup':
                let menu = this.username ? [['Help'], ['Logout ' + CutString(this.username)]] : [['Help']];
@@ -102,10 +101,46 @@ export class Connection extends Interface
 				   case 'Help':
 					   break;
                        default:
-                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.Handler({ type: 'LOGOUT' });
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.Logout();
 				  }
 	          break;
+	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
+               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', id: msg.id, callback: this.CallController.bind(this) }, { class: 'dialogbox selectnone' });
+               break;
+          case 'SIDEBARGET':
+	     case 'GETDATABASE': // Context menu event incoming from sidebar
+               this.CallController(event);
+               break;
+	     case 'GETVIEW':
+               // Single OV click: OV is already open ? set OV active or refresh if already active : open in a current active view or in a new view if no any view exist
+               // Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
+               // OV click: OV status (-2...100), last active window, force new window (boolean, automatically set to true in case of no last active window)
+               const currentviewid = this.GetLastActiveViewId();
+               const view = this.sidebar.od[event.data.odid]['ov'][event.data.ovid];
+               if (view.status === undefined || view.status === -2) // Negative status -2 (or undefined) means OV is not opened
+                  {
+                   if (!event.data.newwindow && currentviewid) event.data.childid = currentviewid; // No context menu 'open in a new window' clicked and any view is opened? Fix child id to open new view in
+                   this.ChangeActive(event.data.childid);
+                   [view.footnote, view.status] = [0, -1];
+                  }
+                else
+                  {
+                   this.ChangeActive(view.childid); // Bring it to top already pending/opened view
+                   if (view.status === -1) return; // Negative status -1 means OV is server pending, so do nothing. Todo0 - how to cancel server pending?
+                   if (this.childs[currentviewid].odid !== event.data.odid || this.childs[currentviewid].ovid !== event.data.ovid) return; // Status is 0 or more (opened and loading its data or has already loaded). Current active view doesn't match clicked view? Return with only bringing to top (see above) the OV child box
+                   [view.footnote, view.status, event.data.childid] = [0, -1, currentviewid]; // Current active view is the view that was clicked via sidebar? Force refresh!
+                  }
+               this.CallController(event);
+               break;
+	     case 'KILL':
+               this.socket?.close();
+               break;
 	    }
+ }
+
+ Logout()
+ {
+  this.socket.close();
  }
 
  GetLastActiveViewId()
@@ -119,13 +154,6 @@ export class Connection extends Interface
   msg = this.EventControl(msg);
   switch (msg.type)
 	    {
-	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', id: msg.id, callback: this.CallController.bind(this) }, { class: 'dialogbox selectnone' });
-               return;
-          case 'SIDEBARGET':
-          case 'CREATEWEBSOCKET':
-	     case 'GETDATABASE': // Context menu event incoming from sidebar
-               break;
           case 'DIALOGCALLBACK':
                if (!msg.data.dialog) return; // Dialog is cancelled
                if (!this.username) // No user loged in, so msg comes from login dialog
@@ -148,26 +176,6 @@ export class Connection extends Interface
                             new DialogBox(...MessageBox(this, DIALOGTIMEOUTERROR, 'Error')); // Dialog data is apliable, but no initiated msg - display an error. This is a code error, so check a source code first - initiated msg absence is an expire case that is handled at Queue control functionality
                             return;
                       }
-               break;
-	     case 'GETVIEW':
-               // Single OV click: OV is already open ? set OV active or refresh if already active : open in a current active view or in a new view if no any view exist
-               // Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
-               // OV click: OV status (-2...100), last active window, force new window (boolean, automatically set to true in case of no last active window)
-               const currentviewid = this.GetLastActiveViewId();
-               const view = this.sidebar.od[msg.data.odid]['ov'][msg.data.ovid];
-
-               if (view.status === undefined || view.status === -2) // Negative status -2 (or undefined) means OV is not opened
-                  {
-                   if (!msg.data.newwindow && currentviewid) msg.data.childid = currentviewid; // No context menu 'open in a new window' clicked and any view is opened? Fix child id to open new view in
-                   this.ChangeActive(msg.data.childid);
-                   [view.footnote, view.status] = [0, -1];
-                   break; // Break anyway
-                  }
-
-               this.ChangeActive(view.childid); // Bring it to top already pending/opened view
-               if (view.status === -1) return; // Negative status -1 means OV is server pending, so do nothing. Todo0 - how to cancel server pending?
-               if (this.childs[currentviewid].odid !== msg.data.odid || this.childs[currentviewid].ovid !== msg.data.ovid) return; // Status is 0 or more (opened and loading its data or has already loaded). Current active view doesn't match clicked view? Just return, bringing to top was done before
-               [view.footnote, view.status, msg.data.childid] = [0, -1, currentviewid]; // Current active view is the view that was clicked via sidebar? Force refresh!
                break;
           default:
                return; // Return for unknown msg type
@@ -199,6 +207,7 @@ export class Connection extends Interface
 	          break;
 	     case 'CREATEWEBSOCKETACK':
                this.sidebar = new Sidebar(null, this);
+               this.CallController({ type: 'SIDEBARGET' }); // Get database/view list
 	          break;
 	     case 'SIDEBARSET':
 	     case 'SIDEBARDELETE':
@@ -229,100 +238,5 @@ export class Connection extends Interface
          lg(err);
          setTimeout(this.Login.bind(this), 0, 'No server respond!');
         }
- }
- 
-// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
-// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
-// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
-
-// +--------+                                                                                       +------------+                                   +---------+                                     
-// |        | LOGIN[POST] (data->username/password) ->		                                        |            |                                   |         |                
-// |        |            <- LOGINACK[POST] (data->ip/proto/authcode)|LOGINERROR[POST]               |            |                                   |         |                
-// |        | CREATEWEBSOCKET[WS] (data->userid/authcode) ->                                        |            |                                   |         |                
-// |        |              <- CREATEWEBSOCKETACK|DROPWEBSOCKET (WS)                                 |            |                                   |         |                
-// |        |                        		    		                                             |            |                                   |         |                
-// | Client | SIDEBARGET[WS] -> 		      		                                             | Controller |                                   | Handler |                
-// |        |                                           <- SIDEBARSET[WS] (data->odid/path/ov)      |            |                                   |         |                
-// |        |                        		                                        	          |            |                                   |         |                
-// |        | GETDATABASE[WS] (id/data->odid) ->                                                    |            |                                   |         |                
-// |        |                                                          <- DIALOG[WS] (id,data)      |            |                                   |         |                
-// |        | DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->odid/dialog) ->                       |            |                                   |         |                
-// |        | <- SIDEBARDELETE[WS] (data->odid)|SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
-// |        |                        		    		                                             |            |                                   |         |                
-// |        |                        		    		                                             |            |                                   |         |                
-// |        | CREATEDATABASE[LOCAL] -> DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->dialog) ->   |            |                                   |         |                
-// |        |                                <- SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
-// |        |                        		    		                                             |            |                                   |         |                
-// |        | GETVIEW[Sidebar:WS] (id/data->ovid/odid/childid) -> GETVIEW[Connection:WS]            |            |                                   |         |                
-// |        |                                <- SETVIEW[Connection:WS] (id/data->ovid/odid/childid) |            |                                   |         |                
-// |        |                        		    		                                             |            |                                   |         |                
-// |        |                                                   <- SETVIEW[WS] (id/data->ovid/odid) |            |                                   |         |                
-// +--------+                                                                                       +------------+                                   +---------+                                     
-
- EventMatch(control, msg)
- {
-  let match = true;
-  for (const prop in control) // every queuecontrol element is checked on its props,
-      {
-       if (!['type', 'username', 'odid', 'ovid', 'oid', 'eid', 'id'].includes(prop)) continue; // No props to compare? Continue
-       match = false; // Falsy match result for default
-       if (!(prop in msg)) break; // if control prop does not exist in the msg, so msg doesn't match
-       for (const option of control[prop].split('|')) // Control prop does exist in the msg, so compare it. Char '!' inverts the result, so for any match use a single char '!'; char '|' is logical OR multiple compare
-           if (((option[0] === '!' && option.substring(1) !== msg[prop]) || (option[0] !== '!' && option === msg[prop])) && (match = true)) break;
-       if (!match) break;
-      }
-  if (match) lg('The message below matches the given control', msg);
-  return match;
- }
-
- // Check incoming event for eventcontrol props (no any restriction applied for default)
- // Note that DIALOG event with no OD/OV defined - modal with 'Connection' as a parent child, with OD/OV - modal with parent 'View' (with no dialog window overlapping view window)
- // msgqueue  { [id]: [ { type:, username:, odid:, ovid:, oid:, eid:, id:, data: }, ...], } 
- // msgcontrol [        { type:, username:, odid:, ovid:, oid:, eid:, id:, limit: <number>, expire: <seconds>, limitreport:, expirereport: } ]
- EventControl(msg)
- {
-  if (!('username' in msg) && this.username) msg.username = this.username; // Add user name to current event
-
-  for (const control of msgcontrol) // Go through all controls
-      {
-       if (!this.EventMatch(control, msg)) continue; // until the match for the current event found
-       if ('limit' in control) // Prop 'limit' limits event number in conection event queue, so out-of-limit event are rejected
-          {
-           let [start, end] = control.limit.split('-');
-           start = start === '' ? 0 : +start;
-           end = end === '' ? -1 : +end;
-           let count = 0;
-           for (const id in this.msgqueue) // Go through all queue to find current msg matched control limit
-               {
-                for (const message of this.msgqueue[id])
-                    if (this.EventMatch(control, message) && ++count) break; // Todo0 - for odid/ovid/oid/eid comparing: control value '!' means any, control value '' means compare odid/ovid/oid/eid prop not from control but from from incoming msg
-                if ((count >= start && end === -1) || (count > end && end !== -1)) break;
-               }
-           if ((count < start) || (count > end && end !== -1))
-              {
-               if (control.limitreport) new DialogBox(...MessageBox(this, control.limitreport, 'Warning')); // Todo0 - set parent view box for views initiated msgs
-               return {}; // msg count is out of range, so reject it via returning empty msg object
-              }
-          }
-       this.QueueMsgAdd(msg);
-       if ('expire' in control) setTimeout(this.QueueMsgDelete.bind(this), +control['expire'] * 1000, msg.id, control.expirereport); // Set the timer for expiring msg and display error at expire not forgetting to set parent view box for views initiated msgs
-       return msg;
-      }
-  this.QueueMsgAdd(msg);
-  return msg;
- }
-
- QueueMsgAdd(msg)
- {
-  if (!('id' in msg)) msg.id = this.currentmsgid++;                        // Msg doesn't have queuue id, so get next free queue id to add this msg as a new one
-  if (!Array.isArray(this.msgqueue[msg.id])) this.msgqueue[msg.id] = [];   // No msg in a queue, so create initial empty array for specified queue id
-  this.msgqueue[msg.id].push(msg);                                         // Add msg to the queue
- }
-
- QueueMsgDelete(id, report)
- {
-  if (!this.msgqueue[id]) return;
-  delete this.msgqueue[id];
-  if (report) new DialogBox(...MessageBox(this, report, 'Warning'));
  }
 }

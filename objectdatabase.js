@@ -1,4 +1,5 @@
 // Todo2 - change '*', '!' to const var and others
+// Todo0 - all DB dialog settings workable
 // let c; c++;      if (c%2) {               const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));                        await sleep(5000);              }
 
 import { FIELDSDIVIDER, lg, loog, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, CutString, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
@@ -367,12 +368,12 @@ function SuckLayoutAndQuery(dialog, odid)
       controller.ods[odid].interactive[ovid] = IsViewInteractive(dialog, option);
      }
 }
-
+ 
 // +-----------------------------------------------------+
-// |  [C] row: 0|1|2|3|4..||expression (r, c, q, o)      | 'digits' - zero based row number; 'expression' - r, c, q, o vars based expression; empty prop - any row; 
+// |  [C] row: expression (r, c, q, selection)           | r, c, q vars based expression; empty prop - no any row (empty expression is a faulsy case) 
 // |  [C] col: id|owner|e1|e2..|count(*)|${e1_prop}||    | sql select statement operands (columns); empty prop - any already defined col from jsons above; 
-// |  [C] x,y (r, c, q, o)                               | r, c, q, o vars based expression
-// |  [C] value PLAIN/SELECT/FUNCTION (x, y, r, c, q, o) | 
+// |  [C] x,y (r, c, q)                                  | r, c, q vars based expression
+// |  [C] value PLAIN/SELECT/EXPRESSION (x, y, table)    | 
 // |  [CT] hint                                          | 
 // |  [CT] style                                         | Cell style property as a html attribute consists of mixed values of JSON type 'object element' style property and direct style definition here
 // |  [CT] collapserow, collapsecol                      | These props set to any values - collapses whole table rows/columns (for cell) and undefined rows/columns (for table)
@@ -393,7 +394,7 @@ function TrimObjectProps(object, props)
 function ParseViewLayout(jsons, odid)
 {
  if (typeof jsons !== 'string') return;
- const layout = { expressionrows: {}, undefinedrows: {}, table: {}, event: {}, columns: [], systemelementnames: SYSTEMELEMENTNAMES }; // columns array has next fromat: { original:, output:, extra:, elementname:, elementprop:, elementprofilename:, elementprofiledescription: }
+ const layout = { expressionrows: {}, undefinedrows: {}, table: { style: '' }, event: {}, columns: [], systemelementnames: SYSTEMELEMENTNAMES }; // columns array has next fromat: { original:, output:, extra:, elementname:, elementprop:, elementprofilename:, elementprofiledescription: }
 
  for (let json of jsons.split('\n'))
      {
@@ -423,7 +424,7 @@ function ParseViewLayout(jsons, odid)
          }
 
       // Next step - check row property syntax and pasre column list in json.col splited via '|' then
-      if (NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist, but incorrect, consisting of illegal expression chars? Continue. Old version check also continues for empty json.row (which is correct), not considering defined columns for correct row syntax: if (!json.row || NONEXPRESSIONCHARS.test(json.row)) continue;
+      //if (NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist, but incorrect, consisting of illegal expression chars? Continue. The line is commented temporally due to expression arbitrary chars to release custom values check via js code in a json.row (for a example - make red background for all cells with the 'DOWN' value). Limitation for the json.row code should be released in a JS future specification named SHADOW REALMS. Old version check also continues for empty json.row (which is correct), not considering defined columns for correct row syntax: if (!json.row || NONEXPRESSIONCHARS.test(json.row)) continue;
       const currentcolumns = 'col' in json ? [] : layout.columns;
       if ('col' in json) for (let original of json.col.split('|'))
          {
@@ -470,6 +471,8 @@ function ParseViewQuery(dialog, layout, viewprofile, odid)
  // Initializate SELECT statement result query
  let select = [];
  for (const column of layout.columns) select.push(column.original);
+ if (!select.length) return; // No any element (so SELECT operand) described in element layout, so return undefined query. Undfined query sets msg.data.error to something like 'error layout..' which is sent to the user for appropriate OV call 
+
  if (IsViewInteractive(dialog, viewprofile)) [layout.columnidindex, layout.columnlastversionindex] = [ GetColumnIndex(layout.columns, 'id') ?? select.push('id') - 1, GetColumnIndex(layout.columns, 'lastversion') ?? select.push('lastversion') - 1]; // Operator returns left operand if it's not nill or undefined, and returns right operand otherwise
  for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnstyleindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'style')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'style')) - 1;
  for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnhintindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'hint')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'hint')) - 1;

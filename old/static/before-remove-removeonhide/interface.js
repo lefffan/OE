@@ -19,8 +19,48 @@ const ICONURLFULLSCREENTURNON 		= SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105,
 const ICONURLFULLSCREENTURNOFF		= SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
 const ICONURLCLOSE              	= SVGUrlHeader() + SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + SVGUrlFooter();
 const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
-const BLINKCHILDACTIVESTATUS		= 200;
+const REFRESHMININTERVAL			= 50;
 const ELEMENTPUSHOFFSET				= 3;
+
+// Function processes child response event. Nested event prop (event.event) is passed to the parent child handler
+function ProcessChildEvent(child, events)
+{
+ if (!child || !events) return;  // Return for undefined child
+ if (typeof events === 'string') events = [ { type: events } ];
+ if (!Array.isArray(events)) events = [ events ];
+ //if (event.subevent && child.parentchild.Handler) child.parentchild.Handler(event.subevent);	// Pass nested event to the parent child handler
+
+ for (const event of events)
+ switch (event.type)																			// Process event
+		{
+	 	 case 'KILLME':																			// Destroy child event
+	      	  if (child !== app) child.parentchild.KillChild(child.id);							// Call parent child kill function with current child id. For non application childs only
+	      	  break;
+	 	 case 'BRINGTOTOP':																		// Bring to top all childs bundle from current nested one until the root one (app)
+			  child.ChangeActive(0);															// Set current child active among its childs
+	      	  while (child.parentchild)															// Cycle until parent exists
+		    	    {
+		     		 child.parentchild.ChangeActive(child.id);									// Set current child active in parent child container
+		     		 child = child.parentchild;													// and go to parent one
+		    	    }
+	      	  break;
+		 default:
+			  if (event.broadcast)
+				 {
+				  if (child.parentchild)
+				  	 for (const baby of child.parentchild.childs)
+					  	 if (baby !== child.parentchild && baby !== child && baby.Handler)
+						 	baby.Handler(event);												// Otherwise dispatch event to the parent child handler
+				 }
+			   else
+			   	 {
+				  if (child.parentchild.Handler) child.parentchild.Handler(event);				// Otherwise dispatch event to the parent child handler
+				 }
+		}
+
+ //return event;
+ return true;
+}
 
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
@@ -75,16 +115,15 @@ function GetCapturedFocusModalChild(element, blink)
 // Function removes all non-sticky childs (except current one in the bundle, because of its mouse/keyboard interaction that shouldn't result removal) in the current layer
 function RemoveAllNonStickyChilds(child, callparent = true, excludeid)
 {
- let baby;
  for (const id of child.zindexes)																				// Iterate all child indexes
-	 if (id && id !== excludeid && (baby = child.childs[id]))													// except zero id (the child of itself) and excluded one that interacts with the user
-	 if (baby.IsNonsticky())																					// Remove non sticky child
+	 if (id && id !== excludeid)																				// except zero id (the child of itself) and excluded one that interacts with the user
+	 if (child.childs[id].IsNonsticky())																		// Remove non sticky child
 	    {
-	     baby.EventManager({ type: 'KILL', destination: baby });
+		 child.KillChild(id);
 	    }
 	  else
 	    {
-		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(baby, false);	// Otherwise perform recursive call for all childs of current child
+		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(child.childs[id], false);	// Otherwise perform recursive call for all childs of current child
 	    }
  if (callparent && child.parentchild) RemoveAllNonStickyChilds(child.parentchild, true, child.id);				// Recursively call parent child non sticky removal
 }
@@ -147,7 +186,7 @@ function CallControlHandler(control, userevent, phase)
 {
  let successcounter = 0;
  for (const callback of control.callback)
-	 if (typeof callback === 'function') phase === 'init' ? setTimeout(callback, 0, userevent, control, phase) : successcounter += control.child.EventManager(callback(userevent, control, phase));
+	 if (typeof callback === 'function') phase === 'init' ? setTimeout(callback, 0, userevent, control, phase) : successcounter += Boolean(ProcessChildEvent(control.child, callback(userevent, control, phase)));
  return successcounter;
 }
 
@@ -172,6 +211,11 @@ function SetMouseCursorContolsHover(child, event, childclientrect)
 
 export class Interface
 {
+ destructor()
+ {
+  for (const i in this.timer) clearTimeout(this.timer[i]);
+ }
+
  RefreshControlIcons()
  {
   let disp, elements = new Map();
@@ -232,7 +276,6 @@ export class Interface
 	  }
  }
 
- // Todo0 - move 4th arg attr to props
  constructor(...args) // (data, parentchild, props, attributes)
 	    {
 	     // Data
@@ -312,9 +355,12 @@ export class Interface
  // Call for 'transition end' event
  TransitionEnd()
  {
-  if (this.elementDOM.style.visibility === 'hidden') return this.elementDOM.remove();					// Remove child DOM element in case of hidden style visibility
+	if (this.removeonhide) {this.elementDOM.remove();	return;}													// and DOM element of itself in case of <removeonhide> property is true
   this.elementDOM.classList.remove(this.props.effect + 'show', this.props.effect + 'hide', 'smooth');	// Remove child DOM element all animation classes
-  if (this.Render) this.Render();																		// Render child if appropriate function does exist
+  lg(this.elementDOM.style.visibility);
+  lg(this)
+  if (this.removeonhide) this.elementDOM.remove();														// and DOM element of itself in case of <removeonhide> property is true
+  if (this.Render) this.Render();
  }
 
  // Function changes child z-index property
@@ -334,13 +380,13 @@ export class Interface
  ToggleActiveStatus()
  {
   this.StyleActiveChild(false);
-  setTimeout(this.StyleActiveChild.bind(this), BLINKCHILDACTIVESTATUS);
+  setTimeout(this.StyleActiveChild.bind(this), 4 * REFRESHMININTERVAL);
  }
 
  // Function activates child
  ChangeActive(id)
  {
-  if (!['number', 'string'].includes(typeof id)) return;					// Return for non number/string id types
+  if (!['number', 'string'].includes(typeof id)) return;						// Return for non number/string id types
   if (this.activeid === id) return;											// Active child is being activated again - return
   if (id)
 	 {
@@ -374,41 +420,58 @@ export class Interface
 	    }
  }
 
- // Function kills specified child, rebuilds z-indexes and deletes its element from child array
+ // Function kills specified child, rebuilds z-indexes and deletes its element from child array with 'removeonhide' flag seting to true (to remove element from the DOM)
  KillChild(id)
  {
-  this.aindexes.splice(this.aindexes.indexOf(id), 1);
-  if (app.control?.child === this.childs[id])																								// Current captured control is on killing child? Release it
+  this.aindexes.splice(this.aindexes.indexOf(id), 1);																			//
+  //if (typeof id === 'string') id = +id;																						// Pisec
+  if (app.control?.child === this.childs[id])																					// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';
 	  lg(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
-  this.childs[id].Hide();																													// Hide and kill the child
-  this.zindexes.splice(this.childs[id].zindex, 1);																							// Remove appropriate child z-index element
-  for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);				// and decrement all z-index values
-  if (this.activeid === id) this.childs[this.activeid = this.aindexes.at(-1)].StyleActiveChild();											// Activate last active child if killing child is active
+  this.childs[id].removeonhide = true;																							// Set 'removeonhide' flag to kill the child on hide
+  this.childs[id].Hide();																										// Hide and kill the child
+  this.zindexes.splice(this.childs[id].zindex, 1);																				// Remove appropriate child z-index element
+  for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);	// and decrement all z-index values
+  if (this.activeid === id) this.childs[this.activeid = this.aindexes.at(-1)].StyleActiveChild();								// Activate last active child if killing child is active. Old code version activates top child: this.childs[this.activeid = this.zindexes.at(-1)].StyleActiveChild();
+  this.childs[id].destructor();																									// Call child desctructir
   const ismodal = this.childs[id].props.overlay === 'MODAL';
   delete this.childs[id];	
-  if (!ismodal) return;																														// Killed child wasn't modal overlay? Return or remove css 'modal' filter for some childs below
-  if (this.childs[this.activeid].props.overlay === 'MODAL') return this.childs[this.activeid].elementDOM.classList.remove('modalfilter');	// Current active child is modal overlay? Remove its DOM element css 'modal' filter. For current active only. Return
-  for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');											// Otherwise remove css 'modal' filter for all childs 
+  if (ismodal)																													// Killed child was modal overlay? Remove css 'modal' filter for some childs below
+  if (this.childs[this.activeid].props.overlay === 'MODAL') 
+	 {
+	  this.childs[this.activeid].elementDOM.classList.remove('modalfilter');													// Current active child is modal overlay? Remove its DOM element css 'modal' filter. For current active only
+	 }
+   else
+     {
+  	  for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');							// Otherwise remove css 'modal' filter for all childs 
+	 }
  }
 
  // Hide the child with animation this.props.effect
  Hide()
 	{
-	 if (EFFECTS.indexOf(this.props.effect) === -1)	return this.elementDOM.remove(); // No animation? Just remove child DOM element
-	 this.elementDOM.style.visibility = 'hidden';									 // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
+	 if (EFFECTS.indexOf(this.props.effect) === -1)														// No animation?
+	    {
+	     this.removeonhide ? this.elementDOM.remove() : this.elementDOM.style.visibility = 'hidden';	// Remove element from the DOM or just hide it via visibility property
+	     return;
+	    }
+	 this.elementDOM.style.visibility = 'hidden';														// Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
 	 this.elementDOM.classList.add(this.props.effect + 'hide');
 	}
 
  // Show child with animation
  Show()
 	{
-	 if (EFFECTS.indexOf(this.props.effect) === -1)	return (this.elementDOM.style.visibility = 'visible');								// No animation? Just style DOM element visibility and return
-	 setTimeout(() => { this.elementDOM.style.visibility = 'visible'; this.elementDOM.classList.add(this.props.effect + 'show'); }, 0);	// and then 'show' class via timeout to make transition from 'hide' to 'show' visible
-	 this.elementDOM.classList.add(this.props.effect + 'hide');																			// Otherwise animate the child via adding 'hide' class
+	 if (EFFECTS.indexOf(this.props.effect) === -1)														// No animation?
+	    {
+	     this.elementDOM.style.visibility = 'visible';													// Just style DOM element visibility and return
+	     return;
+	    }
+	 this.elementDOM.classList.add(this.props.effect + 'hide');											// Otherwise animate the child via adding 'hide' class
+	 setTimeout(() => { this.elementDOM.style.visibility = 'visible'; this.elementDOM.classList.add(this.props.effect + 'show'); }, REFRESHMININTERVAL);	// and then 'show' class via timeout to make transition from 'hide' to 'show' visible
 	}
  
  // Check child 'top layer' overlay
@@ -461,7 +524,8 @@ export class Interface
  static CloseControl(userevent, control, phase)
  {
   if (phase !== 'release') return;
-  return { type: 'KILL', source: control.child, destination: control.child };
+  if (control.child.props.callback) control.child.props.callback({ type: 'DIALOGCALLBACK', id: control.child.props.id, data: {} });
+  return { type: 'KILLME' };
  }
 
  ToggleControlsStatus(include, exclude, disabled)
@@ -570,6 +634,7 @@ export class Interface
  {
   // First step - vars init, global event counter increment and preventDefault() call for all except keyboard and mouse 'down|click' (to keep native textarea[mousedown]/radio[click]/checkbox[click] elements working) events
   let child, childclientrect, modalchild;
+  app.eventcounter++;
   if (['keydown', 'keyup', 'mousedown', 'click'].indexOf(event.type) === -1) event.preventDefault();
 
   // Second step - get event targeted child (and its rectangle) via event.target DOM element for mouse events. In case of keyboard events - lowest active child is used to pass them to
@@ -582,7 +647,7 @@ export class Interface
 	  if (!modalchild && 'mousedown' === event.type)
 		 {
 		  RemoveAllNonStickyChilds(child);																		// Should non sticky removal be for mousedown event only? 
-		  child.EventManager({ type: 'BRINGTOTOP', destination: child });															// Bring clicked child to top for no modal child focus captured
+		  ProcessChildEvent(child, { type: 'BRINGTOTOP' });														// Bring clicked child to top for no modal child focus captured
 		 }
 	 }
    else
@@ -640,69 +705,6 @@ export class Interface
 		  }
 	  }
  }
-
- // Event queue is a child interaction event list to be processed. Every event chain has its own id in a queue. Chain consist of some single events inited on child request/response interaction.
- // Event format:
- // { id: <event chain queue id, added automatically if needed>
- //   type: <event type>
- //   source: <inited event source child>
- //   destination: <destination childs array to pass the event to, empty array - broadcast event to all childs of a parent>
- //   data: <event data>
- // }
- // Function processes childs events and return count of event processed.
- // The function is called on next type of events:
- //		- any child controls (including default one that processes all uncontroled mouse/keyboard events)
- //		- 'bring to top' event (handled by main interface bringing to top all childs in a chain until the root 'app' child)
- //		- child initiated events, for a example, dialog box button timer that emulates OK/CANCEL button push or connection box web socket incoming msgs
- EventManager(events)
- {
-  if (!events || typeof events !== 'object') return 0;
-  if (!Array.isArray(events)) events = [ events ];
-
-  for (const event of events)
-	  {
-	   let baby, childs;
-	   if (!event.source) event.source = this;
-	   if (!event.destination || typeof event.destination !== 'object')
-		  {
-		   childs = [];
-		   if (event.source.parentchild)
-			  for (const id in event.source.parentchild) if (id !== '0') childs.push(event.source.parentchild[id]); // In case of undefined destination use all childs of a parent as a destination to dispatch the message 
-		  }
-		else
-		  {
-		   childs = Array.isArray(event.destination) ? event.destination : [ event.destination ]; // In case of defined destination use it as a childs array (or converting to array if needed)
-		  }
-
-	   for (const child of childs)
-		   {
-			if (!child) continue;
-			switch (event.type)																// Dispatch current event to all destintion childs
-				   {
-					case 'KILL':															// Destroy event
-						 if (child.Handler)	child.EventManager(child.Handler(event));
-						 if (child.parentchild) child.parentchild.KillChild(child.id);		// Call parent child kill function with current child id. Root child <app> cannot be destroyed
-						 break;
-					case 'BRINGTOTOP':														// Bring to top all childs bundle from current nested one until the root one (app)
-						 baby = child;
-						 while (true) 
-							   {
-								baby.ChangeActive(0);										// Set current child active among all other childs
-								if (baby.Handler) baby.EventManager(baby.Handler(event));	// Call child handler for 'BRINGTOTOP' event
-								baby = baby.parentchild;
-								if (!baby) break;											// Cycle until root child <app> setting all upper childs active
-							   }
-						 break;
-					case 'EMPTY':															// Do nothing for empty event, useful for event 'controls' whose result is 'event is processed', but doing nothing due to empty event
-						 break;
-					default:
-						 if (child.Handler) child.EventManager(child.Handler(event));		// For all other events dispatch it to the destination child handler function
-				   }
-		   }
-	  }
-
-  return events.length;
- }
 }
 
 const CHILDCONTROLTEMPLATES = {
@@ -719,28 +721,3 @@ const CHILDCONTROLTEMPLATES = {
 							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
 							   default: { callback: [] }, 
 							  };
-
-							  
-// +--------+                                                                                       +------------+                                   +---------+                                     
-// |        | LOGIN[POST] (data->username/password) ->		                                        |            |                                   |         |                
-// |        |            <- LOGINACK[POST] (data->ip/proto/authcode)|LOGINERROR[POST]               |            |                                   |         |                
-// |        | CREATEWEBSOCKET[WS] (data->userid/authcode) ->                                        |            |                                   |         |                
-// |        |              <- CREATEWEBSOCKETACK|DROPWEBSOCKET (WS)                                 |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// | Client | SIDEBARGET[WS] -> 		      		                                              	| Controller |                                   | Handler |                
-// |        |                                           <- SIDEBARSET[WS] (data->odid/path/ov)      |            |                                   |         |                
-// |        |                        		                                        	          	|            |                                   |         |                
-// |        | GETDATABASE[WS] (id/data->odid) ->                                                    |            |                                   |         |                
-// |        |                                                          <- DIALOG[WS] (id,data)      |            |                                   |         |                
-// |        | DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->odid/dialog) ->                       |            |                                   |         |                
-// |        | <- SIDEBARDELETE[WS] (data->odid)|SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        | CREATEDATABASE[LOCAL] -> DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->dialog) ->   |            |                                   |         |                
-// |        |                                <- SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        | GETVIEW[Sidebar:WS] (id/data->ovid/odid/childid) -> GETVIEW[Connection:WS]            |            |                                   |         |                
-// |        |                                <- SETVIEW[Connection:WS] (id/data->ovid/odid/childid) |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        |                                                   <- SETVIEW[WS] (id/data->ovid/odid) |            |                                   |         |                
-// +--------+                                                                                       +------------+                                   +---------+                                     

@@ -1,10 +1,79 @@
+import { GetStyleInnerHTML } from './constant.js';
+import { Interface } from './interface.js';
+import { Connection } from './connection.js';
+import { DialogBox } from './dialogbox.js';
+import { ContextMenu } from './contextmenu.js';
+import { Sidebar } from './sidebar.js';
+import { DropDownList } from './dropdownlist.js';
+import { View } from './view.js';
 
-// Application architecture:
 // Todo2 - Change application icon
 // Todo2 - Custom cursor div via css style * {cursor: none;}
 // Todo0 - Make module based system, see Shemsetdinov justify src arch via require/import
 // Todo0 - Make code overview for all other sources, testing every feature (don't forget to check table element type with its string data JSON type to convert to object in dialogbox.js)
 // Todo0 - DB SQL handle for OD structure, see Shemsetdinov query builder
+
+export class Application extends Interface
+{
+ static style = {
+ 				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
+ 				 "_Appearance animation": "Select interface elements appearance animation", 
+				 ".modalfilter": { "ilter": "blur(1px);", "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
+				 "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
+				 "Key combination to apply cell text": {},
+				 "__Logon events": { "Log unsuccessful logons": "", },
+				}
+
+ // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
+ constructor()
+ {
+  const style = document.createElement('style');
+  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Sidebar.style, View.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
+  document.head.appendChild(style);
+  
+  const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
+  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } } }, { style: `background-color: ${NICECOLORS[7]};` });
+  this.eventcounter = 0;
+
+  document.addEventListener('keydown', Interface.EventListener);
+  document.addEventListener('keyup', Interface.EventListener);
+  document.addEventListener('mousedown', Interface.EventListener);
+  document.addEventListener('dblclick', Interface.EventListener);
+  document.addEventListener('mouseup', Interface.EventListener);
+  document.addEventListener('mousemove', Interface.EventListener);
+  document.addEventListener('click', Interface.EventListener);
+  document.addEventListener('contextmenu', (event) => event.preventDefault());
+ }
+
+ // Override main application child activation styling to exclude any effects for document.body
+ StyleActiveChild()
+ {
+ }
+
+ // Main application own handler to context menu and new connection create 
+ Handler(event)
+ {
+  switch (event.type)
+	     {
+	      case 'mouseup':
+		  	   new ContextMenu([['New connection'], ['Help']], this, event);
+		  	   break;
+	      case 'CONTEXTMENU':
+			   switch (event.data[0])	// Switch context item name (event data zero index)
+			   		  {
+					   case 'New connection':
+			   				new Connection(null, this);	// Args: data, parent
+							break;
+					  }
+		  	   break;
+	     }
+ }
+}
+
+export let app;
+window.onload = function () { new Connection(null, app = new Application()); }; // Connection args: data, parent
+
+// Application architecture:
 // Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
 // Todo - app containers via docker?
 // Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'
@@ -105,71 +174,3 @@
 // Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
 // Todo - Paraga mail functional  
 // Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata
-
-import { GetStyleInnerHTML } from './constant.js';
-import { Interface } from './interface.js';
-import { Connection } from './connection.js';
-import { DialogBox } from './dialogbox.js';
-import { ContextMenu } from './contextmenu.js';
-import { Sidebar } from './sidebar.js';
-import { DropDownList } from './dropdownlist.js';
-import { View } from './view.js';
-
-export class Application extends Interface
-{
- static style = {
- 				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
- 				 "_Appearance animation": "Select interface elements appearance animation", 
-				 ".modalfilter": { "ilter": "blur(1px);", "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
-				 "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
-				 "Key combination to apply cell text": {},
-				 "__Logon events": { "Log unsuccessful logons": "", },
-				}
-
- // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
- constructor()
- {
-  const style = document.createElement('style');
-  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Sidebar.style, View.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
-  document.head.appendChild(style);
-  
-  const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
-  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } } }, { style: `background-color: ${NICECOLORS[7]};` });
-
-  document.addEventListener('keydown', Interface.EventListener);
-  document.addEventListener('keyup', Interface.EventListener);
-  document.addEventListener('mousedown', Interface.EventListener);
-  document.addEventListener('dblclick', Interface.EventListener);
-  document.addEventListener('mouseup', Interface.EventListener);
-  document.addEventListener('mousemove', Interface.EventListener);
-  document.addEventListener('click', Interface.EventListener);
-  document.addEventListener('contextmenu', (event) => event.preventDefault());
- }
-
- // Override main application child activation styling to exclude any effects for document.body
- StyleActiveChild()
- {
- }
-
- // Main application own handler to context menu and new connection create 
- Handler(event)
- {
-  switch (event.type)
-	     {
-	      case 'mouseup':
-		  	   new ContextMenu([['New connection'], ['Help']], this, event);
-		  	   break;
-	      case 'CONTEXTMENU':
-			   switch (event.data[0])	// Switch context item name (event data zero index)
-			   		  {
-					   case 'New connection':
-			   				new Connection(null, this);	// Args: data, parent
-							break;
-					  }
-		  	   break;
-	     }
- }
-}
-
-export let app;
-window.onload = function () { new Connection(null, app = new Application()); }; // Connection args: data, parent

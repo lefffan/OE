@@ -1,7 +1,8 @@
-// Todo0 - NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
-// Todo0 - Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
-// Todo0 - scrypt from openssl (passwords hashing)
-// Todo0 - auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
+// Todo0 - Study the doc:
+//         NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
+//         Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
+//         scrypt from openssl (passwords hashing)
+//         auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
 
 import pg from 'pg';
 import { WebSocketServer } from 'ws';

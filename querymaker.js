@@ -4,20 +4,17 @@
 // Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
 // Todo - problems of deploying - can i use postgre db on commerisal base? 
 // Todo - db readonly replicas?
-// Todo0 - step1 (head_table: serial id, DIALOG JSON; uniq_table: serial id, value; data_table: serial id, date, user, version, eid1, eid1)
-// CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
-// SELECT current_database(); SELECT current_schema(); SELECT current_user;
-// \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html)
-// \l list databases
-// \dt [*.*] list tables [of all schemas]
-// \c postgres postgres; 
-// DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
-// \d <table> - DESCRIBE TABLE
-// CREATE TABLE metr(); alter table metr add time TIMESTAMPTZ; SELECT create_hypertable('metr', by_range('time')); SELECT add_dimension('metr', by_range('id'));
-// set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
-// $query = $db->prepare("CREATE TABLE `data_1` (id MEDIUMINT NOT NULL, mask TEXT, lastversion BOOL DEFAULT 1, version MEDIUMINT NOT NULL, owner CHAR(64), datetime DATETIME DEFAULT NOW(), eid1 JSON, eid2 JSON, eid3 JSON, eid4 JSON, eid5 JSON, eid6 JSON, PRIMARY KEY (id, version)) ENGINE InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-// $query = $db->prepare("CREATE TABLE `uniq_1` (id MEDIUMINT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id)) AUTO_INCREMENT=".strval(STARTOBJECTID)." ENGINE InnoDB CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-// $query = $db->prepare("ALTER TABLE `uniq_1` ADD eid1 BLOB(65535), ADD UNIQUE(eid1(".USERSTRINGMAXCHAR."))");
+// Todo0 - Study psql syntax:
+//         CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
+//         SELECT current_database(); SELECT current_schema(); SELECT current_user;
+//         \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html)
+//         \l list databases
+//         \dt [*.*] list tables [of all schemas]
+//         \c postgres postgres; 
+//         DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
+//         \d <table> - DESCRIBE TABLE
+//         CREATE TABLE metr(); alter table metr add time TIMESTAMPTZ; SELECT create_hypertable('metr', by_range('time')); SELECT add_dimension('metr', by_range('id'));
+//         set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
 
 
 import { lg } from './main.js';

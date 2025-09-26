@@ -255,6 +255,12 @@ export const NEWOBJECTDATABASE = {
     cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
 };
 
+export const msgcontrol = [ //{ type: 'GETDATABASE', expire: 610, limit: 1, limitreport: 'Wait for previous Object Database configuring request or try again later after request timeout!', e_xpirereport: 'Object Database request server timeout! Please try it again' },
+                            //{ type: 'SETDATABASE', expire: '0' },
+                            { type: 'DIALOG', limit: '0-0' },
+                            { type: 'DIALOGCALLBACK', expire: '0' },
+                          ];
+
 /*
     //20: { type: 'textarea', path: 'Element/New element|+*|Element profile|Set element properties and clone this dialog profile to create new element in object database', head: 'Name', hint: `Element name, used as a default element title in object view display`, data: '', flag: '%Enter element name' },
     //21: { type: 'textarea', path: 'Element/New element', head: 'Description', hint: `Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values`, data: '', flag: '*%Enter element description' },

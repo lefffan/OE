@@ -92,7 +92,7 @@ export class Sidebar extends Interface
  {
   const sortcontrol = { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ARROW[0], data: '', callback: [Sidebar.SortControl] };
   const lupacontrol = { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: LUPA, callback: [Sidebar.LupaControl] };
-  const control = { fullscreenicon: {}, minimizescreen: {}, sorticon: sortcontrol, lupaicon: lupacontrol, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|keyup' } };
+  const control = { fullscreenicon: {}, minimizescreen: {}, sorticon: sortcontrol, lupaicon: lupacontrol, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|mousedown|keyup' } };
   super(data, parentchild, { overlay: 'ALWAYSONTOP', control: control }, { class: 'defaultbox sidebar selectnone' });
   // Set some props
   this.username = parentchild.username;
@@ -103,6 +103,8 @@ export class Sidebar extends Interface
   // this.od{id} = { branch: , ov{id}: { footnote: 0-.., status: -2||undefined (not open); -1 (server data pending); 0-100(view data loaded in %), childid: , targets: [] } }
   this.od = {};
   this.props.control.drag.elements = [this.elementDOM];
+  // Get database/view list
+  parentchild.CallController({ type: 'SIDEBARGET' });
   // Create sidebar two elements - search bar at the top and content bar (db structure) lower
   this.searchbar = document.createElement('div')
   this.searchbar.classList.add('searchbar', 'is-collapsed', 'growhide', 'smooth');
@@ -116,6 +118,11 @@ export class Sidebar extends Interface
   ///this.searchbar.style.display = 'none';
   this.searchbar.addEventListener('transitionend', () => { this.searchbar.classList.remove(this.props.control.lupaicon.data ? 'growhide' : 'growshow'); this.searchinput.focus(); if (this.props.control.lupaicon.data) this.searchbar.style.height = ''; });
   this.searchbar.style.visibility = 'hidden';
+ }
+
+ destructor()
+ {
+  super.destructor();
  }
 
  // Function creates new od (if ovid is undefined) or ov in a sidebar folders hierarchy for specified path
@@ -185,12 +192,23 @@ export class Sidebar extends Interface
                clearTimeout(this.searchtimer);
                this.searchtimer = setTimeout(() => { this.UpdateSearchString(); this.SearchBranch(); this.SidebarShow(); }, 300); 
                break;
+          case 'mousedown':							
+               if (event.button === 0 && event.buttons === 3){} // Left button down with right button hold?
+               break;
 	     case 'mouseup':
                const branch = this.GetDOMElementBranch(event.target);
                if (event.button === 0)
                   {
-                   if (event.target.attributes['data-ovid'] !== undefined) return { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.target.attributes['data-odid'].value, ovid: event.target.attributes['data-ovid'].value } };
-                   if (branch?.content.length) this.ToggleBranchWrap(branch);
+                   if (event.target.attributes['data-ovid'] !== undefined)
+                      {
+                       this.parentchild.CallController({ type: 'GETVIEW', data: { odid: event.target.attributes['data-odid'].value, ovid: event.target.attributes['data-ovid'].value } });
+                       break;
+                      }
+                   if (branch?.content.length)
+                      {
+                       this.ToggleBranchWrap(branch);
+                       break;
+                      }
                    break;
                   }
                if (event.button === 2)
@@ -203,13 +221,21 @@ export class Sidebar extends Interface
                   }
                break;
           case 'CONTEXTMENU':
-               const option = event.data[0].substring(0, 'Logout '.length) === 'Logout ' ? 'LOGOUT' : event.data[0];
-               const optionevents = { 'New Database': { type: 'CREATEDATABASE', destination: this.parentchild },
-                                      'Configure Database': { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
-                                      'Open in a new window': { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.data[1], ovid: event.data[2], newwindow: true } },
-                                      'LOGOUT': { type: 'LOGOUT', destination: this.parentchild },
-                                    }; 
-               return optionevents[option];
+   			switch (event.data[0])	// Switch context item name (event data zero index)
+				  {
+				   case 'New Database':
+                            this.parentchild.CallController({ type: 'CREATEDATABASE' });
+					   break;
+				   case 'Configure Database':
+                            this.parentchild.CallController({ type: 'GETDATABASE', data: { odid: event.data[1] } });
+					   break;
+				   case 'Open in a new window':
+                            this.parentchild.CallController({ type: 'GETVIEW', data: { odid: event.data[1], ovid: event.data[2], newwindow: true } });
+					   break;
+                       default:
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.parentchild.Handler({ type: 'LOGOUT' });
+				  }
+	          break;
           case 'SIDEBARSET': // { type: 'SIDEBARSET', data: { odid:, path:, ov: { 1: [path1, path2..], 2: [..] } } }
                this.SidebarAdd(event.data.path, event.data.odid);
                for (const ovid in event.data.ov) 

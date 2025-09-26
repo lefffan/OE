@@ -22,6 +22,45 @@ const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
 const BLINKCHILDACTIVESTATUS		= 200;
 const ELEMENTPUSHOFFSET				= 3;
 
+// Function processes child response event. Nested event prop (event.event) is passed to the parent child handler
+function ProcessChildEvent(child, events)
+{
+ if (!child || !events) return;  // Return for undefined child or its events
+ if (typeof events === 'string') events = [ { type: events } ];
+ if (!Array.isArray(events)) events = [ events ];
+
+ for (const event of events)
+ switch (event.type)																			// Process event
+		{
+	 	 case 'KILLME':																			// Destroy child event
+	      	  if (child !== app) child.parentchild.KillChild(child.id);							// Call parent child kill function with current child id. For non application childs only
+	      	  break;
+	 	 case 'BRINGTOTOP':																		// Bring to top all childs bundle from current nested one until the root one (app)
+			  child.ChangeActive(0);															// Set current child active among its childs
+	      	  while (child.parentchild)															// Cycle until parent exists
+		    	    {
+		     		 child.parentchild.ChangeActive(child.id);									// Set current child active in parent child container
+		     		 child = child.parentchild;													// and go to parent one
+		    	    }
+	      	  break;
+		 default:
+			  if (event.broadcast)
+				 {
+				  if (child.parentchild)
+				  	 for (const baby of child.parentchild.childs)
+					  	 if (baby !== child.parentchild && baby !== child && baby.Handler)
+						 	baby.Handler(event);												// Otherwise dispatch event to the parent child handler
+				 }
+			   else
+			   	 {
+				  if (child.parentchild.Handler) child.parentchild.Handler(event);				// Otherwise dispatch event to the parent child handler
+				 }
+		}
+
+ //return event;
+ return true;
+}
+
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
 {
@@ -75,16 +114,15 @@ function GetCapturedFocusModalChild(element, blink)
 // Function removes all non-sticky childs (except current one in the bundle, because of its mouse/keyboard interaction that shouldn't result removal) in the current layer
 function RemoveAllNonStickyChilds(child, callparent = true, excludeid)
 {
- let baby;
  for (const id of child.zindexes)																				// Iterate all child indexes
-	 if (id && id !== excludeid && (baby = child.childs[id]))													// except zero id (the child of itself) and excluded one that interacts with the user
-	 if (baby.IsNonsticky())																					// Remove non sticky child
+	 if (id && id !== excludeid)																				// except zero id (the child of itself) and excluded one that interacts with the user
+	 if (child.childs[id].IsNonsticky())																		// Remove non sticky child
 	    {
-	     baby.EventManager({ type: 'KILL', destination: baby });
+		 child.KillChild(id);
 	    }
 	  else
 	    {
-		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(baby, false);	// Otherwise perform recursive call for all childs of current child
+		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(child.childs[id], false);	// Otherwise perform recursive call for all childs of current child
 	    }
  if (callparent && child.parentchild) RemoveAllNonStickyChilds(child.parentchild, true, child.id);				// Recursively call parent child non sticky removal
 }
@@ -147,7 +185,7 @@ function CallControlHandler(control, userevent, phase)
 {
  let successcounter = 0;
  for (const callback of control.callback)
-	 if (typeof callback === 'function') phase === 'init' ? setTimeout(callback, 0, userevent, control, phase) : successcounter += control.child.EventManager(callback(userevent, control, phase));
+	 if (typeof callback === 'function') phase === 'init' ? setTimeout(callback, 0, userevent, control, phase) : successcounter += Boolean(ProcessChildEvent(control.child, callback(userevent, control, phase)));
  return successcounter;
 }
 
@@ -172,6 +210,11 @@ function SetMouseCursorContolsHover(child, event, childclientrect)
 
 export class Interface
 {
+ destructor()
+ {
+  for (const i in this.timer) clearTimeout(this.timer[i]);
+ }
+
  RefreshControlIcons()
  {
   let disp, elements = new Map();
@@ -232,7 +275,6 @@ export class Interface
 	  }
  }
 
- // Todo0 - move 4th arg attr to props
  constructor(...args) // (data, parentchild, props, attributes)
 	    {
 	     // Data
@@ -388,6 +430,7 @@ export class Interface
   this.zindexes.splice(this.childs[id].zindex, 1);																							// Remove appropriate child z-index element
   for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);				// and decrement all z-index values
   if (this.activeid === id) this.childs[this.activeid = this.aindexes.at(-1)].StyleActiveChild();											// Activate last active child if killing child is active
+  this.childs[id].destructor();																												// Call child desctructir
   const ismodal = this.childs[id].props.overlay === 'MODAL';
   delete this.childs[id];	
   if (!ismodal) return;																														// Killed child wasn't modal overlay? Return or remove css 'modal' filter for some childs below
@@ -461,7 +504,8 @@ export class Interface
  static CloseControl(userevent, control, phase)
  {
   if (phase !== 'release') return;
-  return { type: 'KILL', source: control.child, destination: control.child };
+  if (control.child.props.callback) control.child.props.callback({ type: 'DIALOGCALLBACK', id: control.child.props.id, data: {} });
+  return { type: 'KILLME' };
  }
 
  ToggleControlsStatus(include, exclude, disabled)
@@ -570,6 +614,7 @@ export class Interface
  {
   // First step - vars init, global event counter increment and preventDefault() call for all except keyboard and mouse 'down|click' (to keep native textarea[mousedown]/radio[click]/checkbox[click] elements working) events
   let child, childclientrect, modalchild;
+  app.eventcounter++;
   if (['keydown', 'keyup', 'mousedown', 'click'].indexOf(event.type) === -1) event.preventDefault();
 
   // Second step - get event targeted child (and its rectangle) via event.target DOM element for mouse events. In case of keyboard events - lowest active child is used to pass them to
@@ -582,7 +627,7 @@ export class Interface
 	  if (!modalchild && 'mousedown' === event.type)
 		 {
 		  RemoveAllNonStickyChilds(child);																		// Should non sticky removal be for mousedown event only? 
-		  child.EventManager({ type: 'BRINGTOTOP', destination: child });															// Bring clicked child to top for no modal child focus captured
+		  ProcessChildEvent(child, { type: 'BRINGTOTOP' });														// Bring clicked child to top for no modal child focus captured
 		 }
 	 }
    else
@@ -640,69 +685,6 @@ export class Interface
 		  }
 	  }
  }
-
- // Event queue is a child interaction event list to be processed. Every event chain has its own id in a queue. Chain consist of some single events inited on child request/response interaction.
- // Event format:
- // { id: <event chain queue id, added automatically if needed>
- //   type: <event type>
- //   source: <inited event source child>
- //   destination: <destination childs array to pass the event to, empty array - broadcast event to all childs of a parent>
- //   data: <event data>
- // }
- // Function processes childs events and return count of event processed.
- // The function is called on next type of events:
- //		- any child controls (including default one that processes all uncontroled mouse/keyboard events)
- //		- 'bring to top' event (handled by main interface bringing to top all childs in a chain until the root 'app' child)
- //		- child initiated events, for a example, dialog box button timer that emulates OK/CANCEL button push or connection box web socket incoming msgs
- EventManager(events)
- {
-  if (!events || typeof events !== 'object') return 0;
-  if (!Array.isArray(events)) events = [ events ];
-
-  for (const event of events)
-	  {
-	   let baby, childs;
-	   if (!event.source) event.source = this;
-	   if (!event.destination || typeof event.destination !== 'object')
-		  {
-		   childs = [];
-		   if (event.source.parentchild)
-			  for (const id in event.source.parentchild) if (id !== '0') childs.push(event.source.parentchild[id]); // In case of undefined destination use all childs of a parent as a destination to dispatch the message 
-		  }
-		else
-		  {
-		   childs = Array.isArray(event.destination) ? event.destination : [ event.destination ]; // In case of defined destination use it as a childs array (or converting to array if needed)
-		  }
-
-	   for (const child of childs)
-		   {
-			if (!child) continue;
-			switch (event.type)																// Dispatch current event to all destintion childs
-				   {
-					case 'KILL':															// Destroy event
-						 if (child.Handler)	child.EventManager(child.Handler(event));
-						 if (child.parentchild) child.parentchild.KillChild(child.id);		// Call parent child kill function with current child id. Root child <app> cannot be destroyed
-						 break;
-					case 'BRINGTOTOP':														// Bring to top all childs bundle from current nested one until the root one (app)
-						 baby = child;
-						 while (true) 
-							   {
-								baby.ChangeActive(0);										// Set current child active among all other childs
-								if (baby.Handler) baby.EventManager(baby.Handler(event));	// Call child handler for 'BRINGTOTOP' event
-								baby = baby.parentchild;
-								if (!baby) break;											// Cycle until root child <app> setting all upper childs active
-							   }
-						 break;
-					case 'EMPTY':															// Do nothing for empty event, useful for event 'controls' whose result is 'event is processed', but doing nothing due to empty event
-						 break;
-					default:
-						 if (child.Handler) child.EventManager(child.Handler(event));		// For all other events dispatch it to the destination child handler function
-				   }
-		   }
-	  }
-
-  return events.length;
- }
 }
 
 const CHILDCONTROLTEMPLATES = {
@@ -719,28 +701,3 @@ const CHILDCONTROLTEMPLATES = {
 							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
 							   default: { callback: [] }, 
 							  };
-
-							  
-// +--------+                                                                                       +------------+                                   +---------+                                     
-// |        | LOGIN[POST] (data->username/password) ->		                                        |            |                                   |         |                
-// |        |            <- LOGINACK[POST] (data->ip/proto/authcode)|LOGINERROR[POST]               |            |                                   |         |                
-// |        | CREATEWEBSOCKET[WS] (data->userid/authcode) ->                                        |            |                                   |         |                
-// |        |              <- CREATEWEBSOCKETACK|DROPWEBSOCKET (WS)                                 |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// | Client | SIDEBARGET[WS] -> 		      		                                              	| Controller |                                   | Handler |                
-// |        |                                           <- SIDEBARSET[WS] (data->odid/path/ov)      |            |                                   |         |                
-// |        |                        		                                        	          	|            |                                   |         |                
-// |        | GETDATABASE[WS] (id/data->odid) ->                                                    |            |                                   |         |                
-// |        |                                                          <- DIALOG[WS] (id,data)      |            |                                   |         |                
-// |        | DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->odid/dialog) ->                       |            |                                   |         |                
-// |        | <- SIDEBARDELETE[WS] (data->odid)|SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        | CREATEDATABASE[LOCAL] -> DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->dialog) ->   |            |                                   |         |                
-// |        |                                <- SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        | GETVIEW[Sidebar:WS] (id/data->ovid/odid/childid) -> GETVIEW[Connection:WS]            |            |                                   |         |                
-// |        |                                <- SETVIEW[Connection:WS] (id/data->ovid/odid/childid) |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        |                                                   <- SETVIEW[WS] (id/data->ovid/odid) |            |                                   |         |                
-// +--------+                                                                                       +------------+                                   +---------+                                     

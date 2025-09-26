@@ -412,6 +412,12 @@ export class DialogBox extends Interface
   return elementcount;
  }
  
+ destructor()
+ {
+  for (const button of this.Nodes.autoapplybuttons.values()) clearTimeout(button.timeoutid);	
+  super.destructor();
+ }
+
  // Init dialog specific data with overriding 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1) for the search to be terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
  constructor(...args)
  {
@@ -626,10 +632,10 @@ export class DialogBox extends Interface
  ButtonTimer(e)
  {
   const button = this.Nodes.autoapplybuttons.get(e);
-  clearTimeout(button.timeoutid);																				// Clear timer function
-  if (this.Nodes.buttons[e.id]) this.Nodes.buttons[e.id].innerHTML = this.GetElementContentHTML(e, true);		// Refresh button
-  if (new Date().getTime() - button.timerstart > button.timer) return this.EventManager(this.ButtonApply(e));	// Timer is up? Apply the button passing the result events
-  button.timeoutid = setTimeout(() => this.ButtonTimer(e), 1000); 												// Restart timer function otherwise
+  clearTimeout(button.timeoutid); // Clear timer function
+  if (new Date().getTime() - button.timerstart > button.timer) this.ButtonApply(e);	// Timer is up? Apply the button
+   else button.timeoutid = setTimeout(() => this.ButtonTimer(e), 1000); 			// Restart timer function otherwise
+  if (this.Nodes.buttons[e.id]) this.Nodes.buttons[e.id].innerHTML = this.GetElementContentHTML(e, true);										// Refresh button
  }
 
  GetDialogInner(inner, profile = this.data, padarea)
@@ -748,7 +754,7 @@ export class DialogBox extends Interface
  }
 
  // Inheritance function that is called on mouse/keyboard events on dialog box
- Handler(event)
+ Handler(event, callbackdata)
  {
   let e, id, target;
   [id, target] = GetEventTargetInterfaceElement(event.target);	// Define the clicked element 'id' and its wrapped target
@@ -762,32 +768,41 @@ export class DialogBox extends Interface
 			   break;
 
 	  	  case 'keyup':
-			   switch (event.code)
-			   		  {
-					   case 'Escape': // Esc btn closes 'profile-cloning' input element if exist
-				   			if (!this.Nodes.CloneInput) return; // or return nothing to alloow next control to process ESC btn
-				   			this.Nodes.CloneInput.esc = true;
-				   			this.Nodes.CloneInput.input.blur();
-							break;
-					   case 'Enter': // Enter key for btn-apply/profile-cloning
-					   case 'NumpadEnter':
-				   			if (this.Nodes.CloneInput) this.Nodes.CloneInput.input.blur();
-				   			else if ((e?.type === 'text' || e?.type === 'password') && !SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
-				   	  				{
-					   				 for (id in this.Nodes.buttons)												// Go through all btns and apply first non readonly one
-					   	   				if (event = this.ButtonApply(this.elements[id])) return event;
-					  				}
-							break;
-					   case 'ArrowLeft': // Left arrow key with Alt+Ctrl hold for pad selection
-				   			if (this.Nodes.CloneInput || !event.altKey || !event.shiftKey) break;
-				   			if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], false);
-							break;
-					   case 'ArrowRight': // Right arrow key with Alt+Ctrl hold for pad selection
-				   			if (this.Nodes.CloneInput || !event.altKey || !event.shiftKey) break;
-				   			if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], true);
-							break;
+	       	   if (event.code === 'Escape')
+				  {
+				   if (!this.Nodes.CloneInput) break;
+				   this.Nodes.CloneInput.esc = true;
+				   this.Nodes.CloneInput.input.blur();
+				   return {};
+				  }
+			   if (event.code === 'Enter' || event.code === 'NumpadEnter') // Enter key for btn-apply/profile-cloning
+		  		  {
+				   if (this.Nodes.CloneInput)
+					  {
+					   this.Nodes.CloneInput.input.blur();
+					   return {};
 					  }
-			   return { type: 'EMPTY', destination: this };
+				   if ((e?.type === 'text' || e?.type === 'password') && !SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
+				   	  {
+					   for (id in this.Nodes.buttons)											// Go through all callable btns and apply first non readonly one
+					   	   if (!SetFlag(this.elements[id], 'readonly') && SetFlag(this.elements[id], 'appliable') && !this.ButtonApply(this.elements[id])) break;
+					   return {};
+					  }
+				   break;
+		       	  }
+	       	   if (event.code === 'ArrowLeft') // Left arrow key with Alt+Ctrl hold for pad selection
+		  		  {
+				   if (this.Nodes.CloneInput || !event.altKey || !event.shiftKey) break;
+				   if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], false);
+				   return {};
+		       	  }
+			   if (event.code === 'ArrowRight') // Right arrow key with Alt+Ctrl hold for pad selection
+				  {
+				   if (this.Nodes.CloneInput || !event.altKey || !event.shiftKey) break;
+				   if (this.Nodes.padbar) this.ActivateSelectedOption(this.elements[GetEventTargetInterfaceElement(this.Nodes.padbar)[0]], true);
+				   return {};
+				  }
+			   break;
 
 		  case 'input':
 			   if (ELEMENTTEXTTYPES.includes(e.type))
@@ -803,9 +818,9 @@ export class DialogBox extends Interface
 				  }
 			   break;
 
-		  case 'click':
-			   if (e) return this.ButtonApply(e, event.target);											// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
-	       	   break;
+		  case 'textchange':
+			   target.value = JSON.stringify(callbackdata);
+			   break;
 
 	  	  case 'mousedown':																		// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
 			   if (!e || SetFlag(e, 'readonly')) break;											// Break for readonly element
@@ -813,7 +828,7 @@ export class DialogBox extends Interface
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
 					  {
-					   try { new DialogBox(JSON.parse(e.data), this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', event: { type: 'TEXTAREACHANGE', destination: this, data: event.target } }, { class: 'dialogbox selectnone' }); }
+					   try { new DialogBox(JSON.parse(e.data), this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', callback: this.Handler.bind(this, { type: 'textchange', target: event.target }) }, { class: 'dialogbox selectnone' }); }
 					   catch { return; }
 					  }
 				   if (ELEMENTSELECTABLETYPES.includes(e.type))									// or change sort order of selectable element
@@ -833,9 +848,19 @@ export class DialogBox extends Interface
 					  }
 				   if (e.type === 'select')
 					  {
-					   if (this.Nodes.CloneInput) break;												// No action at cloning profile process, element click will call blur event that will clone user defined profile
-					   if (event.target.classList.contains('itemadd'))									// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
+					   if (this.Nodes.CloneInput) break;	// No action at cloning profile process, element click will call blur event that will clone user defined profile
+					   if (event.target.classList.contains('itemadd'))							// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
+					   	   /*
+						   const CLONEINPUT					= { input: { type: 'text', data: '' }, ok: { type: 'button', flag: 'a' } };
+						   target = event.target;
+					   	   this.clone = new DialogBox(CLONEINPUT, this.parentchild, { effect: 'rise', overlay: 'NONSTICKY', control: { closeesc: {} }, callback: this.Handler.bind(this, { type: 'CLONE' }, null) }, { class: 'clonedialog selectnone', style: `left: ${target.offsetLeft + this.elementDOM.offsetLeft}px; top: ${target.offsetTop + this.elementDOM.offsetTop}px;` });
+						   this.clone.Nodes.textinputs[0].classList.add('cloneinput');
+						   css:
+					  	   ".clonedialog": { "position": "absolute;", "display": "block;", "outline": "none;", "border": "none;", "padding": "0px !important;", "margin": "0px !important;", "background-color": "transparent;", "box-shadow": "none !important;" },
+						   ".cloneinput": { "padding": "5px !important;", "border": "none !important;", "background-color": "rgb(166,197,206) !important;", "box-shadow": "none !important;" },
+						   background: linear-gradient(35deg, transparent, transparent 50%, #333 0%);
+					   	   */
 						   this.Nodes.CloneInput = { e: e, div: document.createElement('div'), input: document.createElement('input') };
 						   this.Nodes.CloneInput.div.appendChild(this.Nodes.CloneInput.input);
 						   this.Nodes.CloneInput.input.addEventListener('blur', this.Handler.bind(this));
@@ -855,37 +880,33 @@ export class DialogBox extends Interface
 						   requestIdleCallback(() => this.Nodes.CloneInput.input.focus());
 						   break;
 						  }
-					   if (event.target.classList.contains('itemremove'))								// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
+					   if (event.target.classList.contains('itemremove'))						// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   if (e.options.length === 1 && new DialogBox(...MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error'))) break;
-						   delete e.data[GetElementOption(e).origin];									// Removing current profile
+						   delete e.data[GetElementOption(e).origin];							// Removing current profile
 						   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
 						   break;
 						  }
-					   if (e.padbar)																	// Pad selection?
+					   if (e.padbar)															// Pad selection?
 						  {
 						   this.ActivateSelectedOption(e, event.target.attributes?.value?.value, target);
 						   break;
 						  }
-					   if (true) // Todo0 - Here must be dropdown list appearance check, PLUS CHECK DROPDOWN LIST POSITION AT DIALOG BOX CONTENT SCROLLING
+					   if (this.dropdownlist?.hideeventid !== app.eventcounter)					// Drop-down list is hidden via current 'select' element click (this.dropdownlisthide_eventcounter === app.eventcounter)?
 						  {
-						   new DropDownList(e, { type: 'OPTIONCHANGE', destination: this }, target.firstChild.offsetLeft + this.elementDOM.offsetLeft, target.firstChild.offsetTop + this.elementDOM.offsetTop + target.firstChild.offsetHeight - this.Nodes.contentwrapper.scrollTop);
+						   this.dropdownlist = new DropDownList(e.options, this, target.firstChild); // If so - create new option list box
 						   break;
 						  }
 					  }
 				  }
 			   break;
 
-		  case 'TEXTAREACHANGE':
-			   event.data.value = JSON.stringify(event.source.data); // Event data is text area target element (was set at dialog creation as a props event) wich value was requested to change, event source is a source dialog wich has its own data (dialog conetnt data)
+		  case 'optionchange':
+			   if (e) this.ActivateSelectedOption(e, this.dropdownlist?.cursor, target);			// Drop-down list returned back selected option
 			   break;
 
-		  case 'OPTIONCHANGE':
-			   if (e) this.ActivateSelectedOption(event.data.e, event.data.cursor, this.Nodes.selects[event.data.e.id].firstChild);	// Drop-down list returned back selected option
-			   break;
-
-		  case 'KILL':
-  			   for (const button of this.Nodes.autoapplybuttons.values()) clearTimeout(button.timeoutid);	
+		  case 'click':
+			   if (e) this.ButtonApply(e, event.target);											// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
 	       	   break;
 		 }
  }
@@ -907,23 +928,26 @@ export class DialogBox extends Interface
  
  ButtonApply(e, target)
  {
-  let events;
   if (!['button', 'table'].includes(e.type) || SetFlag(e, 'readonly')) return;			// Return for disabled (or non button/table type) element
-  if (!SetFlag(e, 'appliable') && (e.type !== 'table' || !target.attributes['data-id'])) return;	// Return for non-appliable button/tablecell
-
-  if (this.props.event) // Dialog event does exist in props? Add it
+  if (typeof this.props.callback === 'function')
+  if (SetFlag(e, 'appliable') || (e.type === 'table' && target.attributes['data-id']))	// Call back specified function to process dialog data (for appliable button/tablecell) and 'DIALOGCALLBACK' event with button applied (<element name> for button and <cell name starting with _> for table) 
 	 {
-  	  this.ParseDialogData(this.data, true, false);
-	  this.props.event.data = e.type === 'button' ? e.name : target.attributes['data-id'].value; // Set event data to the dialog button applied (<element name> for button element and <cell name starting with _> for table element) 
-  	  events = [ this.props.event ];
+	  this.ParseDialogData(this.data, true, false);
+	  this.props.callback({ type: 'DIALOGCALLBACK', id: this.props?.id, data: { dialog: this.data, button: e.type === 'button' ? e.name : target.attributes['data-id'].value } });
+	 }
+   else
+	 {
+	  this.props.callback({ type: 'DIALOGCALLBACK', id: this.props?.id, data: {                    button: e.type === 'button' ? e.name : target.attributes['data-id'].value } });
 	 }
 
-  if (!SetFlag(e, 'interactive') && e.type !== 'table') // Button is non interactive and element is not a table? Add KILL event
- 	 {
- 	  if (!events) events = [];
- 	  events.push({ type: 'KILL', destination: this });
+  if (SetFlag(e, 'interactive') || e.type === 'table')
+	 {
+	  this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS); // and refresh dialogwith a new profile added
+	  return; // Button is interactive or element is a table? Do nothing and return
 	 }
 
-  return events;
+  if (this.dropdownlist && this.parentchild.childs[this.dropdownlist.id])				// Otherwise kill drop-down list if exist
+	 this.parentchild.KillChild(this.dropdownlist.id);
+  this.parentchild.KillChild(this.id);													// and dialog box of itself
  }
 }

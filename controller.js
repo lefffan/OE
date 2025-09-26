@@ -1,33 +1,35 @@
-// Todo0 - Secure wss https://www.npmjs.com/package/ws#external-https-server
-// Todo0 - Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
-// Todo0 - socket rate limit: https://javascript.info/websocket#rate-limiting
-// Todo0 - How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
-// Todo0 - Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
-// Todo1 - process event 'Server has closed connection due to timeout', should this event be on client or server side (via any incoming msg)?
-// Todo1 - Create a template from frontend NEWOBJECTDATABASE to check dialog structure correctness
-//    Comment and adjust other sourcse
-//    Divide todo list for specific js sources
-//    Object selection input arg dialog defines not only object selection but element layout
-//    Define unspecified event default None or Nothing
-//    Auth process, user OD with its dialog and customization etc, permissions - check OD creating
-//    object view except graph and tree
-//    Add 'client side warning message' near with 'log rule msg'. How to set comments on rule msg?
-//    Macroses - Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Undefined macroses are empty strings. Mmacros strategy definition:
-//		Builtin macroses ${OD} ${OV} ${oid>} ${eid>} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}
-//		Object element props retriving ${oid: 1, eid: 2: prop: 'value'} (for handler cmd line only)
-//        Dialog defined (for OD conf and handler cmd line only)
-//		Db conf macroses (for OD conf only)
-//        User specific
-//        Global system user
+// 2025 year:
+// Todo1 - loading percent status animation and blue/green view icon
+// Todo1 - Child interaction via msg exchange only (!) via parent child management. Go through all files and search Handler KILL CallController FromColtroller
+// Todo0 - Queue manager 
+//         Document controller-client message broker and build conception when call one view, then calling the second while 1st view os not yet loaded would cancel 1st view incoming data msg
+//         Every user event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds.
+//         The record in event/message queue is removed after the handler responce or timeout occur
+//         Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, 
+//         so controller call is not perfomed until response or timeout
+// Todo0 - Macroses
+//         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Undefined macroses are empty strings. Macroses can be placed in OD/user dialog only. Mmacros strategy definition:
+//		 Builtin macroses ${OD} ${OV} ${oid} ${eid} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${userid} ${RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}
+//		 Object element props retriving ${oid: 1, eid: 2: prop: 'value'} (for handler cmd line only)
+//         Dialog defined (for OD conf (layout, selection...) and handler cmd line only). For OV settings add macros definition dialog: auto/custom/none
+//		 Db conf macroses (for OD conf only)
+//         User specific
+//         Root user
+// Todo0 - Auth user process
+// Todo0 - User dialog settings:
+//         Main: eid1 username, eid2 pass(empty pass diallows login, but allows cron execution)|groups|Login instances to login (undefined/incorrect/zero - no login, for all users except root)|timeout after the user is logged out|other custom text fields (tel, email, foto, other info). All props are json eid2 props
+//               user can change only his own settings except permission_tab and groups (that is changeble for previlige users only), username is unchangable after creation?, all users can only read (address book), root - write
+//         Macroses:
+//         Customization: (Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog)
+//         permissions (for all except root): od/ov, OD creating, Task manager restrict call (or/and call with no task delete option) for the user in his property settings and send only active handler list instead of their wrapeed dialog structure, 
+//         Events (for root only): profile list
 
 // Controller and event handlers
-// Todo - Single/Multipile select as a native handler that allows to select predefined values (for a example company clients)
-// Todo - Task manager restrict call (or/and call with no task delete option) for the user in his property settings and send only active handler list instead of their wrapeed dialog structure
-// Todo - Every user event has timeout the handler proccess it. The match of the user/event/odid/oid/eid record in event/message queue doesn't allow duplicated until the timeout exceeds.
-//        The record in event/message queue is removed after the handler responce or timeout occur
-//        Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, 
-//        so controller call is not perfomed until response or timeout
-// Todo - Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog
+// Todo1 - process event 'Server has closed connection due to timeout', should this event be on client or server side (via any incoming msg)?
+// Todo1 - Create a template from client event NEWOBJECTDATABASE to check dialog structure correctness
+// Todo - How to set comments on rule msg textarea? 1st line is a rule msg, other lines are a comment
+// Todo - Single/Multipile select interface element as a native controller-to-client call that allows to select predefined values (for a example company clients)
+// Todo0 - Native handler that get user online/offline status with datetime stamp and current instances number logged in
 // Todo - UPDATE handler command (in a addition to SET/RESET) creates new object version only in case of at least one user-defined element changed
 //		Multiple SET system calls (SET1, SET2, ... for a example) in a addition to UPDATE to apply different rules depending on a SET system call number.
 //        Or add aliases to SET system call (PUT/ADD/WRITE/PUSH) to add specific rules to
@@ -49,26 +51,34 @@
 //		 So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
 // Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call element event handlers. 
 //         At any client/server side element event occur - incoming event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 
+//         Every event may have 'none' action to explicitly set no call-handler, may be usefull to cancel through-profiles event seach with no action
 //         Event profiles of themselves are defined is 'system' user settings pad 'Event profiles':
 //         event profile: add/remove
-//                  event name: KEYPRESS/DBLCLICK/KEYA (act as a profile name together with modifier keys)         
-//                       Modifier keys
-//                            Step1 profile
-//                                 handler type: command line/user defined plain text stdout/builtin node-native snmp/node sandbox js script/None
-//                                 handler data: command line text/user defined plain text stdout/builtin node-native snmp args/node sandbox js script text/None
-//                                 macros definition dialog: 
-//                                 Handler stdout (correct JSON): Apply/Message/Ignore/Redirect/+Log
-//                                 Handler stdout (incorrect JSON): Set/Message/Ignore/Redirect/+Log
-//                                 Handler stderr: Set/Message/Ignore/Redirect/+Log
-//                                 timeout in sec, retries
-//         Event profile consists of user added events only (not all). After user adds new event - all its builtin handlers reset their dialog args data. Handler data for SCHEDULE event has crontab file syntax (for all except sandbox/none hanlder types)
-//         Event command line are not single line, but multiple. Controller runs first line handler, gets its data, other lines handlers may run in detached mode or may be used as a comments
+//                  event name + modifier keys: KEYPRESS/DBLCLICK/KEYA (act as a profile name together with modifier keys, profile names are set automatically by controller)
+//                        Step1 profile (profile names are set automatically by controller)
+//                            handler type: command line/user defined plain text stdout/builtin node-native snmp/node sandbox js script/None
+//                            handler data: command line text/user defined plain text stdout/builtin node-native snmp args/node sandbox js script text/None
+//                            Handler stdout correct JSON: Apply/Message/Ignore/Redirect to next step/+Log
+//                            Handler stdout incorrect JSON: Set/Message/Ignore/Redirect to next step/+Log
+//                            Handler stderr: Set/Message/Ignore/Redirect to next step/+Log
+//                            timeout in sec, retries
+//         Event profile consists of user added events only (not all). After user adds new event - all its builtin handlers reset their handler data to default. Handler data for SCHEDULE event has crontab file syntax (for all except sandbox/none hanlder types)
+//         Command line/user defined plain text are not single line, but multiple. Controller runs first line handler, may be used as a comments
 //         Negative queue value (the scheduler sleep for) in msec on crontab line
+// Todo0 - Study the doc:
+//         Secure wss https://www.npmjs.com/package/ws#external-https-server
+//         Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
+//         socket rate limit: https://javascript.info/websocket#rate-limiting
+//         How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
+//         Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
+
 
 import { WSIP, WSPORT, GenerateRandomString, lg, qm, pool } from './main.js';
 import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
 
-const UNKNOWNDBID = 'Incorrect or nonexistent database id!';
+const UNKNOWNDBID        = 'Incorrect or nonexistent database id!';
+const UNKNOWNLAYOUT      = 'Incorrect layout, no any object elements defined in JSON col/row with x/y properties!';
+const UNAUTHORIZEDACCESS = 'Unauthorized access detected, please relogin!';
 
 export class Controller
 {
@@ -103,7 +113,7 @@ export class Controller
 
   if (!['LOGIN', 'CREATEWEBSOCKET'].includes(msg.type) && !this.clients.get(client).auth)
      {
-      client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: 'Unauthorized access detected, please relogin!' }));
+      client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS }));
       client.terminate();
       return;
      }
@@ -137,7 +147,7 @@ export class Controller
                   }
                 else
                   {
-                   client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: 'Unauthorized access detected, please relogin!' }));
+                   client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS }));
                    client.terminate();
                   }
 	          break;
@@ -166,8 +176,14 @@ export class Controller
      }
 
   let selection, query = this.ods[msg.data.odid].query[msg.data.ovid];
+  if (!query)
+     {
+      msg.data.error = UNKNOWNLAYOUT;
+      client.send(JSON.stringify(msg));
+      return;
+     }
+
   try {
-       //selection = await pool.query(...qm.Table(query).Make());
        selection = await pool.query(...qm.Table(query).Make(true));
       }
   catch (error)

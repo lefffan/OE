@@ -12,13 +12,17 @@ export class ContextMenu extends Interface
 		       ".contextmenuitemdivider": { "background-color": "transparent;", "margin": "5px 10px 5px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
                 }
 
+ destructor()
+ {
+  super.destructor();
+ }
+
  Handler(event)
  {
   switch (event.type)
 	    {
 	     case 'mouseup':     // Handle only 'mouseup' event, child outside 'mousedown' event will never be dispathced to this nonsticky context menu
-              if (event.target.classList.contains('contextmenuitem')) return [ { type: 'CONTEXTMENU', data: this.data[event.target.attributes['data-item'].value], destination: this.parentchild }, { type: 'KILL', destination: this } ];
-              break;
+              return event.target.classList.contains('contextmenuitem') ? [ { type: 'CONTEXTMENU', data: this.data[event.target.attributes['data-item'].value] }, { type: 'KILLME'} ] : undefined;
 	    }
  }
 
