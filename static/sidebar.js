@@ -1,13 +1,13 @@
-import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg, CutString } from './constant.js';
-import { Interface } from './interface.js';
-import { ContextMenu } from './contextmenu.js';
-
 // Todo0 - OV description as a hint on taskbar OV navigation
 // Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
 // Todo0 - Global func to return background svg for up/down arrows with user defined color
 // Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
 // Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
 // Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
+
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg, CutString } from './constant.js';
+import { Interface } from './interface.js';
+import { ContextMenu } from './contextmenu.js';
 
 const WEIGHTS  = { 'view': 1, 'database': 2, 'folder': 3 };
 const ARROW    = [ SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(), // bright green 139,188,122
@@ -178,6 +178,9 @@ export class Sidebar extends Interface
  {
   switch (event.type)
 	    {
+          case 'SIDEBARVIEWSTATUS':
+               for (const prop in event.data) if (prop !== 'odid' && prop !== 'ovid') this.od[event.data.odid]['ov'][event.data.ovid][prop] = event.data[prop];
+               break;
           case 'keyup':
                if (event.code === 'Escape' && this.props.control.lupaicon.data) Sidebar.LupaControl(null, this.props.control.lupaicon, 'release');
                break;
@@ -189,9 +192,15 @@ export class Sidebar extends Interface
                const branch = this.GetDOMElementBranch(event.target);
                if (event.button === 0)
                   {
-                   if (event.target.attributes['data-ovid'] !== undefined) return { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.target.attributes['data-odid'].value, ovid: event.target.attributes['data-ovid'].value } };
-                   if (branch?.content.length) this.ToggleBranchWrap(branch);
-                   break;
+                   if (event.target.attributes['data-ovid'] === undefined) // OD click - toggle database wrap only
+                      {
+                       if (branch?.content.length) this.ToggleBranchWrap(branch);
+                       break;
+                      }
+                   event = { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.target.attributes['data-odid'].value, ovid: event.target.attributes['data-ovid'].value } }; // OV click - dispatch 'GETVIEW' event to the 'Connection' child
+                   event.data.status = this.od[event.data.odid]['ov'][event.data.ovid].status;
+                   event.data.childid = this.od[event.data.odid]['ov'][event.data.ovid].childid;
+                   return event;
                   }
                if (event.button === 2)
                   {
@@ -204,10 +213,10 @@ export class Sidebar extends Interface
                break;
           case 'CONTEXTMENU':
                const option = event.data[0].substring(0, 'Logout '.length) === 'Logout ' ? 'LOGOUT' : event.data[0];
-               const optionevents = { 'New Database': { type: 'CREATEDATABASE', destination: this.parentchild },
+               const optionevents = { 'New Database':    { type: 'CREATEDATABASE', destination: this.parentchild },
                                       'Configure Database': { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
-                                      'Open in a new window': { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.data[1], ovid: event.data[2], newwindow: true } },
-                                      'LOGOUT': { type: 'LOGOUT', destination: this.parentchild },
+                                      'Open in a new window':   { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.data[1], ovid: event.data[2], newwindow: true, status: this.od[event.data[1]]['ov'][event.data[2]].status, childid: this.od[event.data[1]]['ov'][event.data[2]].childid } },
+                                      'LOGOUT':                  { type: 'LOGOUT', destination: this.parentchild },
                                     }; 
                return optionevents[option];
           case 'SIDEBARSET': // { type: 'SIDEBARSET', data: { odid:, path:, ov: { 1: [path1, path2..], 2: [..] } } }
@@ -223,10 +232,6 @@ export class Sidebar extends Interface
           case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', data: { odid: } } 
                this.SidebarDelete(this.tree, event.data.odid);
                this.SidebarShow();
-               break;
-          case 'SIDEBARFOOTNOTE': // { type: 'SIDEBARFOOTNOTE', odid:, ovid:, value: }
-               break;
-          case 'SIDEBARLOAD': // { type: 'SIDEBARLOAD', odid:, ovid:, value: }
                break;
 	    }
  }

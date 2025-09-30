@@ -7,6 +7,9 @@
 //         The record in event/message queue is removed after the handler responce or timeout occur
 //         Another more strict option is to consider only user/event/odid/oid combination for element id, so user double cliked on any object element is unable generate another double click event on other object element, 
 //         so controller call is not perfomed until response or timeout
+// Todo0 - remake all this file vars to app global var
+// Todo0 - Interface constructor 'attribute' arg move to 'props' arg
+
 // Todo0 - Macroses
 //         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text). Undefined macroses are empty strings. Macroses can be placed in OD/user dialog only. Mmacros strategy definition:
 //		 Builtin macroses ${OD} ${OV} ${oid} ${eid} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${userid} ${RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}
@@ -104,7 +107,7 @@ export class Controller
   return { type: 'LOGINACK', data: { username: username, userid: '0', protocol: 'ws', ip: WSIP, port: WSPORT, authcode: this.AddClientAuthCode(GenerateRandomString(12), { userid: '0', username: username }/* Todo0 - set user id here */) } };
  }
 
- MessageIn(msg, client)
+ Handler(msg, client)
  {
   try { msg = JSON.parse(msg); }
   catch { return; }
@@ -119,24 +122,24 @@ export class Controller
      }
 
   switch (msg.type)
-	    {
-	     case 'SETDATABASE':
+	      {
+	       case 'SETDATABASE':
                EditDatabase(msg, this.clients.get(client));
-	          break;
-	     case 'GETDATABASE':
-               if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', id: msg.id, data: { dialog: UNKNOWNDBID, title: 'Error' } }));
-                else client.send(JSON.stringify({ type: 'DIALOG', id: msg.id, data: { dialog: this.ods[msg.data.odid].dialog } }));
-	          break;
-	     case 'SIDEBARGET':
+	            break;
+	       case 'GETDATABASE':
+               if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: UNKNOWNDBID, title: 'Error' } }));
+                else client.send(JSON.stringify({ type: 'CONFIGUREDATABASE', data: { dialog: this.ods[msg.data.odid].dialog, odid: msg.data.odid } }));
+	            break;
+	       case 'SIDEBARGET':
                SendViewsToClients(null, client);
-	          break;
+	            break;
           case 'LOGIN':
                client.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
                msg = this.Authenticate(msg.data.username, msg.data.password);
                client.write(JSON.stringify(msg));
                client.end()
-               return;
-	     case 'CREATEWEBSOCKET':
+               break;
+	       case 'CREATEWEBSOCKET':
                if (this.clientauthcodes[msg.data.authcode] && this.clientauthcodes[msg.data.authcode].userid === msg.data.userid)
                   {
                    this.clients.get(client).auth = true;
@@ -150,12 +153,10 @@ export class Controller
                    client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS }));
                    client.terminate();
                   }
-	          break;
+	            break;
           case 'GETVIEW':
                this.SendView(client, msg);
                break;
-          default:
-               return; // Return for unknown msg type
 	    }
   //this.clients.get(client).lasttimestamp = Date.now();
  }

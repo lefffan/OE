@@ -1,4 +1,3 @@
-
 // Application architecture:
 // Todo2 - Change application icon
 // Todo2 - Custom cursor div via css style * {cursor: none;}

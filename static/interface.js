@@ -663,15 +663,23 @@ export class Interface
 	  {
 	   let baby, childs;
 	   if (!event.source) event.source = this;
-	   if (!event.destination || typeof event.destination !== 'object')
+	   if (event.destination === null) // Dispatch event to all childs of a source, other cases - to all source child neighbours
+		  {
+		   childs = [];
+		   for (const id in event.source.childs) 
+			   if (id !== '0') childs.push(event.source.childs[id]);
+		  }
+		else if (typeof event.destination !== 'object') // Dispatch event to all childs of a source, other cases - to all source child neighbours
 		  {
 		   childs = [];
 		   if (event.source.parentchild)
-			  for (const id in event.source.parentchild) if (id !== '0') childs.push(event.source.parentchild[id]); // In case of undefined destination use all childs of a parent as a destination to dispatch the message 
+		  	  for (const id in event.source.parentchild) 
+			      if (id !== '0' && event.source !== event.source.parentchild[id])
+				     childs.push(event.source.parentchild[id]);
 		  }
 		else
 		  {
-		   childs = Array.isArray(event.destination) ? event.destination : [ event.destination ]; // In case of defined destination use it as a childs array (or converting to array if needed)
+		   childs = Array.isArray(event.destination) ? event.destination : [ event.destination ]; // In case of destination is an object - use it value directly, converting it to array if needed
 		  }
 
 	   for (const child of childs)
@@ -719,28 +727,28 @@ const CHILDCONTROLTEMPLATES = {
 							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
 							   default: { callback: [] }, 
 							  };
-
 							  
 // +--------+                                                                                       +------------+                                   +---------+                                     
-// |        | LOGIN[POST] (data->username/password) ->		                                        |            |                                   |         |                
-// |        |            <- LOGINACK[POST] (data->ip/proto/authcode)|LOGINERROR[POST]               |            |                                   |         |                
-// |        | CREATEWEBSOCKET[WS] (data->userid/authcode) ->                                        |            |                                   |         |                
-// |        |              <- CREATEWEBSOCKETACK|DROPWEBSOCKET (WS)                                 |            |                                   |         |                
+// |        | LOGIN[HTTP:Connection:username,password] ->		                                    |            |                                   |         |                
+// |        |     <- LOGINACK[HTTP:Controller:ip,proto,authcode]|LOGINERROR[HTTP:Controller:error]  |            |                                   |         |                
+// |        | CREATEWEBSOCKET[WS:Connection:userid,authcode) ->                                     |            |                                   |         |                
+// |        |              <- CREATEWEBSOCKETACK[WS:Controller]|DROPWEBSOCKET[WS:Controller]        |            |                                   |         |                
 // |        |                        		    		                                            |            |                                   |         |                
-// | Client | SIDEBARGET[WS] -> 		      		                                              	| Controller |                                   | Handler |                
-// |        |                                           <- SIDEBARSET[WS] (data->odid/path/ov)      |            |                                   |         |                
+// | Client | SIDEBARGET[WS:Controller] -> 			                                              	| Controller |                                   | Handler |                
+// |        |                               <- SIDEBARSET[WS:Controller:odid,path,ov]               |            |                                   |         |                
 // |        |                        		                                        	          	|            |                                   |         |                
-// |        | GETDATABASE[WS] (id/data->odid) ->                                                    |            |                                   |         |                
-// |        |                                                          <- DIALOG[WS] (id,data)      |            |                                   |         |                
-// |        | DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->odid/dialog) ->                       |            |                                   |         |                
-// |        | <- SIDEBARDELETE[WS] (data->odid)|SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
+// |        | CREATEDATABASE[LOCAL:Sidebar] -> SETDATABASE[WS:Connection:dialogdata) ->				|            |                                   |         |                
+// |        |                                <- SIDEBARSET[...]|DIALOG[WS:Controller:dialogdata]    |            |                                   |         |                
+// |        |                        		    		                                            |            |                                   |         |                
+// |        | GETDATABASE[WS:Sidebar|Connection:odid] ->                                            |            |                                   |         |                
+// |        |                   			<- CONFIGUREDATABASE[WS:controller:dialog,odid] 	    |            |                                   |         |                
+// |        | SETDATABASE[WS:Connection:dialogdata,odid) ->           			                    |            |                                   |         |                
+// |        | <- SIDEBARSET[WS:Controller:odid,path,ov]|SIDEBARDELETE[WS:Controller:odid]|DIALOG[WS]|            |                                   |         |                
 // |        |                        		    		                                            |            |                                   |         |                
 // |        |                        		    		                                            |            |                                   |         |                
-// |        | CREATEDATABASE[LOCAL] -> DIALOGCALLBACK[LOCAL] -> SETDATABASE[WS] (data->dialog) ->   |            |                                   |         |                
-// |        |                                <- SIDEBARSET[WS] (data->odid/path/ov)|DIALOG[WS]      |            |                                   |         |                
+// |        | GETVIEW[WS:Sidebar|Connection:ovid,odid,childid,newwindow) -> 			            |            |                                   |         |                
+// |        |                              			  <- SETVIEW[WS:Connection:odid/ovid/childid)	|            |                                   |         |                
+// |        |                                														|            |                                   |         |                
+// |        |                            				      <- SETVIEW[WS:Connection:odid/ovid)	|            |                                   |         |                
 // |        |                        		    		                                            |            |                                   |         |                
-// |        | GETVIEW[Sidebar:WS] (id/data->ovid/odid/childid) -> GETVIEW[Connection:WS]            |            |                                   |         |                
-// |        |                                <- SETVIEW[Connection:WS] (id/data->ovid/odid/childid) |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        |                                                   <- SETVIEW[WS] (id/data->ovid/odid) |            |                                   |         |                
 // +--------+                                                                                       +------------+                                   +---------+                                     

@@ -25,7 +25,7 @@ new WebSocketServer({ port: WSPORT }).on('connection', WSNewConnection);
 
 function WSMessage(msg)
 {
- controller.MessageIn(msg, this);
+ controller.Handler(msg, this);
 }
 
 function WSError(err)

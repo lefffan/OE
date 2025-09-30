@@ -1,7 +1,7 @@
+// Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
+
 import { Interface } from './interface.js';
 import { GetElementOption } from './dialogbox.js';
-
-// Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 
 export class DropDownList extends Interface
 {

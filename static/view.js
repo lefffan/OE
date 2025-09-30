@@ -140,6 +140,8 @@ export class View extends Interface
  {
   switch (msg.type)
          {
+          case 'KILL':
+               return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, ststus: undefined } };
           case 'keydown':
                if (msg.getModifierState('ScrollLock') || !this.gridcontainer) break; // Scroll lock key or no grid does exist? Break
                msg.preventDefault();
@@ -158,6 +160,7 @@ export class View extends Interface
                // Step 1 - init OV params and handle some errors, such as incoming msg 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in msg)
                lg(msg);
                this.InitView(msg);
+               this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, ststus: undefined } });
                if (msg.data.error) return this.DisplayView(msg.data.error );
                if (!msg.data.selection) return this.DisplayView(UNDEFINEDSELECTION);
                const layout = this.layout;

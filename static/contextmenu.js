@@ -1,6 +1,6 @@
-import { Interface } from './interface.js';
-
 // Todo0 - handle context key menu creation
+
+import { Interface } from './interface.js';
 
 export class ContextMenu extends Interface
 {
