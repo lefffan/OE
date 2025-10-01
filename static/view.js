@@ -51,7 +51,9 @@ export class View extends Interface
  constructor(...args)
  {
   const mouseareaselect = { elements: [], button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', callback: [View.MouseAreaSelectControl] };
-  if (!args[2]?.control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, mouseareaselect: mouseareaselect, default: {}, drag: {}, fullscreendblclick: {}, closeesc: {} };
+  if (!args[2]) args[2] = {};
+  if (!args[2].control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, mouseareaselect: mouseareaselect, default: {}, drag: {}, fullscreendblclick: {}, closeesc: {} };
+  args[2].animation = 'slideleft';
   args[3] = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
   super(...args);
   this.props.control.drag.elements = this.props.control.fullscreendblclick.elements = [this.elementDOM];
@@ -63,11 +65,10 @@ export class View extends Interface
  {
   this.odid = msg.data.odid;
   this.ovid = msg.data.ovid;
-  this.props.control.text.icon = SVGUrlHeader(250, 18) + SVGText(3, 14, `database id ${msg.data.odid}, view id ${msg.data.ovid}, sequence ${msg.id}`) + SVGUrlFooter();
+  this.props.control.text.icon = SVGUrlHeader(250, 18) + SVGText(3, 14, `database id ${msg.data.odid}, view id ${msg.data.ovid}`) + SVGUrlFooter();
   this.RefreshControlIcons();
-  this.sidebarview = this.parentchild.sidebar.od[this.odid]['ov'][this.ovid];
-  this.sidebarview.status = 0;
-  this.sidebarview.childid = this.id;
+  this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: this.id, status: 0 } });
+
   this.cellscount = this.cellsoutofrange = 0;
   this.valuetableWidth = this.valuetableHeight = 0;
   this.columnWidths = [];
@@ -144,7 +145,6 @@ export class View extends Interface
                return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, ststus: undefined } };
           case 'keydown':
                if (msg.getModifierState('ScrollLock') || !this.gridcontainer) break; // Scroll lock key or no grid does exist? Break
-               msg.preventDefault();
                const page = Math.ceil((this.gridcontainer.clientHeight * this.valuetableHeight) / (this.mtop + this.gridcontainer.scrollHeight + this.mbottom));
                const offsets = { ArrowUp: { y: -1 }, // Calc x/y offset (while moving cursor or selecting cells area) per key name
                                  ArrowDown: { y: 1 },
@@ -154,13 +154,12 @@ export class View extends Interface
                                  End: { y: this.valuetableHeight },
                                  PageUp: { y: -page },
                                  PageDown: { y: page } };
+               if (offsets[msg.code]) msg.preventDefault();
                this.MoveCursor(offsets[msg.code], msg.shiftKey, true);
                break;
           case 'SETVIEW':
                // Step 1 - init OV params and handle some errors, such as incoming msg 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in msg)
-               lg(msg);
                this.InitView(msg);
-               this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, ststus: undefined } });
                if (msg.data.error) return this.DisplayView(msg.data.error );
                if (!msg.data.selection) return this.DisplayView(UNDEFINEDSELECTION);
                const layout = this.layout;
@@ -224,12 +223,11 @@ export class View extends Interface
   if (errormsg || warningmsg)
      {
       this.elementDOM.innerHTML = `<div class="ovboxmessage" style="color: ${errormsg ? 'RGB(251,179,179)' : '#9FBDDF'};"><div  style="text-align: justify;"><h1>${errormsg ? errormsg : warningmsg}</h1></div></div>`;
-      this.sidebarview.status = 100;
+      this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, status: 100 } });
       return;
      }
 
   // Step 2 - init same tables vars
-  this.sidebarview.status = 100;
   let dispx, dispy = 0;
   let newtable = [];
   this.valuetableHeight = this.valuetable.length;
@@ -272,6 +270,7 @@ export class View extends Interface
                                                             this.cursor.ticking = true;
                                                            });
   this.Render();
+  this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, status: 100 } });
  }
 
  GetElementAreaRect(element, excludescrollarea)
@@ -282,6 +281,12 @@ export class View extends Interface
            x2: element.offsetLeft - 1 + (excludescrollarea ? element.scrollLeft + element.clientWidth : element.offsetWidth),
            y2: element.offsetTop - 1 + (excludescrollarea ? element.scrollTop + element.clientHeight : element.offsetHeight)
          };
+ }
+
+ TransitionEnd()
+ {
+  super.TransitionEnd();
+  this.Render();
  }
 
  // Render itemArea (to grid area) object and place it to visible area. Function works in three modes:

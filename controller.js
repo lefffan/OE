@@ -75,7 +75,6 @@
 //         How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
 //         Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
 
-
 import { WSIP, WSPORT, GenerateRandomString, lg, qm, pool } from './main.js';
 import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
 
@@ -111,7 +110,7 @@ export class Controller
  {
   try { msg = JSON.parse(msg); }
   catch { return; }
-  //lg('Incoming msg:', msg);
+  lg('Incoming msg:', msg);
   if (!msg || typeof msg !== 'object' || !msg.type) return;
 
   if (!['LOGIN', 'CREATEWEBSOCKET'].includes(msg.type) && !this.clients.get(client).auth)

@@ -8,7 +8,7 @@
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
 
-import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, EFFECTS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, ANIMATIONS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
 import { app } from './application.js';
 
 const DOMELEMENTMINWIDTH			= 50;
@@ -241,7 +241,7 @@ export class Interface
 	     // Parent child
 	     this.parentchild = args[1];
 
-	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', effect: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1}
+	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1}
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 		 if (!this.props.control) this.props.control = {};
@@ -264,16 +264,15 @@ export class Interface
 	     this.maxchildid = 0;																				// Child max id ever been inserted
 
 	     // Stop constructor for root child (app) that has no parent. Root element is always document.body
-		 // lg('Next child is inserted:', this);
 	     if (!this.parentchild) return;
 
 	     // Set scc filter for all childs with overlay 'MODAL' mode
 	     if (this.props.overlay === 'MODAL') for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
 
 	     // Child display
-	     this.parentchild.elementDOM.appendChild(this.elementDOM);
-	     this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
+	     if (ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
 	     this.Show();
+	     this.parentchild.elementDOM.appendChild(this.elementDOM);
 
 	     // Insert this child to parent child list
 	     this.parentchild.maxchildid++;
@@ -307,14 +306,6 @@ export class Interface
  {
   const computed = window.getComputedStyle(this.elementDOM);
   if (parseInt(computed.getPropertyValue('width')) < DOMELEMENTMINWIDTH || parseInt(computed.getPropertyValue('height')) < DOMELEMENTMINHEIGHT) [this.elementDOM.style.width, this.elementDOM.style.height] = [width + 'px', height + 'px'];
- }
-
- // Call for 'transition end' event
- TransitionEnd()
- {
-  if (this.elementDOM.style.visibility === 'hidden') return this.elementDOM.remove();					// Remove child DOM element in case of hidden style visibility
-  this.elementDOM.classList.remove(this.props.effect + 'show', this.props.effect + 'hide', 'smooth');	// Remove child DOM element all animation classes
-  if (this.Render) this.Render();																		// Render child if appropriate function does exist
  }
 
  // Function changes child z-index property
@@ -395,22 +386,35 @@ export class Interface
   for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');											// Otherwise remove css 'modal' filter for all childs 
  }
 
- // Hide the child with animation this.props.effect
+ // Hide the child with animation this.props.animation
  Hide()
-	{
-	 if (EFFECTS.indexOf(this.props.effect) === -1)	return this.elementDOM.remove(); // No animation? Just remove child DOM element
-	 this.elementDOM.style.visibility = 'hidden';									 // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
-	 this.elementDOM.classList.add(this.props.effect + 'hide');
-	}
+ {
+  if (!ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
+  this.SetVisibility(); // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
+ }
 
  // Show child with animation
  Show()
-	{
-	 if (EFFECTS.indexOf(this.props.effect) === -1)	return (this.elementDOM.style.visibility = 'visible');								// No animation? Just style DOM element visibility and return
-	 setTimeout(() => { this.elementDOM.style.visibility = 'visible'; this.elementDOM.classList.add(this.props.effect + 'show'); }, 0);	// and then 'show' class via timeout to make transition from 'hide' to 'show' visible
-	 this.elementDOM.classList.add(this.props.effect + 'hide');																			// Otherwise animate the child via adding 'hide' class
-	}
+ {
+  if (!ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
+  requestAnimationFrame(this.SetVisibility.bind(this, true));	// and then set element visible (after it is hidden via line below) via requestAnimationFrame()
+  this.SetVisibility();
+ }
  
+ // Function sets element visible/hidden via style/class properties (for childs with animation effect only)
+ SetVisibility(visibility)
+ {
+  this.elementDOM.style.visibility = visibility ? 'visible' : 'hidden';
+  this.elementDOM.classList.add(`${this.props.animation}${visibility ? 'show' : 'hide'}`);
+ }
+
+ // Call for 'transition end' event
+ TransitionEnd()
+ {
+  if (this.elementDOM.style.visibility === 'hidden') return this.elementDOM.remove();						// Remove child DOM element in case of hidden style visibility
+  this.elementDOM.classList.remove(this.props.animation + 'show', this.props.animation + 'hide', 'smooth');	// Remove child DOM element all animation classes
+ }
+
  // Check child 'top layer' overlay
  IsOnTopFlag(child)
  {
@@ -582,7 +586,7 @@ export class Interface
 	  if (!modalchild && 'mousedown' === event.type)
 		 {
 		  RemoveAllNonStickyChilds(child);																		// Should non sticky removal be for mousedown event only? 
-		  child.EventManager({ type: 'BRINGTOTOP', destination: child });															// Bring clicked child to top for no modal child focus captured
+		  child.EventManager({ type: 'BRINGTOTOP', destination: child });										// Bring clicked child to top for no modal child focus captured
 		 }
 	 }
    else
@@ -693,12 +697,13 @@ export class Interface
 						 break;
 					case 'BRINGTOTOP':														// Bring to top all childs bundle from current nested one until the root one (app)
 						 baby = child;
+						 baby.ChangeActive(0);
 						 while (true) 
 							   {
-								baby.ChangeActive(0);										// Set current child active among all other childs
 								if (baby.Handler) baby.EventManager(baby.Handler(event));	// Call child handler for 'BRINGTOTOP' event
+								if (!baby.parentchild) break;								// Cycle until root child <app> setting all upper childs active
+								baby.parentchild.ChangeActive(baby.id);						// Set current child active among all other childs
 								baby = baby.parentchild;
-								if (!baby) break;											// Cycle until root child <app> setting all upper childs active
 							   }
 						 break;
 					case 'EMPTY':															// Do nothing for empty event, useful for event 'controls' whose result is 'event is processed', but doing nothing due to empty event

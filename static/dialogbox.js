@@ -38,7 +38,7 @@
 // Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
 // Todo0 - what if regexp in 'expr' contains '/' char? May be ignore regexp string end at these two chars: '\/' ?
 
-import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, EFFECTSHINT, lg, MessageBox } from './constant.js';
+import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, lg, MessageBox } from './constant.js';
 import { app } from './application.js';
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
@@ -325,7 +325,7 @@ export class DialogBox extends Interface
 	".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
 	//------------------------------------------------------------
 	// dialog box select
-	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;", "effect": "rise", "_effect": "Select fall-down option list " + EFFECTSHINT },
+	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;" },
 	// dialog box select option
 	".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
 	// dialog box select option hover
@@ -695,7 +695,7 @@ export class DialogBox extends Interface
   this.RefreshControlElements();
 
   // Set focus to the first found text element
-  requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
+  setTimeout(this.SetFirstTextElementFocus.bind(this), 401); // Old version is not suitable due to incomplete animation, so unknown element to focus: requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
  }
 
  // Refresh dialog drag, icon and push control elements not forgetting to refresh its icons via function 'RefreshControlIcons' direct call
@@ -804,7 +804,7 @@ export class DialogBox extends Interface
 			   break;
 
 		  case 'click':
-			   if (e) return this.ButtonApply(e, event.target);											// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
+			   if (e) return this.ButtonApply(e, event.target);									// Button-apply function will check whether the element is appliable button or table callable cell and make corresponded action then
 	       	   break;
 
 	  	  case 'mousedown':																		// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
@@ -813,7 +813,7 @@ export class DialogBox extends Interface
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
 					  {
-					   try { new DialogBox(JSON.parse(e.data), this.parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', event: { type: 'TEXTAREACHANGE', destination: this, data: event.target } }, { class: 'dialogbox selectnone' }); }
+					   try { new DialogBox(JSON.parse(e.data), this.parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', event: { type: 'TEXTAREACHANGE', destination: this, data: event.target } }, { class: 'dialogbox selectnone' }); }
 					   catch { return; }
 					  }
 				   if (ELEMENTSELECTABLETYPES.includes(e.type))									// or change sort order of selectable element

@@ -41,7 +41,7 @@ function Connection(req, res)
          case 'POST':
               let msg = '';
               req.on('data', (chunk) => { msg += chunk.toString(); }); 
-              req.on('end', () => { controller.MessageIn(msg, res); }); 
+              req.on('end', () => { controller.Handler(msg, res); }); 
               break;
         }
 }

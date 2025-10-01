@@ -2,8 +2,7 @@ export const HTMLINNERENCODEMAP		    = [['&', '<', '>', '\n', ' ', '"'], ['&amp;
 export const TAGATTRIBUTEENCODEMAP		= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
 export const TAGHTMLCODEMAP		        = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
-export const EFFECTS					= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
-export const EFFECTSHINT				= "effect appearance. Possible values:<br>'hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall' and 'rise'.<br>All other values make no effect.";
+export const ANIMATIONS				    = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 export const NODOWNLINKNONSTICKYCHILDS	= 0b1;
 
 export function lg(...data)
@@ -62,7 +61,7 @@ export function MessageBox(parentchild, message, title)
  						message: { type: 'text', head: message },
 						ok: { type: 'button', data: '  OK  ', head: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
 					};
- return [dialogdata, parentchild, { effect: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' }];
+ return [dialogdata, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' }];
 }
 
 // Function searches 'string' in 'source' and return the source with excluded string or added string otherwise

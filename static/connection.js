@@ -22,7 +22,7 @@ export class Connection extends Interface
  constructor(...args)
  {
   const props = { flags: NODOWNLINKNONSTICKYCHILDS,
-                  effect: 'slideright',
+                  animation: 'slideright',
                   position: 'CASCADE',
                   control: { closeicon: {}, fullscreenicon: { initevent: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
                 };
@@ -33,30 +33,26 @@ export class Connection extends Interface
   this.Login();
  }
 
- Login(logintitle)
+ Login()
  {
   // Clear all disconnected-user data
   delete this.username;
   delete this.userid;
-  this.currentmsgid = 1;
-  this.msgqueue = {};
   // Kill all connection childs
   this.EventManager({ type: 'KILL', destination: null });
   // Create login dialog from the template
   const dialog = JSON.parse(JSON.stringify(LOGINDIALOG));
-  if (logintitle) dialog.title.data = logintitle;
-  if (this.logintitle) dialog.title.data = this.logintitle;
-  delete this.logintitle;
+  if (this.logintitle && (dialog.title.data = this.logintitle)) delete this.logintitle;
   const control = { fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} };
-  new DialogBox(dialog, this, { effect: 'rise', position: 'CENTER', overlay: 'MODAL', control: control, event: { type: 'LOGIN', destination: this } }, { class: 'dialogbox selectnone' });
+  new DialogBox(dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', control: control, event: { type: 'LOGIN', destination: this } }, { class: 'dialogbox selectnone' });
  }
 
  CreateWebSocket(url)
  {
   this.socket = new WebSocket(url);
   this.socket.onopen = this.Handler.bind(this, { type: 'CREATEWEBSOCKET', data: { userid: this.userid, authcode: this.authcode } });
-  this.socket.onclose = this.Login.bind(this);
-  this.socket.onerror = this.Login.bind(this);
+  this.socket.onclose = () => this.Login();
+  this.socket.onerror = () => this.Login();
   this.socket.onmessage = (message) => { this.Handler(JSON.parse(message.data)) };
  }
 
@@ -64,10 +60,10 @@ export class Connection extends Interface
  {
   switch (event.type)
 	    {
-	     case 'LOGIN':                                               // Login dialog returned 'LOGIN' event with user/pass
-               LOGINDIALOG.username.data = event.data.username.data;  // Keep username in login dialog data to use it as a placeholder for next logins
-               this.HttpSend("/", { method: 'POST',                   // Pass login dialog user/pass to the controller via POST method
-                                    body: JSON.stringify({ type: 'LOGIN', data: { username: event.data.username.data, password: event.data.password.data } }),
+	     case 'LOGIN':                                                         // Login dialog returned 'LOGIN' event with user/pass
+               LOGINDIALOG.username.data = event.source.data.username.data;     // Keep username in login dialog data to use it as a placeholder for next logins
+               this.HttpSend("/", { method: 'POST',                             // Pass login dialog user/pass to the controller via POST method
+                                    body: JSON.stringify({ type: 'LOGIN', data: { username: event.source.data.username.data, password: event.source.data.password.data } }),
                                     headers: { 'Content-Type': 'application/json; charset=UTF-8' } });
                break;
 	     case 'LOGOUT':
@@ -80,13 +76,14 @@ export class Connection extends Interface
                this.CreateWebSocket(event.data.protocol + '://' + event.data.ip + ':' + event.data.port);
 	          break;
 	     case 'LOGINERROR':
-               this.Login(msg.data);
+               this.logintitle = event.data;
+               this.Login();
 	          break;
 	     case 'CREATEWEBSOCKET':
                this.WebsocketSend(event);
 	          break;
 	     case 'DROPWEBSOCKET':
-               this.logintitle = msg.data;
+               this.logintitle = event.data;
 	          break;
 	     case 'CREATEWEBSOCKETACK':
                new Sidebar(null, this);
@@ -111,20 +108,20 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', event: { type: 'SETDATABASE', destination: this } }, { class: 'dialogbox selectnone' });
+               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER', event: { type: 'SETDATABASE', destination: this } }, { class: 'dialogbox selectnone' });
                break;
 	     case 'SETDATABASE': 
                this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.data } }); // Send new OD dialog data to controller via WS
                break;
 	     case 'DIALOG':
-               if (typeof event.data?.dialog === 'string') new DialogBox(...MessageBox(this, msg.data.dialog, msg.data.title));
+               if (typeof event.data?.dialog === 'string') new DialogBox(...MessageBox(this, event.data.dialog, event.data.title));
 	          break;
 
 	     case 'GETDATABASE': // Context menu event incoming from sidebar, dispatch it directly to the controller
                this.WebsocketSend(event);
                break;
 	     case 'CONFIGUREDATABASE': // Todo0 - release check for existing dialog while 'configdatabase' dialog is got from controller. Or leave connection multiple MODAL dialogs? Old version: new DialogBox(...MessageBox(this, DIALOGTIMEOUTERROR, 'Error')); // Dialog data is apliable, but no initiated msg - display an error. This is a code error, so check a source code first - initiated msg absence is an expire case that is handled at Queue control functionality
-               new DialogBox(event.data.dialog, this, { overlay: 'MODAL', effect: 'rise', position: 'CENTER', event: { type: 'SETDATABASE', data: event.data.odid, destination: this } }, { class: 'dialogbox selectnone' });
+               new DialogBox(event.data.dialog, this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER', event: { type: 'SETDATABASE', data: event.data.odid, destination: this } }, { class: 'dialogbox selectnone' });
                break;
 
 	     case 'GETVIEW':
@@ -145,8 +142,8 @@ export class Connection extends Interface
                this.WebsocketSend(event); // Current active view is the view that was clicked via sidebar? Force refresh!
                return { type: 'SIDEBARVIEWSTATUS', odid: event.data.odid, ovid: event.data.ovid, footnote: 0, status: -1, destination: null }; // Set requested OV footnote to zero (absent footnote actually) and status to -1 (OV server pending)
 	     case 'SETVIEW':
-               if (!event.data.childid) event.data.childid = new View(null, this, {}).id;
-               this.childs[msg.data.childid].Handler(msg);
+               if (!event.data.childid) event.data.childid = new View(null, this).id;
+               this.childs[event.data.childid].Handler(event);
                break;
 
 	     case 'KILL':
@@ -172,7 +169,7 @@ export class Connection extends Interface
   try   {
          let response = await fetch(url, options);
          response = await response.json();
-         this.FromController(response);
+         this.Handler(response);
         }
   catch (err)
         {
@@ -184,6 +181,7 @@ export class Connection extends Interface
  // Send msg via WS
  WebsocketSend(msg)
  {
+  for (const prop in msg) if (prop !== 'type' && prop !== 'data') delete msg[prop]; // Delete all props except type/data
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
   try { this.socket.send(JSON.stringify(msg)); }
   catch {}
