@@ -126,7 +126,7 @@ export class Controller
                EditDatabase(msg, this.clients.get(client));
 	            break;
 	       case 'GETDATABASE':
-               if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', data: { content: UNKNOWNDBID, title: 'Error' } }));
+               if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', data: { dialog: UNKNOWNDBID, title: 'Error' } }));
                 else client.send(JSON.stringify({ type: 'CONFIGUREDATABASE', data: { dialog: this.ods[msg.data.odid].dialog, odid: msg.data.odid } }));
 	            break;
 	       case 'SIDEBARGET':

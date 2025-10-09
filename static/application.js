@@ -168,6 +168,30 @@ export class Application extends Interface
 		  	   break;
 	     }
  }
+
+ // Function creates a dialog box int parentchild with content of <content> (object/string type) and with title <title> (for string type content only). Faulsy <dialogform> generates a box with one btn 'OK', truthy - two btns 'OK'/'CANCEL'.
+ // Var <overridebtns> overrides dialog btns 'OK' or/and 'CANCEL' (usefull for textarea user defined content om OD settings)
+ MessageBox(parentchild, content, title, dialogform, overridebtns)
+ {
+  const MESSAGEMINCHARS = 60;
+  const okbtn = { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: dialogform ? 'a' : '' };
+  const cancelbtn = dialogform ? { type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` } : null;
+
+  if (typeof content === 'string')	content = {
+											   title: { type: 'title', data: typeof title === 'string' ? title : 'Warning' },
+ 				  							   message: { type: 'text', head: content.padEnd(MESSAGEMINCHARS) },
+				  							   OK: okbtn,
+				  							   CANCEL: cancelbtn
+											  };
+  if (typeof content !== 'object' || !content) return; // Dialog content should be a non-null dialog structure (object type)											  
+  if (overridebtns)
+	 {
+	  content.OK = okbtn;
+	  content.CANCEL = cancelbtn;
+	 }
+
+  new DialogBox(content, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' });
+ }
 }
 
 export let app;

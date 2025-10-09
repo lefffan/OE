@@ -3,17 +3,18 @@
 // auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
 // Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
 
-import { app } from './application.js';
-import { NODOWNLINKNONSTICKYCHILDS, MODALBROTHERKILLSME, lg, CutString, MessageBox, NEWOBJECTDATABASE } from './constant.js';
+import { NODOWNLINKNONSTICKYCHILDS, lg, CutString, MessageBox, NEWOBJECTDATABASE } from './constant.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
+import { View } from './view.js';
 
+const DIALOGTIMEOUTERROR = 'Dialog timeout, please try it again';
 const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
                       username: { type: 'text', head: 'Username', data: 'root' },
                       password: { type: 'password', head: 'Password', data: '1' },
-                      LOGIN: { type: 'button', data: ' LOGIN ', tyle: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' }
+                      ok: { type: 'button', data: ' LOGIN ', tyle: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' }
                     };
 
 export class Connection extends Interface
@@ -43,7 +44,7 @@ export class Connection extends Interface
   const dialog = JSON.parse(JSON.stringify(LOGINDIALOG));
   if (this.logintitle && (dialog.title.data = this.logintitle)) delete this.logintitle;
   const control = { fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} };
-  new DialogBox(dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', control: control }, { class: 'dialogbox selectnone' }); // Todo0 - create a flag that kills all brothers, so ligin dialog appearance kills all connection childs
+  new DialogBox(dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', control: control, event: { type: 'LOGIN', destination: this } }, { class: 'dialogbox selectnone' });
  }
 
  CreateWebSocket(url)
@@ -58,6 +59,7 @@ export class Connection extends Interface
 
  Handler(event)
  {
+     lg(event);
   switch (event.type)
 	    {
 	     case 'LOGIN':                                                         // Login dialog returned 'LOGIN' event with user/pass
@@ -108,30 +110,44 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER' }, { class: 'dialogbox selectnone' });
+               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER', event: { type: 'SETDATABASE', destination: this } }, { class: 'dialogbox selectnone' });
                break;
 	     case 'SETDATABASE': 
-               this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.id } }); // Send new OD dialog data to controller via WS
+               this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.data } }); // Send new OD dialog data to controller via WS
                break;
 	     case 'DIALOG':
-               if (typeof event.data?.dialog === 'string') app.MessageBox(this, event.data.content, event.data.title);
+               if (typeof event.data?.dialog === 'string') new DialogBox(...MessageBox(this, event.data.dialog, event.data.title));
 	          break;
 
 	     case 'GETDATABASE': // Context menu event incoming from sidebar, dispatch it directly to the controller
                this.WebsocketSend(event);
                break;
-	     case 'CONFIGUREDATABASE':
-               new DialogBox(event.data.dialog, this, { flag: MODALBROTHERKILLSME, overlay: 'MODAL', animation: 'rise', position: 'CENTER', id: event.data.odid }, { class: 'dialogbox selectnone' });
+	     case 'CONFIGUREDATABASE': // Todo0 - release check for existing dialog while 'configdatabase' dialog is got from controller. Or leave connection multiple MODAL dialogs? Old version: new DialogBox(...MessageBox(this, DIALOGTIMEOUTERROR, 'Error')); // Dialog data is apliable, but no initiated msg - display an error. This is a code error, so check a source code first - initiated msg absence is an expire case that is handled at Queue control functionality
+               new DialogBox(event.data.dialog, this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER', event: { type: 'SETDATABASE', data: event.data.odid, destination: this } }, { class: 'dialogbox selectnone' });
                break;
 
 	     case 'GETVIEW':
-               this.WebsocketSend(event);
-               break;
+               // Single OV click: OV is already open ? set OV active or refresh if already active : open in a current active view or in a new view if no any view exist
+               // Context menu 'open in a new view' opens OV in a new view anyway, action is grey/absent for already opened OV. Do not forget to limit max open views
+               // OV click: OV status (-2...100), last active window, force new window (boolean, automatically set to true in case of no last active window)
+               const lastactiveviewchildid = this.GetLastActiveViewChildId(); // Get last active child with OV opened
+               if (event.data.status === undefined || event.data.status === -2) // Negative status -2 (or undefined) means OV is not opened
+                  {
+                   if (!event.data.newwindow && lastactiveviewchildid) this.ChangeActive(event.data.childid = lastactiveviewchildid); // No context menu 'open in a new window' clicked and any view is opened? Fix child id to open new OV in current view child and activate (bring to top) this child
+                   this.WebsocketSend(event); // Get requested OV from controller
+                   return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, footnote: 0, status: -1 }, destination: null }; // Set requested OV footnote to zero (absent footnote actually) and status to -1 (OV server pending)
+                  }
+               this.ChangeActive(event.data.childid); // Bring it to top already pending/opened view
+               if (event.data.status === -1) return; // Negative status -1 means OV is server pending, so do nothing. Todo0 - how to cancel server pending?
+               if (this.childs[lastactiveviewchildid].odid !== event.data.odid || this.childs[lastactiveviewchildid].ovid !== event.data.ovid) return; // Status is 0 or more (opened and loading its data or has already loaded). Current active view doesn't match clicked view? Return with only bringing to top (see above) the OV child box
+               event.data.childid = lastactiveviewchildid;
+               this.WebsocketSend(event); // Current active view is the view that was clicked via sidebar? Force refresh!
+               return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, footnote: 0, status: -1 }, destination: null }; // Set requested OV footnote to zero (absent footnote actually) and status to -1 (OV server pending)
 	     case 'SETVIEW':
-               const view = this.childs[event.data.childid];
-               if (!view || view.odid !== event.data.odid || view.ovid !== event.data.ovid) return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: undefined, childid: undefined }, destination: null };
+               const view = event.data.childid ? this.childs[event.data.childid] : new View(null, this);
+               if (!view) return;
                event.destination = view;
-               return event;
+               return [ event, { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, childid: view.id }, destination: null } ]; // Set requested OV footnote to zero (absent footnote actually) and status to -1 (OV server pending)
 
 	     case 'KILL':
                this.Logout();
@@ -142,6 +158,12 @@ export class Connection extends Interface
  Logout()
  {
   this.socket?.close();
+ }
+
+ GetLastActiveViewChildId()
+ {
+  for (let i = this.aindexes.length - 1; i > 0; i--)
+      if (this.childs[this.aindexes[i]].odid) return this.aindexes[i];
  }
 
  // Send msg (options.body) via HTTP method (options.method)

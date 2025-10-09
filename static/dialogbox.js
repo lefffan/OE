@@ -38,8 +38,8 @@
 // Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
 // Todo0 - what if regexp in 'expr' contains '/' char? May be ignore regexp string end at these two chars: '\/' ?
 
-import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, lg, MessageBox } from './constant.js';
 import { app } from './application.js';
+import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, lg } from './constant.js';
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
 
@@ -738,7 +738,7 @@ export class DialogBox extends Interface
   if (this.Nodes.CloneInput.esc) return; // Pressed Esc btn caused blur event, so profile cloning is not needed
   let name, flags, style;
   [name, flags, ...style] = this.Nodes.CloneInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
-  for (const option of e.options) if (option.name === name) return new DialogBox(...MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error')); // Check name exist in e.data profile list and return warning msg in success
+  for (const option of e.options) if (option.name === name) return app.MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error'); // Check name exist in e.data profile list and return warning msg in success
   flags = FIELDSDIVIDER + (flags || '');
   if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
   style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
@@ -813,8 +813,11 @@ export class DialogBox extends Interface
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
 					  {
-					   try { new DialogBox(JSON.parse(e.data), this.parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', event: { type: 'TEXTAREACHANGE', destination: this, data: event.target } }, { class: 'dialogbox selectnone' }); }
-					   catch { return; }
+					   let content;
+					   try { content = JSON.parse(e.data); }
+					   catch {}
+					   app.MessageBox(this, content, '', true, true);
+					   break;
 					  }
 				   if (ELEMENTSELECTABLETYPES.includes(e.type))									// or change sort order of selectable element
 				      {
@@ -857,7 +860,7 @@ export class DialogBox extends Interface
 						  }
 					   if (event.target.classList.contains('itemremove'))								// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
-						   if (e.options.length === 1 && new DialogBox(...MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error'))) break;
+						   if (e.options.length === 1 && !app.MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error')) break;
 						   delete e.data[GetElementOption(e).origin];									// Removing current profile
 						   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
 						   break;
@@ -876,12 +879,12 @@ export class DialogBox extends Interface
 				  }
 			   break;
 
-		  case 'TEXTAREACHANGE':
+		  case 'OK':
 			   event.data.value = JSON.stringify(event.source.data); // Event data is text area target element (was set at dialog creation as a props event) wich value was requested to change, event source is a source dialog wich has its own data (dialog conetnt data)
 			   break;
 
 		  case 'OPTIONCHANGE':
-			   if (e) this.ActivateSelectedOption(event.data.e, event.data.cursor, this.Nodes.selects[event.data.e.id].firstChild);	// Drop-down list returned back selected option
+			   this.ActivateSelectedOption(event.source.data.e, event.source.data.cursor, this.Nodes.selects[event.source.data.e.id].firstChild); // Drop-down list returned back selected option
 			   break;
 
 		  case 'KILL':
@@ -907,23 +910,18 @@ export class DialogBox extends Interface
  
  ButtonApply(e, target)
  {
-  let events;
-  if (!['button', 'table'].includes(e.type) || SetFlag(e, 'readonly')) return;			// Return for disabled (or non button/table type) element
-  if (!SetFlag(e, 'appliable') && (e.type !== 'table' || !target.attributes['data-id'])) return;	// Return for non-appliable button/tablecell
+  let events = [];
+  if (!['button', 'table'].includes(e.type) || SetFlag(e, 'readonly')) return;						// Return for disabled (or non button/table type) element
+  if (e.type === 'button' && !SetFlag(e, 'appliable')) return { type: 'KILL', destination: this };	// Return dialog kill for non-appliable button
+  if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;	// Return for non-appliable table element
 
-  if (this.props.event) // Dialog event does exist in props? Add it
+  if (SetFlag(e, 'appliable')) // Element is appliable
 	 {
+	  events.push({ type: e.type === 'button' ? e.name : target.attributes['data-id']?.value, data: e.data, destination: this.parentchild });
   	  this.ParseDialogData(this.data, true, false);
-	  this.props.event.data = e.type === 'button' ? e.name : target.attributes['data-id'].value; // Set event data to the dialog button applied (<element name> for button element and <cell name starting with _> for table element) 
-  	  events = [ this.props.event ];
 	 }
 
-  if (!SetFlag(e, 'interactive') && e.type !== 'table') // Button is non interactive and element is not a table? Add KILL event
- 	 {
- 	  if (!events) events = [];
- 	  events.push({ type: 'KILL', destination: this });
-	 }
-
+  if (!SetFlag(e, 'interactive') && e.type !== 'table') events.push({ type: 'KILL', destination: this }); // Button is non interactive and element is not a table? Add KILL event
   return events;
  }
 }

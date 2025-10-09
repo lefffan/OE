@@ -8,7 +8,7 @@
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
 
-import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, ANIMATIONS, NODOWNLINKNONSTICKYCHILDS } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, lg, ANIMATIONS, NODOWNLINKNONSTICKYCHILDS, MODALBROTHERKILLSME } from './constant.js';
 import { app } from './application.js';
 
 const DOMELEMENTMINWIDTH			= 50;
@@ -84,7 +84,7 @@ function RemoveAllNonStickyChilds(child, callparent = true, excludeid)
 	    }
 	  else
 	    {
-		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(baby, false);	// Otherwise perform recursive call for all childs of current child
+		 if (child.props.flags & NODOWNLINKNONSTICKYCHILDS) RemoveAllNonStickyChilds(baby, false);				// Otherwise perform recursive call for all childs of current child
 	    }
  if (callparent && child.parentchild) RemoveAllNonStickyChilds(child.parentchild, true, child.id);				// Recursively call parent child non sticky removal
 }
@@ -241,7 +241,7 @@ export class Interface
 	     // Parent child
 	     this.parentchild = args[1];
 
-	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1}
+	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, id } 
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 		 if (!this.props.control) this.props.control = {};
@@ -266,8 +266,11 @@ export class Interface
 	     // Stop constructor for root child (app) that has no parent. Root element is always document.body
 	     if (!this.parentchild) return;
 
+		 // Check this child if its brothers have MODAL feature and doesn't accept it into the family
+		 if (this.props.flag & MODALBROTHERKILLSME) for (const id in this.parentchild.childs) if (this.parentchild.childs[id].IsModal()) return;
+		 
 	     // Set scc filter for all childs with overlay 'MODAL' mode
-	     if (this.props.overlay === 'MODAL') for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
+	     if (this.IsModal()) for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
 
 	     // Child display
 	     if (ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
@@ -379,10 +382,10 @@ export class Interface
   this.zindexes.splice(this.childs[id].zindex, 1);																							// Remove appropriate child z-index element
   for (let zid = this.childs[id].zindex; zid < this.zindexes.length; zid++) this.childs[this.zindexes[zid]].ChangeZIndex(-1);				// and decrement all z-index values
   if (this.activeid === id) this.childs[this.activeid = this.aindexes.at(-1)].StyleActiveChild();											// Activate last active child if killing child is active
-  const ismodal = this.childs[id].props.overlay === 'MODAL';
+  const ismodal = this.childs[id].IsModal();
   delete this.childs[id];	
   if (!ismodal) return;																														// Killed child wasn't modal overlay? Return or remove css 'modal' filter for some childs below
-  if (this.childs[this.activeid].props.overlay === 'MODAL') return this.childs[this.activeid].elementDOM.classList.remove('modalfilter');	// Current active child is modal overlay? Remove its DOM element css 'modal' filter. For current active only. Return
+  if (this.childs[this.activeid].IsModal()) return this.childs[this.activeid].elementDOM.classList.remove('modalfilter');					// Current active child is modal overlay? Remove its DOM element css 'modal' filter. For current active only. Return
   for (const i in this.childs) if (+i) this.childs[i].elementDOM.classList.remove('modalfilter');											// Otherwise remove css 'modal' filter for all childs 
  }
 
@@ -677,9 +680,9 @@ export class Interface
 		  {
 		   childs = [];
 		   if (event.source.parentchild)
-		  	  for (const id in event.source.parentchild) 
-			      if (id !== '0' && event.source !== event.source.parentchild[id])
-				     childs.push(event.source.parentchild[id]);
+		  	  for (const id in event.source.parentchild.childs) 
+			      if (id !== '0' && event.source !== event.source.parentchild.childs[id])
+				     childs.push(event.source.parentchild.childs[id]);
 		  }
 		else
 		  {

@@ -1,5 +1,6 @@
 // Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 
+import { app } from './application.js';
 import { Interface } from './interface.js';
 import { GetElementOption } from './dialogbox.js';
 
@@ -34,7 +35,6 @@ export class DropDownList extends Interface
 			   switch (event.code)
 			   		  {
 					   case 'Enter':
-							this.props.event.data = this.data;
 					   		return [ this.props.event, { type: 'KILL', destination: this } ];				// Return callback event together with KILL
 					   case 'ArrowUp':
 					   		this.data.cursor --;															// Decrease cursor pos up or down from current option appearance id
@@ -51,7 +51,6 @@ export class DropDownList extends Interface
 		  case 'mouseup':																					// Handle left btn mouse up event
 		  	   if (event.button) break;																		// Break for non left btn
 		  	   this.data.cursor = event.target.attributes?.value?.value;									// Set cursor to option appearance id
-			   this.props.event.data = this.data;
 		   	   return [ this.props.event, { type: 'KILL', destination: this } ];							// Return callback event together with KILL
 		 }
  }

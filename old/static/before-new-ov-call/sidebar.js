@@ -5,11 +5,9 @@
 // Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
 // Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
 
-import { app } from './application.js';
 import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg, CutString } from './constant.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
-import { View } from './view.js';
 
 const WEIGHTS  = { 'view': 1, 'database': 2, 'folder': 3 };
 const ARROW    = [ SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(), // bright green 139,188,122
@@ -181,11 +179,8 @@ export class Sidebar extends Interface
   switch (event.type)
 	    {
           case 'SIDEBARVIEWSTATUS':
-               if (!event.data.odid || !event.data.ovid) break;
                if (!this.od[event.data.odid]) this.od[event.data.odid] = { ov: { [event.data.ovid]: {} } };
-               const view = this.od[event.data.odid]['ov'][event.data.ovid];
-               for (const prop in event.data) if (prop !== 'odid' && prop !== 'ovid') view[prop] = event.data[prop];
-               requestAnimationFrame(() => { if (view.targets) for (const target of view.targets) target.innerHTML = this.GetViewIcon(view.status, ` data-odid="${event.data.odid}" data-ovid="${event.data.ovid}"`); });
+               for (const prop in event.data) if (prop !== 'odid' && prop !== 'ovid') this.od[event.data.odid]['ov'][event.data.ovid][prop] = event.data[prop];
                break;
           case 'keyup':
                if (event.code === 'Escape' && this.props.control.lupaicon.data) Sidebar.LupaControl(null, this.props.control.lupaicon, 'release');
@@ -198,17 +193,21 @@ export class Sidebar extends Interface
                const branch = this.GetDOMElementBranch(event.target);
                if (event.button === 0)
                   {
-                   if (event.target.attributes['data-ovid'] !== undefined) return this.GetViewEventBuilder(event.target.attributes['data-odid'].value, event.target.attributes['data-ovid'].value); // OV click - open view in a current box
-                   if (branch?.content.length) this.ToggleBranchWrap(branch); // OD click - toggle database wrap only
-                   break;
+                   if (event.target.attributes['data-ovid'] === undefined) // OD click - toggle database wrap only
+                      {
+                       if (branch?.content.length) this.ToggleBranchWrap(branch);
+                       break;
+                      }
+                   event = { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.target.attributes['data-odid'].value, ovid: event.target.attributes['data-ovid'].value } }; // OV click - dispatch 'GETVIEW' event to the 'Connection' child
+                   event.data.status = this.od[event.data.odid]['ov'][event.data.ovid].status;
+                   event.data.childid = this.od[event.data.odid]['ov'][event.data.ovid].childid;
+                   return event;
                   }
                if (event.button === 2)
                   {
                    const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + CutString(this.username)]];
-                   const odid = event.target.attributes['data-odid']?.value;
-                   const ovid = event.target.attributes['data-ovid']?.value;
-                   if (odid !== undefined) contextmenuoptions[1] = [ 'Configure Database', odid ];
-                   if (ovid !== undefined) contextmenuoptions[1] = this.od[odid]['ov'][ovid].status === undefined ? [ 'Open in a new window', odid, ovid ] : 'Open in a new window';
+                   if (event.target.attributes['data-odid'] !== undefined) contextmenuoptions[1] = ['Configure Database', event.target.attributes['data-odid'].value];
+                   if (event.target.attributes['data-ovid'] !== undefined) contextmenuoptions[1] = ['Open in a new window', event.target.attributes['data-odid'].value, event.target.attributes['data-ovid'].value];
                    new ContextMenu(contextmenuoptions, this, event);
                    break;
                   }
@@ -217,7 +216,7 @@ export class Sidebar extends Interface
                const option = event.data[0].substring(0, 'Logout '.length) === 'Logout ' ? 'LOGOUT' : event.data[0];
                const optionevents = { 'New Database':    { type: 'CREATEDATABASE', destination: this.parentchild },
                                       'Configure Database': { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
-                                      'Open in a new window':   this.GetViewEventBuilder(event.data[1], event.data[2], true),
+                                      'Open in a new window':   { type: 'GETVIEW', destination: this.parentchild, data: { odid: event.data[1], ovid: event.data[2], newwindow: true, status: this.od[event.data[1]]['ov'][event.data[2]].status, childid: this.od[event.data[1]]['ov'][event.data[2]].childid } },
                                       'LOGOUT':                  { type: 'LOGOUT', destination: this.parentchild },
                                     }; 
                return optionevents[option];
@@ -236,55 +235,6 @@ export class Sidebar extends Interface
                this.SidebarShow();
                break;
 	    }
- }
-
- // Function gets last active view child id
- GetLastActiveViewChildId()
- {
-  const connection = this.parentchild;
-  for (let i = connection.aindexes.length - 1; i > 0; i--)
-      if (connection.childs[connection.aindexes[i]].odid) return connection.aindexes[i];
- }
-
- // GETVIEW event builder
- // Left btn OV sidebar click: OV is already open ? set OV active or refresh if already active : open in a current active view or in a new view if no any view exist
- // Context menu 'open in a new window' opens OV in a new window anyway, action is grey/absent for already opened OV. Todo2 - do not forget to limit max open views
- GetViewEventBuilder(odid, ovid, newwindow)
- {
-  let viewbox;
-  const lastactiveviewchildid = this.GetLastActiveViewChildId(); // Get last active child with OV opened
-  const clickedviewprops = this.od[odid]?.['ov'][ovid];
-  if (!clickedviewprops) return;
-  const status = clickedviewprops.status;
-  const childid = clickedviewprops.childid;
-
-  if (status === undefined) // Requested OV is not opened, so get its data from the controller in last active view box or in a new one
-     {
-      if (!lastactiveviewchildid || newwindow) 
-         {
-          viewbox = new View({ odid: odid, ovid: ovid, status: -1 }, this.parentchild);
-         }
-       else
-         {
-          viewbox = this.parentchild.childs[lastactiveviewchildid];
-          if (!viewbox) return;
-          this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: viewbox.odid, ovid: viewbox.ovid, childid: undefined, status: undefined } });
-          viewbox.ChangeHeader({ odid: odid, ovid: ovid, status: -1 });
-          this.parentchild.ChangeActive(viewbox.id);
-         }
-      this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: odid, ovid: ovid, childid: viewbox.id, status: -1 } });
-      return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, childid: viewbox.id } };
-     }
-
-  this.parentchild.ChangeActive(childid); // Bring to top clicked view anyway
-  if (status !== -1 && childid === lastactiveviewchildid) // And if its status 'loaded' (not server pending, unloaded OV is processed above) and the view box is already 'last active' - force OV refresh via 'GETVIEW'
-     {
-      viewbox = this.parentchild.childs[lastactiveviewchildid];
-      if (!viewbox) return;
-      viewbox.ChangeHeader({ odid: odid, ovid: ovid, status: -1 });
-      this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: odid, ovid: ovid, childid: viewbox.id, status: -1 } });
-      return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, childid: viewbox.id } };
-     }
  }
 
  ToggleBranchWrap(branch)
@@ -362,8 +312,8 @@ export class Sidebar extends Interface
  {
   if (branch.type === 'database') attribute += ` data-odid="${branch.id}"`;
   if (branch.type === 'view') attribute += ` data-odid="${branch.odid}" data-ovid="${branch.id}"`;
-  let inner = `<table><tbody><tr>`;                                                                                                                             // Collect inner with <table> tag
-  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                              // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
+  let inner = `<table><tbody><tr>`;                                                                                                                      // Collect inner with <table> tag
+  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                       // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
   let name = branch.name.trim();
   if (!name) name = '&nbsp';
   name = name.toWellFormed();
@@ -371,37 +321,35 @@ export class Sidebar extends Interface
   switch (branch.type)
          {
           case 'folder': 
-               inner += `<td class="folder${branch.wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;                                                 // Folder icon
-               inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}</td>`;                                                                   // Folder name
+               inner += `<td class="folder${branch.wrap === false ? 'un' : ''}wrapped"${attribute}>&nbsp</td>`;                                          // Folder icon
+               inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}</td>`;                                                            // Folder name
                break;
           case 'database':
-               inner += `<td class="database${branch.wrap === false ? 'un' : ''}wrapped${branch.content.length ? '' : 'empty'}"${attribute}>&nbsp</td>`;        // Database icon
-               inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}</td>`;                                                                   // Database name
+               inner += `<td class="database${branch.wrap === false ? 'un' : ''}wrapped${branch.content.length ? '' : 'empty'}"${attribute}>&nbsp</td>`; // Database icon
+               inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}</td>`;                                                            // Database name
                break;
           case 'view':
-               inner += `<td${attribute}><div class="sidebaritemicon"${attribute}>${this.GetViewIcon(this.od[branch.odid]['ov'][branch.id].status, attribute)}</div></td>`; // View icon (od[branch.odid][branch.id]['status'])
+               let viewicon;
+               switch (this.od[branch.odid]['ov'][branch.id].status)
+                      {
+                       case undefined:
+                       case -2:
+                            viewicon = SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGUrlFooter(false);
+                            break;
+                       case -1:
+                            viewicon = SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + SVGUrlFooter(false);
+                            break;
+                       default:
+                            viewicon = SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, this.od[branch.odid]['ov'][branch.id].status, 'RGB(26,137,51)', 'none', '4', false) + SVGUrlFooter(false);
+                      }
+               inner += `<td${attribute}><div class="sidebaritemicon"${attribute}>${viewicon}</div></td>`;                                               // View icon (od[branch.odid][branch.id]['status'])
                let footnote = this.od[branch.odid]['ov'][branch.id].footnote;
                footnote = footnote ? `&nbsp<span class="changescount">${footnote}</span>` : ``;
-               inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}${footnote}</td>`;                                                        // View name
+               inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}${footnote}</td>`;                                                 // View name
                break;
          }
-  inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                                        // Estamated space
-  return inner + '</tr></tbody></table>';                                                                                                                       // Close inner with <table> tag
- }
-
- // Get sidebar view icon html code depending on view status
- GetViewIcon(status, attribute)
- {
-  switch (status)
-         {
-          case undefined:
-          case -2:
-               return SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGUrlFooter(false);
-          case -1:
-               return SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + SVGUrlFooter(false);
-          default:
-               return SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + SVGUrlFooter(false);
-         }
+  inner += `<td style="width: 100%;"${attribute}></td>`;                                                                                                 // Estamated space
+  return inner + '</tr></tbody></table>';                                                                                                                // Close inner with <table> tag
  }
 }
 

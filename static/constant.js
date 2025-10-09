@@ -3,7 +3,8 @@ export const TAGATTRIBUTEENCODEMAP		= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '
 export const TAGHTMLCODEMAP		        = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
 export const ANIMATIONS				    = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
-export const NODOWNLINKNONSTICKYCHILDS	= 0b1;
+export const NODOWNLINKNONSTICKYCHILDS	= 0b01;
+export const MODALBROTHERKILLSME    	= 0b10;
 
 export function lg(...data)
 {
@@ -57,9 +58,9 @@ export function MessageBox(parentchild, message, title)
  const MESSAGEMINCHARS = 60;
  message = message.padEnd(MESSAGEMINCHARS);
  if (typeof title !== 'string') title = 'Warning';
- const dialogdata = {	title: { type: 'title', data: title },
- 						message: { type: 'text', head: message },
-						ok: { type: 'button', data: '  OK  ', head: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
+ const dialogdata = { title: { type: 'title', data: title },
+ 					  message: { type: 'text', head: message },
+					  ok: { type: 'button', data: '     OK     ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` },
 					};
  return [dialogdata, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' }];
 }
@@ -250,7 +251,7 @@ Be aware of using queries with no events specified, it may cause some overload d
 export const NEWOBJECTDATABASE = {
     padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
     title: { type: 'title', data: 'New Database Configuration' },
-    create: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
+    SETDATABASE: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
     cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
 };
 

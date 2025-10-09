@@ -58,17 +58,23 @@ export class View extends Interface
   super(...args);
   this.props.control.drag.elements = this.props.control.fullscreendblclick.elements = [this.elementDOM];
   for (const controlname of ['resize', 'resizex', 'resizey', 'fullscreenicon', 'fullscreendblclick']) this.props.control[controlname].callback.push(this.Render.bind(this));
+  this.ChangeHeader(this.data);
+ }
+
+ // Change view header
+ ChangeHeader(data)
+ {
+  this.odid = data.odid;
+  this.ovid = data.ovid;
+  this.status = data.status;
+  const statusstring = this.status === -1 ? 'server pending..' : `loaded ${this.status}%`;
+  this.props.control.text.icon = SVGUrlHeader(350, 18) + SVGText(3, 14, `database id: ${this.odid}, view id: ${this.ovid}, status: ${statusstring}`) + SVGUrlFooter();
+  this.RefreshControlIcons();
  }
 
  // Init OV params based on incoming message
  InitView(msg)
  {
-  this.odid = msg.data.odid;
-  this.ovid = msg.data.ovid;
-  this.props.control.text.icon = SVGUrlHeader(250, 18) + SVGText(3, 14, `database id ${msg.data.odid}, view id ${msg.data.ovid}`) + SVGUrlFooter();
-  this.RefreshControlIcons();
-  this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: this.id, status: 0 } });
-
   this.cellscount = this.cellsoutofrange = 0;
   this.valuetableWidth = this.valuetableHeight = 0;
   this.columnWidths = [];
@@ -137,12 +143,13 @@ export class View extends Interface
   return result; // Return result cell combined all props from cell list
  }
  
+ // Todo0 - change msg to event var
  Handler(msg)
  {
   switch (msg.type)
          {
           case 'KILL':
-               return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, ststus: undefined } };
+               return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, status: undefined } };
           case 'keydown':
                if (msg.getModifierState('ScrollLock') || !this.gridcontainer) break; // Scroll lock key or no grid does exist? Break
                const page = Math.ceil((this.gridcontainer.clientHeight * this.valuetableHeight) / (this.mtop + this.gridcontainer.scrollHeight + this.mbottom));
@@ -156,7 +163,7 @@ export class View extends Interface
                                  PageDown: { y: page } };
                if (offsets[msg.code]) msg.preventDefault();
                this.MoveCursor(offsets[msg.code], msg.shiftKey, true);
-               break;
+               return;
           case 'SETVIEW':
                // Step 1 - init OV params and handle some errors, such as incoming msg 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in msg)
                this.InitView(msg);
@@ -210,21 +217,20 @@ export class View extends Interface
                    }
 
                // Step 4 - hanlde result table zero height or display OV table
-               this.DisplayView(null, this.valuetable.length ? null : this.cellsoutofrange ? OUTOFRANGESELECTION : EMPTYSELECTION); // Todo0 - check all columns on first row props - what is it?
-               break;
+               return this.DisplayView(null, this.valuetable.length ? null : this.cellsoutofrange ? OUTOFRANGESELECTION : EMPTYSELECTION); // Todo0 - check all columns on first row props - what is it?
          }
  }
 
  DisplayView(errormsg, warningmsg)
  {
   // Step 1 - display error message and return setting view percent loading status to 100
-  lg(this.valuetable);
+  const event = { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, status: 100, childid: this.id } };
   this.props.control.mouseareaselect.elements = [];
   if (errormsg || warningmsg)
      {
       this.elementDOM.innerHTML = `<div class="ovboxmessage" style="color: ${errormsg ? 'RGB(251,179,179)' : '#9FBDDF'};"><div  style="text-align: justify;"><h1>${errormsg ? errormsg : warningmsg}</h1></div></div>`;
-      this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, status: 100 } });
-      return;
+      this.ChangeHeader(event.data);
+      return event;
      }
 
   // Step 2 - init same tables vars
@@ -270,7 +276,8 @@ export class View extends Interface
                                                             this.cursor.ticking = true;
                                                            });
   this.Render();
-  this.EventManager({ type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, status: 100 } });
+  this.ChangeHeader(event.data);
+  return event;
  }
 
  GetElementAreaRect(element, excludescrollarea)

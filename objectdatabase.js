@@ -77,14 +77,14 @@ export function CorrectProfileIds(e, excludeoption, lastid)
 // Todo1 - adjust all views layout text areas commenting error jsons as a error ones
 export function AdjustDatabase(dialog, odid, lastelementid, lastviewid)
 {
- dialog.create.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
+ dialog.SETDATABASE.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
  let dbname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data; // Get db name
  if (typeof dbname !== 'string') dbname = '';
  dialog.title.data = `Database '${CutString(dbname.split('/').pop(), 10)}' configuration (id${odid})`; // Change dialog title 
  const [elementnonclonedids, elementclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid);
  const [, viewclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
  CorrectProfileIds(GetDialogElement(dialog, 'padbar/Rule/rules'));
- delete dialog.create.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
+ delete dialog.SETDATABASE.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
  return [elementnonclonedids, elementclonedids, viewclonedids];
 }
 
@@ -106,7 +106,7 @@ export async function EditDatabase(msg, client)
      let e = GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Database/settings/Permissions/od');
      if (CheckUserMatch([client.username], e.data))
         {
-         client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: DISALLOWEDTOCONFIGURATE, title: 'Error' } })); // Send error text to the client side
+         client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: DISALLOWEDTOCONFIGURATE, title: 'Error' } })); // Send error text to the client side
          return;
         }
      for (const name of ['Database', 'Element', 'View', 'Rule'])
@@ -126,14 +126,14 @@ export async function EditDatabase(msg, client)
          {
           if (!msg.data.odid) // New OD creation
              {
-              client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: INCORRECTDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
+              client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: INCORRECTDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
               await transaction.query('ROLLBACK');
               return;
              }
           for (const table of ['head_', 'data_', 'metr_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Otherwise empty db name means OD removing, so drop corresponded tables
           for (const [, value] of controller.clients) value.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', data: { odid: msg.data.odid } })); // and send OD remove msg to all wss clients
           delete controller.ods[msg.data.odid]; // Delete OD from app memory
-          client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
+          client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
           await transaction.query('COMMIT');
           return;
          }
@@ -225,7 +225,7 @@ export async function EditDatabase(msg, client)
  catch (error)
      {
       await transaction.query('ROLLBACK');
-      client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: error.message, title: 'Error' } }));
+      client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: error.message, title: 'Error' } }));
       lg(error);
       return;
      }
@@ -233,7 +233,7 @@ export async function EditDatabase(msg, client)
      {
       transaction.release();
      }
- if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { dialog: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!`, title: 'Warning' } }));
+ if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!`, title: 'Warning' } }));
  SuckLayoutAndQuery(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
  SendViewsToClients(msg.data.odid); // Refresh OD tree with its vews and folders to all wss clients
 }
