@@ -25,7 +25,6 @@ function OnDraw(func)
 
 export class Sidebar extends Interface
 {
- static name = 'Sidebar';
  static style = {
                  ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
                  ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
@@ -235,6 +234,9 @@ export class Sidebar extends Interface
           case 'SIDEBARDELETE': // { type: 'SIDEBARDELETE', data: { odid: } } 
                this.SidebarDelete(this.tree, event.data.odid);
                this.SidebarShow();
+               break;
+          case 'KILLCONTEXTMENU':
+               for (const id in this.childs) if (id !== '0') return { type: 'KILL', destination: this.childs[id] };
                break;
 	    }
  }

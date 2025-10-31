@@ -294,7 +294,6 @@ function CheckElementSyntax(e)
 
 export class DialogBox extends Interface
 {
- static name = 'Dialog box';
  static style = {
 	// dialog box global css props
 	".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
@@ -323,7 +322,7 @@ export class DialogBox extends Interface
 	// dialog box table cell
 	".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
 	// dialog box readonly elements css filter
-	".readonlyfilter": { "filter": "opacity(50%);", " filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
+	".readonlyfilter": { "filter": "opacity(50%);", "_filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
 	//------------------------------------------------------------
 	// dialog box select
 	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;" },
@@ -382,7 +381,6 @@ export class DialogBox extends Interface
   if (typeof profile === 'object') for (const elementname in profile)
   	 {
 	  const e = profile[elementname];
-	  if (!e || typeof e !== 'object') continue;
 	  if (e.type === 'select' && typeof e.data === 'object' && Array.isArray(e.options)) // Profile clone/remove breaks default appearance initial sort order for already inited selections, so set it back as it was at initial time
 		 {
 		  const flag = e.flag;
@@ -639,7 +637,6 @@ export class DialogBox extends Interface
   for (const name in profile)
 	  {
 	   const e = profile[name];
-	   if (!e || typeof e !== 'object') continue;
 	   const outer = this.GetElementHeaderHTML(e) + this.GetElementContentHTML(e) + this.GetElementFooterHTML(e); // Get element outer HTML including element header, element content and element footer
 	   if (e.type === 'title') inner.title = outer;	// Fix dialog title, so last dialog title is used for multiple ones
 	   if (e.type === 'button') inner.footer += outer; // Collect btns to dialog footer
@@ -875,7 +872,7 @@ export class DialogBox extends Interface
 						  }
 					   if (true) // Todo0 - Here must be dropdown list appearance check, PLUS CHECK DROPDOWN LIST POSITION AT DIALOG BOX CONTENT SCROLLING
 						  {
-						   if (e !== this.lastkilleddropdownlist?.e || event !== this.lastkilleddropdownlist?.event) new DropDownList(e, this, target.firstChild.offsetLeft + this.elementDOM.offsetLeft - this.Nodes.contentwrapper.scrollLeft, target.firstChild.offsetTop + this.elementDOM.offsetTop + target.firstChild.offsetHeight - this.Nodes.contentwrapper.scrollTop);
+						   new DropDownList(e, { type: 'OPTIONCHANGE', destination: this }, target.firstChild.offsetLeft + this.elementDOM.offsetLeft - this.Nodes.contentwrapper.scrollLeft, target.firstChild.offsetTop + this.elementDOM.offsetTop + target.firstChild.offsetHeight - this.Nodes.contentwrapper.scrollTop);
 						   break;
 						  }
 					  }
@@ -892,11 +889,7 @@ export class DialogBox extends Interface
 
 		  case 'KILL':
   			   for (const button of this.Nodes.autoapplybuttons.values()) clearTimeout(button.timeoutid);	
-	       	   return { type: 'IAMKILLED' };
-
-		  case 'IAMKILLED':
-			   this.lastkilleddropdownlist = event.data; // event.data = { e: this.data.e, event: event.data} }
-			   break;
+	       	   break;
 		 }
  }
 

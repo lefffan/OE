@@ -8,7 +8,7 @@
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
 
-import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, MODALBROTHERKILLSME } from './constant.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, ANIMATIONS, MODALBROTHERKILLSME } from './constant.js';
 import { app } from './application.js';
 
 const DOMELEMENTMINWIDTH			= 50;
@@ -69,6 +69,13 @@ function GetCapturedFocusModalChild(element, blink)
 	  if (blink) parent.childs[modal.id].ToggleActiveStatus();									// Focus is restricted otherwise. Blink corresponded modal child for truthy blink
 	  return modal;
      }
+}
+
+// Function kills all nonsticky childs of a parent 
+function RemoveAllNonStickyChilds(parent, excludeid)
+{
+ for (const id in parent.childs) // Iterate all childs of a parent
+	 if (id !== '0' && +id !== +excludeid && parent.childs[id].IsNonsticky()) parent.childs[id].EventManager({ type: 'KILL', destination: parent.childs[id] });	// and kills nonsticky ones except child with id <excludeid>
 }
 
 // Function detects if mouse cursor is in child control area (x1, y1, x2, y2)
@@ -254,12 +261,8 @@ export class Interface
 	     // Set scc filter for all childs with overlay 'MODAL' mode
 	     if (this.IsModal()) for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
 
-		 // New nonsticky child creation automatically kills previous nonsticky one
-		 if (this.IsNonsticky()) Interface.nonstickychild?.EventManager({ type: 'KILL', destination: Interface.nonstickychild });
-		 if (this.IsNonsticky()) Interface.nonstickychild = this;
-		 
 	     // Child display
-	     if (app.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
+	     if (ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
 	     this.Show();
 	     this.parentchild.elementDOM.appendChild(this.elementDOM);
 
@@ -344,12 +347,12 @@ export class Interface
 			 lg(`Control ${app.control.name} is released!`);
 			 delete app.control;
 			}
-		 if (lower && !this.IsOnTop(current) && this.IsOnTop(lower))								// Lower child is 'top layer' and current is not? Swap it
+		 if (lower && !this.IsOnTopFlag(current) && this.IsOnTopFlag(lower))								// Lower child is 'top layer' and current is not? Swap it
 		 	{
 			 this.SwapChilds(lower, current);
 			 continue;
 			}
-		 if (!upper || (this.IsOnTop(upper) && !this.IsOnTop(current))) break;						// Upper child is undefined or upper is 'top layer' with current is not? Finish
+		 if (!upper || (this.IsOnTopFlag(upper) && !this.IsOnTopFlag(current))) break;						// Upper child is undefined or upper is 'top layer' with current is not? Finish
 		 this.SwapChilds(upper, current);																	// Otherwise bring current child to upper layer via swapping current and upper
 	    }
  }
@@ -378,14 +381,14 @@ export class Interface
  // Hide the child with animation this.props.animation
  Hide()
  {
-  if (!app.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
+  if (!ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
   this.SetVisibility(); // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
  }
 
  // Show child with animation
  Show()
  {
-  if (!app.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
+  if (!ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
   requestAnimationFrame(this.SetVisibility.bind(this, true));	// and then set element visible (after it is hidden via line below) via requestAnimationFrame()
   this.SetVisibility();
  }
@@ -405,7 +408,7 @@ export class Interface
  }
 
  // Check child 'top layer' overlay
- IsOnTop(child)
+ IsOnTopFlag(child)
  {
   return (child && (child.props.overlay === 'ALWAYSONTOP' || child.props.overlay === 'MODAL' || child.props.overlay === 'NONSTICKY'));
  }
@@ -460,7 +463,7 @@ export class Interface
  static CloseControl(userevent, control, phase)
  {
   if (phase !== 'release') return;
-  return { type: 'KILL', source: control.child, destination: control.child, data: userevent };
+  return { type: 'KILL', source: control.child, destination: control.child };
  }
 
  ToggleControlsStatus(include, exclude, disabled)
@@ -574,27 +577,46 @@ export class Interface
   // Second step - get event targeted child (and its rectangle) via event.target DOM element for mouse events. In case of keyboard events - lowest active child is used to pass them to
   if (['keydown', 'keyup'].indexOf(event.type) === -1)
 	 {
-	  child = GetDOMElementChild(GetFirstRegisteredDOMElement(event.target)); // Get clicked or 'mouse over' child
-	  if (!(parent = child)) return; // Some mouse events are duplicated (mouse up generates 'click' in addition), so duplicated events may points to non-existing childs when 1st event kills it (mouse up kills context menu, click points to killed context)
+	  child = GetDOMElementChild(GetFirstRegisteredDOMElement(event.target));
+	  if (!(parent = child)) return;																						// Some mouse events are duplicated (mouse up generates 'click' in addition), so duplicated events may points to non-existing childs when 1st event kills it (mouse up kills context menu, click points to killed context)
 	  childclientrect = child.elementDOM.getBoundingClientRect();
 	  modalchild = GetCapturedFocusModalChild(child.elementDOM, event.type === 'mousedown' ? true : false);		// Get captured focus modal child if exists
-	  if (!modalchild && 'mousedown' === event.type && child !== Interface.nonstickychild) Interface.nonstickychild?.EventManager({ type: 'KILL', destination: Interface.nonstickychild, data: event }); // For unexisting modal and mouse btn down event remove nonsticky child (for the event that doesn't target this nonsticky, of course)
- 	  while (true) // Go through all childs chain begining from clicked one and id=0 (child of itself), then child parent and id=child.id and so on.. until the root child 'app'
+ 	  if (!modalchild) while (true)
+	 	 {
+		  if ('mousedown' === event.type) // Remove all non sticky childs among current child in a chain and bring to top current child in a chain
+		  	 {
+			  RemoveAllNonStickyChilds(parent, id);
+			  parent.parentchild?.ChangeActive(parent.id); // Set current parent active among parent brothers
+			  if (parent === child) parent.ChangeActive(0); // Set current parent active among parent childs
+		  	  if (parent.Handler) parent.EventManager(parent.Handler({ type: 'BRINGTOTOP', destination: parent }));	
+			 }
+		  if (!(id = parent.id) || !(parent = parent.parentchild)) break;
+		 }
+ 	  if (modalchild?.parentchild === parent)
+	 	 {
+		  if (parent.zindexes.indexOf(id) > parent.zindexes.indexOf(modalchild.id)) modalchild = null;
+		   else if ('mousedown' === event.type) RemoveAllNonStickyChilds(parent, id);
+		 }
+	  /*do 
+	  	{
+ 	  	 if (!modalchild)
 	 	 	{
-			 if (!modalchild && 'mousedown' === event.type) // Bring to top current child in a chain for no modal focus conflict
-		  	    {
-			     parent.parentchild?.ChangeActive(parent.id); // Set current parent active among parent brothers
-			     if (parent === child) parent.ChangeActive(0); // Set current parent active among parent childs
-		  	     if (parent.Handler) parent.EventManager(parent.Handler({ type: 'BRINGTOTOP', destination: parent }));	
-			    }
- 	  		 if (modalchild?.parentchild === parent) // For modal focus conflict exists wait 'while' loop for modal child layer and do some things below and break then
-	 	 	    {
-		  		 if (parent.zindexes.indexOf(id) > parent.zindexes.indexOf(modalchild.id)) modalchild = null; // Current active chain from targeted child is on upper layer then modal, so remove conflict (via modal=null) to dispatch event to the targeted child 
-		   		  else if ('mousedown' === event.type && Interface.nonstickychild?.parentchild === parent) Interface.nonstickychild?.EventManager({ type: 'KILL', destination: Interface.nonstickychild, data: event }); // Otherwise remove nonsticky child (for the event that doesn't target this nonsticky, of course)
-		   		 break;
-		 	    }
-		  	 if (!(id = parent.id) || !(parent = parent.parentchild)) break; // Go to next uplink child in a chain until the root child 'app' that doesn't have parent, so the loop will be broken
-		    }
+		  	 if ('mousedown' === event.type) // Remove all non sticky childs among current child in a chain and bring to top current child in a chain
+			 	{
+			  	 RemoveAllNonStickyChilds(parent, id);
+			  	 parent.parentchild?.ChangeActive(parent.id); // Set current parent active among parent brothers
+				 if (parent === child) parent.ChangeActive(0); // Set current parent active among parent childs
+		  	  	 if (parent.Handler) parent.EventManager(parent.Handler({ type: 'BRINGTOTOP', destination: parent }));	
+			 	}
+		 	}
+	   	  else if (parent === modalchild.parentchild)
+		 	{
+		  	 if (parent.zindexes.indexOf(id) > parent.zindexes.indexOf(modalchild.id)) modalchild = null;
+			  else if ('mousedown' === event.type) RemoveAllNonStickyChilds(parent, id);
+			 break;
+		 	}
+		}
+	  while ((id = parent.id) && (parent = parent.parentchild));*/
 	 }
    else
 	 {
@@ -700,7 +722,6 @@ export class Interface
 				   {
 					case 'KILL':															// Destroy event
 						 if (child.Handler)	child.EventManager(child.Handler(event));
-						 if (child === Interface.nonstickychild) delete Interface.nonstickychild;
 						 if (child.parentchild) child.parentchild.KillChild(child.id);		// Call parent child kill function with current child id. Root child <app> cannot be destroyed
 						 break;
 					case 'EMPTY':															// Do nothing for empty event, useful for event 'controls' whose result is 'event is processed', but doing nothing due to empty one

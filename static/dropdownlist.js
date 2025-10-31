@@ -6,15 +6,17 @@ import { GetElementOption } from './dialogbox.js';
 
 export class DropDownList extends Interface
 {
+ static name = 'Drop down list';
  static style = {
 				 // Expanded selection
 				 ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
  				}
 
  //
- constructor(e, event, left, top)
+ constructor(e, dialog, left, top)
  {
-  super({ e: e, cursor: +(GetElementOption(e.options)?.id) }, event.destination.parentchild, { overlay: 'NONSTICKY', animation: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } }, event: event }, { class: 'select expanded', style: `left: ${left}px; top: ${top}px;` }); // (data, parentchild, props, attributes)
+  super({ e: e, cursor: +(GetElementOption(e.options)?.id) }, dialog.parentchild, { overlay: 'NONSTICKY', animation: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } } }, { class: 'select expanded', style: `left: ${left}px; top: ${top}px;` }); // (data, parentchild, props, attributes)
+  this.dialog = dialog;
   this.Display();
  }
 
@@ -35,23 +37,28 @@ export class DropDownList extends Interface
 			   switch (event.code)
 			   		  {
 					   case 'Enter':
-					   		return [ this.props.event, { type: 'KILL', destination: this } ];				// Return callback event together with KILL
+					   		return [ { type: 'OPTIONCHANGE', destination: this.dialog }, { type: 'KILL', destination: this } ];	// Return callback event together with KILL
 					   case 'ArrowUp':
-					   		this.data.cursor --;															// Decrease cursor pos up or down from current option appearance id
-							if (this.data.cursor < 0) this.data.cursor = this.data.e.options.length - 1;	// Out of range is adjusted to last option
+					   		this.data.cursor --;																				// Decrease cursor pos up or down from current option appearance id
+							if (this.data.cursor < 0) this.data.cursor = this.data.e.options.length - 1;						// Out of range is adjusted to last option
 							this.Display();
 							break;
 					   case 'ArrowDown':
-					   		this.data.cursor ++;															// Increase cursor pos from current option appearance id
-					   		if (this.data.cursor >= this.data.e.options.length) this.data.cursor = 0;		// Out of range is adjusted to 1st option
+					   		this.data.cursor ++;																				// Increase cursor pos from current option appearance id
+					   		if (this.data.cursor >= this.data.e.options.length) this.data.cursor = 0;							// Out of range is adjusted to 1st option
 					   		this.Display();
 							break;
 					  }
 			   break;
-		  case 'mouseup':																					// Handle left btn mouse up event
-		  	   if (event.button) break;																		// Break for non left btn
-		  	   this.data.cursor = event.target.attributes?.value?.value;									// Set cursor to option appearance id
-		   	   return [ this.props.event, { type: 'KILL', destination: this } ];							// Return callback event together with KILL
+		  case 'mouseup':																										// Handle left btn mouse up event
+		  	   if (event.button) break;																							// Break for non left btn
+		  	   this.data.cursor = event.target.attributes?.value?.value;														// Set cursor to option appearance id
+		   	   return [ { type: 'OPTIONCHANGE', destination: this.dialog }, { type: 'KILL', destination: this } ];				// Return callback event together with KILL
+		  case 'IAMKILLED':
+			   if (event.source === this.dialog) return { type: 'KILL', destination: this };
+			   break;
+		  case 'KILL':
+			   return { type: 'IAMKILLED', destination: this.dialog, data: { e: this.data.e, event: event.data} };
 		 }
  }
 }

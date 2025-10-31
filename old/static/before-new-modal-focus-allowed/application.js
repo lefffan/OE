@@ -6,7 +6,7 @@
 // Todo0 - DB SQL handle for OD structure, see Shemsetdinov query builder
 // Todo - PARSE ALL FILES IN OLD STABLE APP VERSION
 // Todo - app containers via docker?
-// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'. And controller should send only active handler list instead of their wrapeed dialog structure, so dialog of itself should be built on a client side code
+// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'
 // Todo - Application global users allowed all. For a example - root user. Better create user list array for that kind of users
 // Todo - At the end of app stable version make new customization
 // Todo - Browser favicon is changed to show unread msges presence
@@ -114,24 +114,22 @@ import { Sidebar } from './sidebar.js';
 import { DropDownList } from './dropdownlist.js';
 import { View } from './view.js';
 
-const ANIMATIONS = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
-
 export class Application extends Interface
 {
- static name = 'Application';
  static style = {
- 				 " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
-				 ".modalfilter": { "filter": "opacity(50%);", " filter": "Dialog box modal effect appearance via css filter property (such as opacity, blur and others), see appropriate css documentaion." },
+ 				 "Appearance animation": { "dialog box": "slideleft", "expanded selection": "rise", "context menu": "rise", "new connection": "", "new view": "" },
+ 				 "_Appearance animation": "Select interface elements appearance animation", 
+				 ".modalfilter": { "ilter": "blur(1px);", "filter": "opacity(50%);", "_filter": "Dialog box modal effect appearance via css filter property, see appropriate css documentaion." },
 				 "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
-				 //" Key combination to apply cell text": {},
-				 //" Logon events": { "Log unsuccessful logons": "", },
+				 "Key combination to apply cell text": {},
+				 "__Logon events": { "Log unsuccessful logons": "", },
 				}
 
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
  constructor()
  {
   const style = document.createElement('style');
-  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Connection.style, Sidebar.style, View.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
+  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Sidebar.style, View.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
   document.head.appendChild(style);
   
   const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
@@ -145,15 +143,6 @@ export class Application extends Interface
   document.addEventListener('mousemove', Interface.EventListener);
   document.addEventListener('click', Interface.EventListener);
   document.addEventListener('contextmenu', (event) => event.preventDefault());
-
-  this.InitApplicationGlobalVars();
-  this.GetCustomizationDialogStructure(Application, DialogBox, DropDownList, ContextMenu, Connection, Sidebar, View);
- }
-
- // Init application global vars)
- InitApplicationGlobalVars()
- {
-  this.ANIMATIONS = ANIMATIONS;
  }
 
  // Override main application child activation styling to exclude any effects for document.body
@@ -168,16 +157,12 @@ export class Application extends Interface
 	     {
 	      case 'mouseup':
 		  	   new ContextMenu([['New connection'], ['Help']], this, event);
-			   break;
+		  	   break;
 	      case 'CONTEXTMENU':
 			   switch (event.data[0])	// Switch context item name (event data zero index)
 			   		  {
 					   case 'New connection':
 			   				new Connection(null, this);	// Args: data, parent
-							break;
-					   case 'Help':
-						this.lg(this.dialog);
-			   				new DialogBox(this.dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' });
 							break;
 					  }
 		  	   break;
@@ -211,31 +196,6 @@ export class Application extends Interface
  lg(...data)
  {
   console.log(...data);
- }
-
- GetCustomizationDialogStructure(...classes)
- {
-  let dialog = {
-                title: { type: 'title', data: 'Customization' },
-                section: { type: 'select', head: 'Select customization section', data: {} }
-               };
-
-  for (const clas of classes)
-	  {
-	   const section = { type: 'select', head: 'Select interface element to customize', data: {} };
-	   let clasindex = 0;
-	   dialog.section.data[clas.name] = { [clasindex++]: section }; // Class name is a profile name
-	   for (let profilename in clas.style)
-     	   {
-		    section.data[profilename.trim()] = {}; // Class static <style> object property name is a nested profile name too
-		    let propindex = 0;
-		    for (const propname in clas.style[profilename])
-		   	    if (propname[0] !== ' ') section.data[profilename.trim()][propindex++] = { type: 'text', head: `${propname}${clas.style[profilename][' ' + propname] ? '~' + clas.style[profilename][' ' + propname] : ''}`, data: clas.style[profilename][propname] };
-		   }
-	  }
-
-  this.dialog = dialog;
-  return dialog;
  }
 }
 

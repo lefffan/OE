@@ -18,18 +18,14 @@ const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
 
 export class Connection extends Interface
 {
- static name = 'Connection box';
- static style = {
-			  ".connection": { "background-color": "#343e54;" },
- 			 }
-
  constructor(...args)
  {
   const props = { animation: 'slideright',
                   position: 'CASCADE',
                   control: { closeicon: {}, fullscreenicon: { initevent: '' }, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup', button: 2 } }, 
                 };
-  const attributes = { class: 'connectionbox connection',
+  const attributes = { class: 'connectionbox',
+                       style: 'background-color: #343e54;'
                      };
   super(...args, props, attributes);
   this.Login();
@@ -94,11 +90,14 @@ export class Connection extends Interface
 	          break;
 	     case 'SIDEBARSET':
 	     case 'SIDEBARDELETE':
-	          return { type: event.type, data: event.data, destination: null };
+	          this.EventManager({ type: 'SIDEBARSET', data: event.data, destination: null }); // Call EventManager() to dispatch event 'SIDEBARSET' to all this 'Connection' childs, so sidebar child will accept the event
+	          break;
 
 	     case 'mouseup':
 	          new ContextMenu(this.username ? [['Help'], ['Logout ' + CutString(this.username)]] : [['Help']], this, event);
-               break;
+               return { type: 'KILLCONTEXTMENU', destination: null };
+	     case 'KILLCONTEXTMENU':
+               return { type: 'KILLCONTEXTMENU', destination: null };
 	     case 'CONTEXTMENU':
 			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
@@ -116,7 +115,7 @@ export class Connection extends Interface
                this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.id } }); // Send new OD dialog data to controller via WS
                break;
 	     case 'DIALOG':
-               app.MessageBox(this, event.data?.content, event.data?.title);
+               if (typeof event.data?.dialog === 'string') app.MessageBox(this, event.data.content, event.data.title);
 	          break;
 
 	     case 'GETDATABASE': // Context menu event incoming from sidebar, dispatch it directly to the controller

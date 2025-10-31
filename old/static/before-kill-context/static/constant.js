@@ -2,6 +2,7 @@ export const HTMLINNERENCODEMAP		    = [['&', '<', '>', '\n', ' ', '"'], ['&amp;
 export const TAGATTRIBUTEENCODEMAP		= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
 export const TAGHTMLCODEMAP		        = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
+export const ANIMATIONS				    = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 export const NODOWNLINKNONSTICKYCHILDS	= 0b01;
 export const MODALBROTHERKILLSME    	= 0b10;
 
@@ -97,10 +98,12 @@ export function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-
  for (const object of objects)
  for (const selector in object)
      {
-      if (selector[0] === ' ') continue; // CSS selectors with leading space are ignored and used as non css customization element
+      if (selector[0] === ' ') continue; // CSS selectors with leading space are ignored
       inner += `${selector} {`;
+      // Empty selector prop values are ignored. Props with leading space are ignored too, but its values are used as a hints for corresponded props
+      // in UI dialog configuration. Also leading space props with no 'pair' are used for non-CSS configurable parameters in GUI dialog settings.
       for (const prop in object[selector])
-          if (prop[0] !== ' ' && object[selector][prop]) inner += `${prop}: ${object[selector][prop]}`; // Empty selector prop values are ignored. Props with leading space are ignored too, but its values are used as a hints for corresponded props in UI dialog configuration
+          if (prop[0] !== ' ' && object[selector][prop]) inner += `${prop}: ${object[selector][prop]}`;
       inner += '}';
      }
 
@@ -206,11 +209,10 @@ settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
             limit: { type: 'textarea', head: 'ORDER BY, LIMIT, OFFSET, FETCH', data: '', flag: '*' },
             linkname: { type: 'text', head: 'Object selection link name', data: '' },
     }, 
-    Argumnets: {
-        autoset: { type: 'checkbox', data: 'Auto', head: `This 'View' dialog definition args~
-All 'Object Database' configuration or/and this 'Object View' profile (selection, layout..) specific text settings containing macroses may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before 'View' opening. 
-Manually define dialog structure JSON in text area below or set it to 'Auto' for the dialog to be created automatically with input fields for all undefined macroses. 
-Empty/error dialog structure with no 'Auto' option set (or no any macroses with 'Auto' set) - no dialog is called. Any valid dialog structure with no 'Auto' set is called anyway regardless of macroses in text settings and may be used as an info/warning message for the user before 'View' opening` },
+    Macroses: {
+        autoset: { type: 'checkbox', data: 'Auto', head: `This 'View' dialog call mode~Client side dialog is called before 'View' opening, allowing user to define macros values manually.
+Enter dialog structure JSON in text area below or set it to 'Auto' for the dialog (with all undefined macroses input fields) to be created automatically.
+All 'Object Database' configuration or/and this 'Object View' profile (selection, layout..) specific settings containing macroses may be (re)defined by the user` },
         dialog: { type: 'textarea', head: ``, data: '', flag: '*' },
     }, 
     Layout: {

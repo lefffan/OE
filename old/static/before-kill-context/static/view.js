@@ -29,7 +29,6 @@ function CheckXYpropsCorrectness(object)
 
 export class View extends Interface
 {
- static name = 'Object view';
  static style = {
                   ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
                   ".ovboxmessage":               { "display": "flex;", "overflow": "auto;", "justify-content": "center;", "align-items": "center;", "width": "100%;", "height": "100%;", "padding": "0 10px 0 10px;", "box-sizing": "border-box;", "t ext-align": "justify;" },
@@ -611,7 +610,7 @@ export class View extends Interface
 // View
 // Todo0 - Limit json.row and json.value expressions evaluated as a js code via JS future specification named SHADOW REALMS.
 //         json.row has access to vars (r, c, q, selection) only, where selection is a data array came from backend and r/c are current row/column values that can be use in a selection[r][c]
-//         json.value is interpreted as an expression (with access to vars x, y, table) in case of key word "EXPRESSION " starts the value
+//         json.value is interpreted as an expression (with access to vars x, y, table) in case of kew word "EXPRESSION " starts the value
 // Todo0 - whole table selection (Ctrl a), per object selection (what key combination?), enter[+shift] moves cursor down[up] (in case of selection moves among selected cells), home/end [with ctrl/alt] moves cusor to start/end of a line [table/page] and shift selects cursor track. Ctrl with up[down] jumps to next[previous] object
 // Todo0 - in context menu description: quantity of valid layout jsons, query string, out of range cells number, cells count max exceed, Od and OV description from OV structure, what else?
 //         application version, tel number and other contacts (something like 'please contact us support@tabels.app') in a extra tab on help context menu. Help contex menu is the for all modes (connection/view/sidebar)
