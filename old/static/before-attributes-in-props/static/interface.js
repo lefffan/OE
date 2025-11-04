@@ -8,8 +8,18 @@
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
 
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, lg, MODALBROTHERKILLSME } from './constant.js';
 import { app } from './application.js';
-import { Application } from './application.js';
+
+const DOMELEMENTMINWIDTH			= 50;
+const DOMELEMENTMINHEIGHT			= 50;
+const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
+const ICONURLMINIMIZESCREEN 		= SVGUrlHeader() + SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + SVGUrlFooter();
+const ICONURLFULLSCREENTURNON 		= SVGUrlHeader() + SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
+const ICONURLFULLSCREENTURNOFF		= SVGUrlHeader() + SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + SVGUrlFooter();
+const ICONURLCLOSE              	= SVGUrlHeader() + SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + SVGUrlFooter();
+const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
+const BLINKCHILDACTIVESTATUS		= 200;
 
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
@@ -204,8 +214,8 @@ export class Interface
 	  }
  }
 
- // (data, parentchild, props)
- constructor(...args)
+ // Todo0 - move 4th arg attr to props
+ constructor(...args) // (data, parentchild, props, attributes)
 	    {
 	     // Data
 	     this.data = args[0];
@@ -213,19 +223,18 @@ export class Interface
 	     // Parent child
 	     this.parentchild = args[1];
 
-	     // Props { tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, id } 
+	     // Props {tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, id } 
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 		 if (!this.props.control) this.props.control = {};
-		 if (!this.props.attributes) this.props.attributes = {};
-	     this.props.attributes['data-child'] = '';															// Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
-		 if (!['right', 'bottom', 'top'].includes(this.props.controlicondirection))
-			this.props.controlicondirection = 'left';														// Set icon offset direction in case of overlapped areas
-		 if (this.props.controliconmargin !== 'number') this.props.controliconmargin = 4;					// and icon margin
+		 if (['right', 'bottom', 'top'].indexOf(this.props.controlicondirection) === -1) this.props.controlicondirection = 'left';	// Set icon offset direction in case of overlapped areas
+		 if (this.props.controliconmargin !== 'number') this.props.controliconmargin = 4;											// and icon margin
 
 	     // DOM element attributes
 		 this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body;	// Set DOM element to document.body in case of no parent child defined
-	     for (const name in this.props.attributes) this.elementDOM.setAttribute(name, this.props.attributes[name]);
+	     this.attributes = (args[3] && typeof args[3] === 'object') ? args[3] : {};
+	     this.attributes['data-child'] = '';																// Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
+	     for (const name in this.attributes) this.elementDOM.setAttribute(name, this.attributes[name]);
 		 this.AdjustInterfaceControls();
 		 this.RefreshControlIcons();
 
@@ -240,7 +249,7 @@ export class Interface
 	     if (!this.parentchild) return;
 
 		 // Check this child if its brothers have MODAL feature and doesn't accept it into the family
-		 if (this.props.flag & Application.MODALBROTHERKILLSME) for (const id in this.parentchild.childs) if (this.parentchild.childs[id].IsModal()) return;
+		 if (this.props.flag & MODALBROTHERKILLSME) for (const id in this.parentchild.childs) if (this.parentchild.childs[id].IsModal()) return;
 		 
 	     // Set scc filter for all childs with overlay 'MODAL' mode
 	     if (this.IsModal()) for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
@@ -250,7 +259,7 @@ export class Interface
 		 if (this.IsNonsticky()) Interface.nonstickychild = this;
 		 
 	     // Child display
-	     if (Application.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
+	     if (app.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
 	     this.Show();
 	     this.parentchild.elementDOM.appendChild(this.elementDOM);
 
@@ -258,7 +267,7 @@ export class Interface
 	     this.parentchild.maxchildid++;
 	     this.id = this.parentchild.maxchildid;
 	     this.ChangeZIndex(0, this.parentchild.zindexes.length);
-	     this.elementDOM.setAttribute('data-child', this.props.attributes['data-child'] = this.parentchild.props.attributes['data-child'] + '_' + this.id);
+	     this.elementDOM.setAttribute('data-child', this.attributes['data-child'] = this.parentchild.attributes['data-child'] + '_' + this.id);
 	     this.parentchild.childs[this.id] = this;
 	     this.parentchild.zindexes.push(this.id);
 		 this.parentchild.aindexes.push(this.id);
@@ -332,7 +341,7 @@ export class Interface
 		 	{
 			 document.body.style.cursor = 'auto';
 			 CallControlHandler(app.control, null, 'release');
-			 app.lg(`Control ${app.control.name} is released!`);
+			 lg(`Control ${app.control.name} is released!`);
 			 delete app.control;
 			}
 		 if (lower && !this.IsOnTop(current) && this.IsOnTop(lower))								// Lower child is 'top layer' and current is not? Swap it
@@ -352,7 +361,7 @@ export class Interface
   if (app.control?.child === this.childs[id])																								// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';
-	  app.lg(`Control ${app.control.name} is released!`);
+	  lg(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
   this.childs[id].Hide();																													// Hide and kill the child
@@ -369,14 +378,14 @@ export class Interface
  // Hide the child with animation this.props.animation
  Hide()
  {
-  if (!Application.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
+  if (!app.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
   this.SetVisibility(); // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
  }
 
  // Show child with animation
  Show()
  {
-  if (!Application.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
+  if (!app.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
   requestAnimationFrame(this.SetVisibility.bind(this, true));	// and then set element visible (after it is hidden via line below) via requestAnimationFrame()
   this.SetVisibility();
  }
@@ -598,7 +607,7 @@ export class Interface
 	 {
 	  if (ControlEventMatchUserEvent(app.control, event, 'release') !== false)
 		 {
-		  app.lg(`Control ${app.control.name} is released!`);
+		  lg(`Control ${app.control.name} is released!`);
 		  SetMouseCursorContolsHover(app.control.child, event, childclientrect);		// Check all controls mouse cursor hover match and modify cursor for mouse moving	
 		  if (ControlAreaMatchMouseCursor(app.control, event, 'release', childclientrect) !== false)
 			 CallControlHandler(app.control, event, 'release');							// Call control handler
@@ -626,7 +635,7 @@ export class Interface
 	   	   ControlAreaMatchMouseCursor(control, event, 'capture', childclientrect) !== false &&	
 		   ControlElementsMatchEventTarget(control, event) !== false)
 		  {																						// Check control event, mouse cursor is in control area and clicked element match of control DOM elements for 'capture' phase. Control is considered captures in case of all cases match
-		   app.lg(`Control ${prop} is captured!`);
+		   lg(`Control ${prop} is captured!`);
 		   app.control = control;																// Fix captured control
 		   if ('cursor' in control) document.body.style.cursor = control.cursor;				// Set control cursor document.body.style.setProperty('cursor', control.cursor, 'important');
 		   CallControlHandler(control, event, 'capture');										// Call control handler
@@ -637,7 +646,7 @@ export class Interface
 		   ControlAreaMatchMouseCursor(control, event, 'release', childclientrect) !== false &&
 		   ControlElementsMatchEventTarget(control, event) !== false)							// Check match case for 'release' phase only for non-existing 'capture' phase
 	   	  {
-		   app.lg(`Control ${control.name} is captured and released!`);
+		   lg(`Control ${control.name} is captured and released!`);
 		   if (CallControlHandler(control, event, 'release')) return;							// Call control handler. For only these kind of controls (with no 'capture' phase) next control process is continued if no current control handler return event
 		  }
 	  }
@@ -704,59 +713,8 @@ export class Interface
 
   return events.length;
  }
-
- // Static functions section
- static SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
- {
-  if (url) return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
-  return `<svg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg' ${extraattribute}>`;
- }
-
- static SVGUrlFooter(url = true)
- {
-  if (url) return `%3C/svg%3E")`;
-  return `</svg>`;
- }
-
- static SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4', url = true, dashoffset, animation)
- {
-  const disp = Math.round(strength/2);
-  x += disp;
-  y += disp;
-  h -= disp * 2;
-  w -= disp * 2;
-  if (url) return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
-  return `<rect pathLength='100' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} ${100 - dash}' stroke-linejoin='round'${dashoffset ? " stroke-dashoffset='" + dashoffset + "'" : ''}>${animation ? ' ' + animation : ''}</rect>`;
- }
-
- static SVGPath(path, color, width, url = true)
- {
-  if (url) return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
-  return `<path d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' />`;
- }
-
- static SVGCircle(x, y, r, strength, color, fill = 'none', dash, url = true)
- {
-  if (url) return `%3Ccircle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} /%3E`;
-  return `<circle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} />`;
- }
-
- static SVGText(x, y, text, color = 'grey', font = '.8em Lato, Helvetica;', url = true)
- {
-  if (url) return `%3Ctext x='${x}' y='${y}' style='fill: ${color}; font: ${font}' %3E${text}%3C/text%3E`;
-  return `<text x="${x}" y="${y}" style="font: ${font}">${text}</text>`;
- }
 }
 
-const DOMELEMENTMINWIDTH			= 50;
-const DOMELEMENTMINHEIGHT			= 50;
-const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
-const ICONURLMINIMIZESCREEN 		= Interface.SVGUrlHeader() + Interface.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + Interface.SVGUrlFooter();
-const ICONURLFULLSCREENTURNON 		= Interface.SVGUrlHeader() + Interface.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + Interface.SVGUrlFooter();
-const ICONURLFULLSCREENTURNOFF		= Interface.SVGUrlHeader() + Interface.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + Interface.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + Interface.SVGUrlFooter();
-const ICONURLCLOSE              	= Interface.SVGUrlHeader() + Interface.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + Interface.SVGUrlFooter();
-const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
-const BLINKCHILDACTIVESTATUS		= 200;
 const CHILDCONTROLTEMPLATES = {
 							   text: { area: {x1: 0, y1: 0, x2: 0, y2: 0} }, 
 							   minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 

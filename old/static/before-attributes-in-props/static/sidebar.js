@@ -6,10 +6,17 @@
 // Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
 
 import { app } from './application.js';
-import { Application } from './application.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGUrlFooter, SVGCircle, lg, CutString } from './constant.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 import { View } from './view.js';
+
+const WEIGHTS  = { 'view': 1, 'database': 2, 'folder': 3 };
+const ARROW    = [ SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(), // bright green 139,188,122
+                   SVGUrlHeader(12, 12) + SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + SVGUrlFooter(),
+                   SVGUrlHeader(12, 12) + SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + SVGUrlFooter(),
+                   SVGUrlHeader(12, 12) + SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + SVGUrlFooter() ];
+const LUPA     = SVGUrlHeader(12, 12) + SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + SVGUrlFooter();
 
 function OnDraw(func)
 {
@@ -84,12 +91,12 @@ export class Sidebar extends Interface
       }
  }
 
- constructor(data, parentchild) // (data, parentchild, props)
+ constructor(data, parentchild) // (data, parentchild, props, attributes)
  {
   const sortcontrol = { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ARROW[0], data: '', callback: [Sidebar.SortControl] };
   const lupacontrol = { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: LUPA, callback: [Sidebar.LupaControl] };
   const control = { fullscreenicon: {}, minimizescreen: {}, sorticon: sortcontrol, lupaicon: lupacontrol, resize: {}, resizex: {}, resizey: {}, drag: {}, default: { releaseevent: 'mouseup|keyup' } };
-  super(data, parentchild, { overlay: 'ALWAYSONTOP', control: control, attributes: { class: 'defaultbox sidebar selectnone' } } );
+  super(data, parentchild, { overlay: 'ALWAYSONTOP', control: control }, { class: 'defaultbox sidebar selectnone' });
   // Set some props
   this.username = parentchild.username;
   this.elementDOM.style.left = '50px';
@@ -198,7 +205,7 @@ export class Sidebar extends Interface
                   }
                if (event.button === 2)
                   {
-                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + Application.CutString(this.username)]];
+                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + CutString(this.username)]];
                    const odid = event.target.attributes['data-odid']?.value;
                    const ovid = event.target.attributes['data-ovid']?.value;
                    if (odid !== undefined) contextmenuoptions[1] = [ 'Configure Database', odid ];
@@ -390,30 +397,25 @@ export class Sidebar extends Interface
          {
           case undefined:
           case -2:
-               return Interface.SVGUrlHeader(24, 24, false, attribute) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + Interface.SVGUrlFooter(false);
+               return SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGUrlFooter(false);
           case -1:
-               return Interface.SVGUrlHeader(24, 24, false, attribute) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + Interface.SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + Interface.SVGUrlFooter(false);
+               return SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + SVGUrlFooter(false);
           default:
-               return Interface.SVGUrlHeader(24, 24, false, attribute) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + Interface.SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + Interface.SVGUrlFooter(false);
+               return SVGUrlHeader(24, 24, false, attribute) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + SVGUrlFooter(false);
          }
  }
 }
 
-const WEIGHTS       = { 'view': 1, 'database': 2, 'folder': 3 };
-const ARROW         = [ Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + Interface.SVGUrlFooter(), // bright green 139,188,122
-                        Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + Interface.SVGUrlFooter(),
-                        Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + Interface.SVGUrlFooter(),
-                        Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + Interface.SVGUrlFooter() ];
-const LUPA          = Interface.SVGUrlHeader(12, 12) + Interface.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + Interface.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + Interface.SVGUrlFooter();
 const branchclasses = {
-                       '.view': Interface.SVGUrlHeader(24, 24) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4') + Interface.SVGUrlFooter() + ';', 
-                       '.folderwrapped': Interface.SVGUrlHeader(24, 24) + Interface.SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + Interface.SVGRect(3, 3, 14, 14, 3, 105, 'RGB(97,120,82)', 'RGB(97,120,82)', '1') + Interface.SVGUrlFooter() + ';',
-                       '.folderunwrapped': Interface.SVGUrlHeader(24, 24) + Interface.SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + Interface.SVGRect(2, 2, 15, 15, 3, 105, 'RGB(97,120,82)', 'none', '1') + Interface.SVGUrlFooter() + ';',
-                       '.databaseunwrapped': `${Interface.SVGUrlHeader(24, 24)}${Interface.SVGPath('M6 12L18 12', 'rgb(97,120,82)', '4')}${Interface.SVGUrlFooter()};`,
-                       '.databasewrapped': Interface.SVGUrlHeader(24, 24) + Interface.SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 4) + Interface.SVGUrlFooter() + ';',
-                       '.databasewrappedempty': Interface.SVGUrlHeader(24, 24) +  Interface.SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 4) + Interface.SVGUrlFooter() + ';',
+                       '.view': SVGUrlHeader(24, 24) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4') + SVGUrlFooter() + ';', 
+                       '.folderwrapped': SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(3, 3, 14, 14, 3, 105, 'RGB(97,120,82)', 'RGB(97,120,82)', '1') + SVGUrlFooter() + ';',
+                       '.folderunwrapped': SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(2, 2, 15, 15, 3, 105, 'RGB(97,120,82)', 'none', '1') + SVGUrlFooter() + ';',
+                       '.databaseunwrapped': `${SVGUrlHeader(24, 24)}${SVGPath('M6 12L18 12', 'rgb(97,120,82)', '4')}${SVGUrlFooter()};`,
+                       '.databasewrapped': SVGUrlHeader(24, 24) + SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 4) + SVGUrlFooter() + ';',
+                       '.databasewrappedempty': SVGUrlHeader(24, 24) +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 4) + SVGUrlFooter() + ';',
 };
 
+// function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4') // RGB(185,122,87) RGB(1,130,0) RGB(77,129,7) RGB(140,123,23) // dasharray='89% 105' https://yoksel.github.io/url-encoder/
 for (const classname in branchclasses)
     {
      Sidebar.style[classname] = {};

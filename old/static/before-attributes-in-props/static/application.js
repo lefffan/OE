@@ -105,6 +105,7 @@
 // Todo - Paraga mail functional  
 // Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata
 
+import { GetStyleInnerHTML } from './constant.js';
 import { Interface } from './interface.js';
 import { Connection } from './connection.js';
 import { DialogBox } from './dialogbox.js';
@@ -113,96 +114,18 @@ import { Sidebar } from './sidebar.js';
 import { DropDownList } from './dropdownlist.js';
 import { View } from './view.js';
 
-function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-styles-with-javascript-3nl5, https://professorweb.ru/my/javascript/js_theory/level2/2_4.php
-{
- let inner = '';
-
- for (const object of objects)
- for (const selector in object)
-     {
-      if (selector[0] === ' ') continue; // CSS selectors with leading space are ignored and used as non css customization element
-      inner += `${selector} {`;
-      for (const prop in object[selector])
-          if (prop[0] !== ' ' && object[selector][prop]) inner += `${prop}: ${object[selector][prop]}`; // Empty selector prop values are ignored. Props with leading space are ignored too, but its values are used as a hints for corresponded props in UI dialog configuration
-      inner += '}';
-     }
-
- return inner;
-}
+const ANIMATIONS = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 
 export class Application extends Interface
 {
- static HTMLINNERENCODEMAP		= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode/decode each other
- static TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
- static TAGHTMLCODEMAP		    = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
- static ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
- static MODALBROTHERKILLSME		= 0b10;
- static CLIENTEVENTS			= ['INIT', 'DELETE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
- static ANIMATIONS				= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
- static name					= 'Application';
+ static name = 'Application';
  static style = {
- 				 " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${Application.ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
+ 				 " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
 				 ".modalfilter": { "filter": "opacity(50%);", " filter": "Dialog box modal effect appearance via css filter property (such as opacity, blur and others), see appropriate css documentaion." },
 				 "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
 				 //" Key combination to apply cell text": {},
 				 //" Logon events": { "Log unsuccessful logons": "", },
 				}
-
- static CutString(string, termination = '..', limit = 13)
- {
-  if (typeof string !== 'string' || typeof termination !== 'string') return '';
-  if (termination.length > limit) termination = termination.substring(0, limit);
-  return string.length > limit ? string.substring(0, limit - termination.length) + termination : string;
- }
-
- // Function creates regexp to match tag names list 'tags'
- static HTMLTagsRegexp(tags)
- {
-  let regexp = '';
-  if (Array.isArray(tags)) for (const tag of tags) regexp += `<${tag} .*?>|<${tag} *>|<\/${tag} *>|`;
-  return new RegExp(regexp.substring(0, regexp.length - 1), 'g');
- }
-
- // Function replaces every char in array encodemap[0] to corresponded chars in encodemap[1] array
- static EncodeString(string, encodemap)
- {
-  if (typeof string !== 'string') return '';
-  if (!Array.isArray(encodemap) || !Array.isArray(encodemap[0]) || !Array.isArray(encodemap[1])) return string;
-
-  for (let i = 0; i < encodemap[0].length; i ++)
-      string = string.replace(new RegExp(encodemap[0][i], 'g'), encodemap[1][i]);
-
-  return string;
- }
-
- // Function encodes string based on <encodemap> array (see EncodeString function above) excluding html tags in <excludehtmltags> array
- static AdjustString(string, encodemap, excludehtmltags, trim)
- {
-  if (typeof string !== 'string') return '';
-  if (trim) string = string.trim();
-
-  let result, newstring = '';
-  if (Array.isArray(excludehtmltags)) while (result = Application.HTMLTagsRegexp(excludehtmltags).exec(string))
-     {
-      newstring += Application.EncodeString(string.substr(0, result.index), encodemap) + result[0];  // Convert special chars till the result.index and concatenate with the matched <tag> of itself
-      string = string.substr(result.index + result[0].length);                           // Generate string after allowed <tag> for the next search
-     }
-
-  return newstring + Application.EncodeString(string, encodemap);
- }
-
- // Function searches 'string' in 'source' and return the source with excluded string or added string otherwise
- static ToggleString (source, string)
- {
-  if (typeof source !== 'string' || typeof string !== 'string') return '';
-  return source.indexOf(string) === -1 ? source + string : source.replaceAll(string, '');
- }
-
- static SearchPropValue(object, value)
- {
-  if (typeof object === 'object')
-     for (const i in object) if (object[i] === value) return i;
- }
 
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
  constructor()
@@ -212,7 +135,7 @@ export class Application extends Interface
   document.head.appendChild(style);
   
   const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
-  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } }, attributes: { style: `background-color: ${NICECOLORS[7]};` } });
+  super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } } }, { style: `background-color: ${NICECOLORS[7]};` });
 
   document.addEventListener('keydown', Interface.EventListener);
   document.addEventListener('keyup', Interface.EventListener);
@@ -223,7 +146,14 @@ export class Application extends Interface
   document.addEventListener('click', Interface.EventListener);
   document.addEventListener('contextmenu', (event) => event.preventDefault());
 
+  this.InitApplicationGlobalVars();
   this.GetCustomizationDialogStructure(Application, DialogBox, DropDownList, ContextMenu, Connection, Sidebar, View);
+ }
+
+ // Init application global vars)
+ InitApplicationGlobalVars()
+ {
+  this.ANIMATIONS = ANIMATIONS;
  }
 
  // Override main application child activation styling to exclude any effects for document.body
@@ -246,7 +176,8 @@ export class Application extends Interface
 			   				new Connection(null, this);	// Args: data, parent
 							break;
 					   case 'Help':
-			   				new DialogBox(this.dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+						this.lg(this.dialog);
+			   				new DialogBox(this.dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' });
 							break;
 					  }
 		  	   break;
@@ -274,17 +205,12 @@ export class Application extends Interface
 	  content.CANCEL = cancelbtn;
 	 }
 
-  new DialogBox(content, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+  new DialogBox(content, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL' }, { class: 'dialogbox selectnone' });
  }
 
  lg(...data)
  {
   console.log(...data);
- }
-
- dir(...data)
- {
-  data.forEach(value => console.dir(value));
  }
 
  GetCustomizationDialogStructure(...classes)

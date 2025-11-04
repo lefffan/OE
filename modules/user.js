@@ -34,3 +34,7 @@ function AddUser(element, value)
               return;
         }
 }
+
+    //44: { type: 'select', head: 'Event list~Event list is a list client events, each event has its name, modifier keys and other settings. To create new event (the handler below will be called on) just clone "New event template"', data: { 'New event template': {
+    //50: { type: 'select', head: 'Select event', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
+    //60: { type: 'checkbox', head: 'Select modifier key~For the mouse and keyboards events only. Also note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser), so may not cancel client side default behaviour and may never occur', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },

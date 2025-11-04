@@ -39,7 +39,7 @@
 // Todo0 - what if regexp in 'expr' contains '/' char? May be ignore regexp string end at these two chars: '\/' ?
 
 import { app } from './application.js';
-import { Application } from './application.js';
+import { AdjustString, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, TAGATTRIBUTEENCODEMAP, lg } from './constant.js';
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
 
@@ -90,7 +90,7 @@ function CreateSelectableElementOptions(e)
 	  e.options.push({	id: e.options.length + '',					// Push option object with all its values and flags
 						origin: origin,
 					   	name: name,
-					   	inner: Application.AdjustString(name ? name : EMPTYOPTIONTEXT, Application.HTMLINNERENCODEMAP),
+					   	inner: AdjustString(name ? name : EMPTYOPTIONTEXT, HTMLINNERENCODEMAP),
 					   	checked: (flag || '').includes(OPTIONISCHECKED),
 					   	clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
 					   	removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
@@ -163,7 +163,7 @@ function SetFlag(e, name, value)
  if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
 	{
 	 flag = e.flag.substring(0, placeholder);
-	 placeholder = Application.AdjustString(e.flag.substring(placeholder), Application.TAGATTRIBUTEENCODEMAP);
+	 placeholder = AdjustString(e.flag.substring(placeholder), TAGATTRIBUTEENCODEMAP);
 	}
   else
 	{
@@ -414,13 +414,12 @@ export class DialogBox extends Interface
   return elementcount;
  }
  
- // Init dialog specific data with overriding 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1) for the search to be terminated on. Call then parent constructor for the given args (data, parentchild, props)
+ // Init dialog specific data with overriding 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1) for the search to be terminated on. Call then parent constructor for the given args (data, parentchild, props, attributes)
  constructor(...args)
  {
-  if (!args[2]) args[2] = {}; // Props
-  if (!args[2].control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
-  if (!args[2].attributes) args[2].attributes = {};
-  args[2]['attributes']['data-element'] = '_-1';
+  if (!args[2]?.control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
+  args[3] = (args[3] && typeof args[3] === 'object') ? args[3] : {};
+  args[3]['data-element'] = '_-1';
   super(...args);
   this.RefreshDialog(INITSERVICEDATA | CHECKDIALOGDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
  }
@@ -474,7 +473,7 @@ export class DialogBox extends Interface
 	   let result;
 	   if (!(e = this.elements[id])) continue;
 	   try { result = eval(e.test); }
-	   catch { app.lg('Evaluation exception detected on element:', e); }
+	   catch { lg('Evaluation exception detected on element:', e); }
 	   if (result === undefined) // Result is undefined in case of eval exception
 		  {
 		   delete e.expr; // Delete 'expr' property and this element id from all other elements which data prop affects to
@@ -521,7 +520,7 @@ export class DialogBox extends Interface
 			   case 'button':
 					if (!this.Nodes.buttons[id]) continue;
 					target = this.Nodes.buttons[id];
-	   				if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable for no readonly button
+	   				if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable for no readonly button
 					 else for (const i in this.props.control.push.elements) if (this.props.control.push.elements[i][0] === target && delete this.props.control.push.elements[i]) break; // The button is readonly, so delete button pushable feature via removing btn DOM element from 'push' control.elements array
 					break;
 			  }
@@ -536,8 +535,8 @@ export class DialogBox extends Interface
 
   let head, hint;
   [head, ...hint] = e.head.split(FIELDSDIVIDER);
-  head = Application.AdjustString(head, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS);
-  if (hint.length) head += `&nbsp<span title="${Application.AdjustString(hint.join(FIELDSDIVIDER), Application.TAGATTRIBUTEENCODEMAP)}" class="hint-icon">?</span>&nbsp;`;
+  head = AdjustString(head, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS);
+  if (hint.length) head += `&nbsp<span title="${AdjustString(hint.join(FIELDSDIVIDER), TAGATTRIBUTEENCODEMAP)}" class="hint-icon">?</span>&nbsp;`;
   return head ? `<div class="element-headers">${head}</div>` : '';
  }
 
@@ -554,7 +553,7 @@ export class DialogBox extends Interface
   const readonly = SetFlag(e, 'readonly');
   const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
   const dataattribute = `data-element="${uniqeid}"`;																								// Set html attribute to access this uniq id
-  const styleattribute = e.style ? ` style="${Application.AdjustString(e.style, Application.TAGATTRIBUTEENCODEMAP)}"` : ``;
+  const styleattribute = e.style ? ` style="${AdjustString(e.style, TAGATTRIBUTEENCODEMAP)}"` : ``;
   let classlist = readonly ? 'readonlyfilter' : '';
   let content = '';																																	// Element some content var
 
@@ -562,7 +561,7 @@ export class DialogBox extends Interface
          {
           case 'title':
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? The title is hidden, so return empty
-	    	   return `<div class="title" ${dataattribute}${styleattribute}>${Application.AdjustString(e.data, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS)}</div>`;// Empty title string? Whole title element is invisible
+	    	   return `<div class="title" ${dataattribute}${styleattribute}>${AdjustString(e.data, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS)}</div>`;// Empty title string? Whole title element is invisible
 
 		  case 'select':
 			   if (!e.options.length) return '';																										// No options for selectable element? Return empty
@@ -604,23 +603,23 @@ export class DialogBox extends Interface
 		  case 'password':
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? Return empty
 			   let placeholder = SetFlag(e, 'placeholder'); // Get placeholder string
-			   if (placeholder) placeholder = ` placeholder="${Application.AdjustString(placeholder, Application.TAGATTRIBUTEENCODEMAP)}"`;	// Placholder attribute for text elements
-			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${Application.AdjustString(e.data/*, Application.HTMLINNERENCODEMAP*/)}</textarea>`;	// For textarea element type return textarea tag
-			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${Application.AdjustString(e.data/*, Application.TAGATTRIBUTEENCODEMAP*/)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
+			   if (placeholder) placeholder = ` placeholder="${AdjustString(placeholder, TAGATTRIBUTEENCODEMAP)}"`;	// Placholder attribute for text elements
+			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${AdjustString(e.data/*, HTMLINNERENCODEMAP*/)}</textarea>`;	// For textarea element type return textarea tag
+			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${AdjustString(e.data/*, TAGATTRIBUTEENCODEMAP*/)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
 
 		  case 'table':
 			   if (e.data && typeof e.data === 'object') for (const row in e.data)
 				  {
 				   if (!e.data[row] || typeof e.data[row] !== 'object') continue;
 				   content += '<tr>';
-				   for (const cell in e.data[row]) content += `<td class="boxtablecell${cell[0] === '_' ? ' cursorpointer" data-id="' + Application.AdjustString(cell, Application.TAGATTRIBUTEENCODEMAP) + '"' : '"'}>${Application.AdjustString(e.data[row][cell], Application.HTMLINNERENCODEMAP)}</td>`;
+				   for (const cell in e.data[row]) content += `<td class="boxtablecell${cell[0] === '_' ? ' cursorpointer" data-id="' + AdjustString(cell, TAGATTRIBUTEENCODEMAP) + '"' : '"'}>${AdjustString(e.data[row][cell], HTMLINNERENCODEMAP)}</td>`;
 				   content += '</tr>';
 				  }
 			   return content ? `<table class="boxtable" ${dataattribute}${styleattribute}><tbody>${content}</tbody></table>` : '';
 
 	 	  case 'button':
 			   if (typeof e.data !== 'string') return '';																		// Button is hidden? Return empty
-			   content = `${Application.AdjustString(e.data, Application.HTMLINNERENCODEMAP)} ${GetTimerString(e, this.Nodes.autoapplybuttons.get(e))}`;
+			   content = `${AdjustString(e.data, HTMLINNERENCODEMAP)} ${GetTimerString(e, this.Nodes.autoapplybuttons.get(e))}`;
 	      	   return inner ? content : `<div class="button ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;
 		 }
  }
@@ -706,7 +705,7 @@ export class DialogBox extends Interface
  RefreshControlElements()
  {
   if (!this.props.control.fullscreendblclick && !this.props.control.fullscreenicon && !this.props.control.drag && !this.props.control.closeicon && !this.props.control.push) return;
-  const elements = this.Nodes.title ? [this.Nodes.title].concat([...this.Nodes.title.querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
+  const elements = this.Nodes.title ? [this.Nodes.title].concat([...this.Nodes.title.querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
   if (this.props.control.fullscreenicon) this.props.control.fullscreenicon.elements = [elements[0]];															// and set 1st element for fullscreen icon,
   if (this.props.control.closeicon) this.props.control.closeicon.elements = [elements[0]];																		// set 1st element for close icon,
   if (this.props.control.fullscreendblclick) this.props.control.fullscreendblclick.elements = elements;															// set <elements> array clickable for 'full screen'	feature
@@ -715,7 +714,7 @@ export class DialogBox extends Interface
 	 {
 	  this.props.control.push.elements = [];
   	  for (const i in this.Nodes.buttons)
-		  if (this.Nodes.buttons[i] && !SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))])); 
+		  if (this.Nodes.buttons[i] && !SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(ELEMENTINNERALLOWEDTAGS.join(', '))])); 
 	 }
   this.RefreshControlIcons();
  }
@@ -819,7 +818,7 @@ export class DialogBox extends Interface
 					  {
 					   let content;
 					   try { content = JSON.parse(e.data); }
-					   catch {} // Content example: {"title":{"type":"title", "data":"Title"}, "input":{"type":"text", "head":"Input text", "data":""}}
+					   catch {}
 					   app.MessageBox(this, content, '', true, true);
 					   break;
 					  }

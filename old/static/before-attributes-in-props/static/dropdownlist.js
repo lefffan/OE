@@ -1,7 +1,6 @@
 // Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 
 import { app } from './application.js';
-import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { GetElementOption } from './dialogbox.js';
 
@@ -16,7 +15,7 @@ export class DropDownList extends Interface
  //
  constructor(e, dialog, left, top)
  {
-  super({ e: e, cursor: +(GetElementOption(e.options)?.id) }, dialog.parentchild, { overlay: 'NONSTICKY', animation: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } }, attributes: { class: 'select expanded', style: `left: ${left}px; top: ${top}px;` } }); // (data, parentchild, props)
+  super({ e: e, cursor: +(GetElementOption(e.options)?.id) }, dialog.parentchild, { overlay: 'NONSTICKY', animation: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } } }, { class: 'select expanded', style: `left: ${left}px; top: ${top}px;` }); // (data, parentchild, props, attributes)
   this.dialog = dialog;
   this.Display();
  }

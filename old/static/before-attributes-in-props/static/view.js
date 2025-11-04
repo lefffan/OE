@@ -1,5 +1,5 @@
 import { app } from './application.js';
-import { Application } from './application.js';
+import { SVGUrlHeader, SVGRect, SVGPath, SVGText, SVGUrlFooter, AdjustString, TAGATTRIBUTEENCODEMAP, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS, lg, dir } from './constant.js';
 import { Interface } from './interface.js';
 
 const TITLEVIRTUALROWID     = -2;
@@ -51,14 +51,11 @@ export class View extends Interface
 
  constructor(...args)
  {
-  if (!args[2]) args[2] = {};
-
   const mouseareaselect = { elements: [], button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', callback: [View.MouseAreaSelectControl] };
+  if (!args[2]) args[2] = {};
   if (!args[2].control) args[2].control = { text: {}, closeicon: {}, fullscreenicon: {}, resize: {}, resizex: {}, resizey: {}, mouseareaselect: mouseareaselect, default: {}, drag: {}, fullscreendblclick: {}, closeesc: {} };
-
   args[2].animation = 'slideleft';
-  if (!args[2].attributes) args[2].attributes = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
-
+  args[3] = { class: 'ovbox selectnone', style: 'left: 300px; top: 300px; background-color: RGB(230,230,230);' };
   super(...args);
   this.props.control.drag.elements = this.props.control.fullscreendblclick.elements = [this.elementDOM];
   for (const controlname of ['resize', 'resizex', 'resizey', 'fullscreenicon', 'fullscreendblclick']) this.props.control[controlname].callback.push(this.Render.bind(this));
@@ -72,7 +69,7 @@ export class View extends Interface
   this.ovid = data.ovid;
   this.status = data.status;
   const statusstring = this.status === -1 ? 'server pending..' : `loaded ${this.status}%`;
-  this.props.control.text.icon = Interface.SVGUrlHeader(350, 18) + Interface.SVGText(3, 14, `database id: ${this.odid}, view id: ${this.ovid}, status: ${statusstring}`) + Interface.SVGUrlFooter();
+  this.props.control.text.icon = SVGUrlHeader(350, 18) + SVGText(3, 14, `database id: ${this.odid}, view id: ${this.ovid}, status: ${statusstring}`) + SVGUrlFooter();
   this.RefreshControlIcons();
  }
 
@@ -214,9 +211,9 @@ export class View extends Interface
                          if (row?.[column.columnstyleindex]) cell.style += row[column.columnstyleindex];
                          if (row?.[column.columnhintindex]) cell.hint = row[column.columnhintindex];
                          this.SetCell(cell, r, +c, q);
-                         cell.value = Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS);
-                         cell.style = Application.AdjustString(cell.style, Application.TAGATTRIBUTEENCODEMAP, null, true);
-                         cell.hint = Application.AdjustString(cell.hint, Application.TAGATTRIBUTEENCODEMAP, null, true);
+                         cell.value = AdjustString(cell.value, HTMLINNERENCODEMAP, ELEMENTINNERALLOWEDTAGS);
+                         cell.style = AdjustString(cell.style, TAGATTRIBUTEENCODEMAP, null, true);
+                         cell.hint = AdjustString(cell.hint, TAGATTRIBUTEENCODEMAP, null, true);
                         }
                    }
 
