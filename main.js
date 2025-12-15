@@ -9,19 +9,34 @@ import { WebSocketServer } from 'ws';
 import {} from './http.js';
 import { Controller } from './controller.js';
 import { QueryMaker } from './querymaker.js';
+import * as globalnames from './globalnames.js';
 
-const RANDOMSTRINGCHARS     = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-const { Pool, Client }      = pg
-export const pool = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' }); // https://node-postgres.com/apis/pool
+const RANDOMSTRINGCHARS         = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const { Pool, Client }          = pg;
+export const pool               = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' }); // https://node-postgres.com/apis/pool
+export const qm                 = new QueryMaker();
+export const USERNAMEMAXCHAR    = 64;
+export const WSIP               = '127.0.0.1';
+export const WSPORT             = '8002';
+export const FIELDSDIVIDER      = '~';
+export let controller;
 
-export const qm = new QueryMaker();
-export const USERNAMEMAXCHAR  = 64;
-export const WSIP = '127.0.0.1';
-export const WSPORT = '8002';
-export const FIELDSDIVIDER = '~';
-export const controller = new Controller();
-
-new WebSocketServer({ port: WSPORT }).on('connection', WSNewConnection);
+switch (process.argv[2])
+       {
+        case 'start':
+             controller = new Controller();
+             new WebSocketServer({ port: WSPORT }).on('connection', WSNewConnection);
+             break;
+        case 'reset':
+             console.log('Dropping all existing and creating initial user database..');
+             const userdb = JSON.parse(JSON.stringify(globalnames.NEWOBJECTDATABASE));
+             
+             process.exit(0);
+             // ended here - make sitch/case for app start/reset, then edit new db template to userdb and create a root user
+        default:
+             console.log(`Usage: ${process.argv[1]} start|reset`);
+             process.exit(0);
+       }
 
 function WSMessage(msg)
 {

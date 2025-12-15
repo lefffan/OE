@@ -1,17 +1,18 @@
 // 2025 year:
-// Todo0 - remake all this file vars to app global var
-// Todo0 - DYINGGASP
-// Todo0 - Interface constructor 'attribute' arg move to 'props' arg
 // Todo0 - Macroses
 //         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text that describes macros assgnment and implementation).
 //         Macroses can be placed in OD/user settings dialog only. Undefined macroses are empty strings.
 //         Macros strategy definition:
-//		            Builtin macroses - ${OD} ${OV} ${oid} ${eid} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${userid} ${RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}..
-//		            Object element props retriving for handler cmd line only - ${oid: 1, eid: 2: prop: 'value'}
+//		            Builtin macroses - ${OD} ${OV} ${oid} ${eid} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${userid} ${?RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}.. ${EID} ${EPROP}
+//		            Object element props retriving for handler cmd line only - ${odid: 1, oid: 1, eid: 2: eprop: 'value'}
 //                Dialog defined (for OD conf (layout, selection...) and handler cmd line only). For OV settings add macros definition dialog: auto/custom text area
 //		            Db conf macroses (for OD conf only)
 //                User specific
-//                Root user
+//         Macros area apply (per OD and user macros keeping, so OD or User props change pulls macros values recalculation, due to ease events recalculation via that already recaluclated macroses):
+//                View layout/selection ('view call' event)
+//                Rule message/query ('handler process' event)
+//                User customization ('user relogin')
+//                Handler data ('handler process' event)
 // Todo0 - User dialog settings:
 //         Main: 
 //               username [eid1] (username is unchangable after creation)
@@ -29,7 +30,7 @@
 //         Events: [eid6] (changeble and viewable for root user only)
 //               profile list
 //         Custom:
-//               other custom text fields (tel, email, foto, other info) [eid2] (changeble for own users only)
+//               other custom text fields (name, tel, email, foto, other info) [eid2] (changeble for own users only)
 // Todo0 - Auth user process
 // Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
 //         At any client/server side element event occur - incoming event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 

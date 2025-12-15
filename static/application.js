@@ -112,6 +112,7 @@ import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
 import { DropDownList } from './dropdownlist.js';
 import { View } from './view.js';
+import * as globalnames from './globalnames.js';
 
 function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-styles-with-javascript-3nl5, https://professorweb.ru/my/javascript/js_theory/level2/2_4.php
 {
@@ -137,7 +138,6 @@ export class Application extends Interface
  static TAGHTMLCODEMAP		    = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
  static ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
  static MODALBROTHERKILLSME		= 0b10;
- static CLIENTEVENTS			= ['INIT', 'DELETE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
  static ANIMATIONS				= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
  static name					= 'Application';
  static style = {
@@ -246,7 +246,8 @@ export class Application extends Interface
 			   				new Connection(null, this);	// Args: data, parent
 							break;
 					   case 'Help':
-			   				new DialogBox(this.dialog, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+			   				//new DialogBox(globalnames.CUSTOMIZATIONDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+			   				new DialogBox(globalnames.EVENTPROFILINGDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
 							break;
 					  }
 		  	   break;

@@ -59,96 +59,12 @@ const FIELDSDIVIDER						= '~';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 const DIALOGBOXMACROSSTYLE				= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
-const INITSERVICEDATA					= 0b100000; 
-const CHECKDIALOGDATA					= 0b010000; 
-const PARSEDIALOGDATA					= 0b001000; 
-const SHOWDIALOGDATA					= 0b000100; 
-const PARSEEXPRESSIONS					= 0b000010; 
+const INITSERVICEDATA					= 0b10000; 
+const CHECKDIALOGDATA					= 0b01000; 
+const PARSEDIALOGDATA					= 0b00100; 
+const SHOWDIALOGDATA					= 0b00010; 
+const PARSEEXPRESSIONS					= 0b00001; 
 
-// Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg. For 'readonly' flag non-undefined <value> arg just set readonly status of html interface element of <e>
-function SetFlag(e, name, value)
-{
- let flag, placeholder = e.flag.indexOf('+');
- if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
-	{
-	 flag = e.flag.substring(0, placeholder);
-	 placeholder = Application.AdjustString(e.flag.substring(placeholder), Application.TAGATTRIBUTEENCODEMAP);
-	}
-  else
-	{
-	 flag = e.flag;
-	 placeholder = '';
-	}
-
- switch (name)
-		{
-		 case 'readonly':
-  			  let readonly, target;
-  			  try   { 
-		 			 readonly = eval(e.test); // Evaluate (test) element modified expression
-					}
-  			  catch { 
-		 			 app.lg('Evaluation exception detected on element:', e.test);
-		 			 delete e.expr;
-		 			 delete e.test;
-		 			 for (const element of this.elements) element.affect.delete(e.id);	// In case of error expression e.test - remove this element (<e>) id from all elements 'affect' property, so these elements can't affect to <e> readonly status due to incorrect e.test
-					 value = true;														// Set value to true to refresh html element readonly status
-		 			}
-  			  if (value === undefined) return readonly ? true : false;					// For undefined value (no flag set) return readonly flag value (readonly variable) only
-	   		  switch (e.type)															// Defined target (DOM element) for every element type and do some specific DOM element actions (readonly/disabled attributes for input elements and 'push' control element set for buttons)
-			  		 {
-			   		  case 'text':
-			   		  case 'textarea':
-			   		  case 'password':
-						   if (!this.Nodes.textinputs[e.id]) return;
-						   target = this.Nodes.textinputs[e.id];
-						   readonly ? target.setAttribute('readonly', '') : target.removeAttribute('readonly', '');
-						   break;
-			   		  case 'select':
-			   		  case 'multiple':
-			   		  case 'radio':
-			   		  case 'checkbox':
-						   if (!this.Nodes.selects[e.id]) return;
-						   target = this.Nodes.selects[e.id];
-						   if (!['radio', 'checkbox'].includes(e.type)) break;
-						   for (const inputtarget of [...target.querySelectorAll('input')]) readonly ? inputtarget.setAttribute('disabled', '') : inputtarget.removeAttribute('disabled', '');
-						   break;
-			   		  case 'table':
-						   if (!this.Nodes.tables[e.id]) return;
-						   target = this.Nodes.tables[e.id];
-						   break;
-			   		  case 'button':
-						   if (!this.Nodes.buttons[e.id]) return;
-						   target = this.Nodes.buttons[e.id];
-						   if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable for no readonly button
-						    else for (const i in this.props.control.push.elements) if (this.props.control.push.elements[i][0] === target && delete this.props.control.push.elements[i]) break; // The button is readonly, so delete button pushable feature via removing btn DOM element from 'push' control.elements array
-						   break;
-			   		 }
-	   		  readonly ? target.classList.add('readonlyfilter') : target.classList.remove('readonlyfilter'); // Add/remove readonly class (filter, cursor)
-			  return;
-		 case 'underline':
-			  if (value === undefined) return flag.includes('*');
-			  e.flag = value ? flag + '*' : flag.replaceAll('*', '');
-			  e.flag += placeholder;
-			  return;
-		 case 'placeholder':
-			  if (placeholder) return placeholder.substring(1);
-			  return e.type === 'select' ? 'Enter new profile name' : '';
-		 case 'sort':
-			  if (value === undefined) return `${flag.includes('a') ? 'alphabetical' : ''}${flag.includes('-') ? 'descending' : ''}`;
-			  if (!flag.includes('-')) e.flag = flag + '-';
-			   else e.flag = flag.includes('a') ? flag.replaceAll(/a|\-/g, '') : (flag + 'a').replaceAll('-', '');
-			  e.flag += placeholder;
-			  return;
-		 case 'interactive':
-			  return flag.includes('*') && e.type === 'button';
-		 case 'appliable':
-			  return flag.includes('a') && e.type === 'button';
-		 case 'autoapply':
-			  return (flag.split('+').length - 1) * 60 + flag.split('-').length - 1;
-		}
-}
- 
 // Function builds array by splitting (divided via '/') input arg data string to separate options and returns eponymous array. Element type 'type' defines checked options number: 'select' (single checked option only), 'radio' (none or single)
 function CreateSelectableElementOptions(e)
 {
@@ -240,6 +156,51 @@ function SortSelectableElementData(e)
  	e.options.sort((a, b) => (order * ((+a.id) - (+b.id))));			// Default appearance sorting
 }
 
+// Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg
+function SetFlag(e, name, value)
+{
+ let flag, placeholder = e.flag.indexOf('+');
+ if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
+	{
+	 flag = e.flag.substring(0, placeholder);
+	 placeholder = Application.AdjustString(e.flag.substring(placeholder), Application.TAGATTRIBUTEENCODEMAP);
+	}
+  else
+	{
+	 flag = e.flag;
+	 placeholder = '';
+	}
+
+ switch (name)
+		{
+		 case 'readonly':
+			  if (value === undefined) return flag.includes('!');
+			  e.flag = value ? flag + '!' : flag.replaceAll('!', '');
+			  e.flag += placeholder;
+			  return;
+		 case 'underline':
+			  if (value === undefined) return flag.includes('*');
+			  e.flag = value ? flag + '*' : flag.replaceAll('*', '');
+			  e.flag += placeholder;
+			  return;
+		 case 'placeholder':
+			  if (placeholder) return placeholder.substring(1);
+			  return e.type === 'select' ? 'Enter new profile name' : '';
+		 case 'sort':
+			  if (value === undefined) return `${flag.includes('a') ? 'alphabetical' : ''}${flag.includes('-') ? 'descending' : ''}`;
+			  if (!flag.includes('-')) e.flag = flag + '-';
+			   else e.flag = flag.includes('a') ? flag.replaceAll(/a|\-/g, '') : (flag + 'a').replaceAll('-', '');
+			  e.flag += placeholder;
+			  return;
+		 case 'interactive':
+			  return flag.includes('*') && e.type === 'button';
+		 case 'appliable':
+			  return flag.includes('a') && e.type === 'button';
+		 case 'autoapply':
+			  return (flag.split('+').length - 1) * 60 + flag.split('-').length - 1;
+		}
+}
+ 
 // Functions searches option in options array for the specfified <search> arg (type 'number' converted to string, 'string' is treated as an option id to search, shift for type 'boolean' with true=1 and false=-1 is used, and first checked option found for other types)
 // Corresponded option is returned at the end
 export function GetElementOption(e, search, loop)
@@ -461,7 +422,7 @@ export class DialogBox extends Interface
   if (!args[2].attributes) args[2].attributes = {};
   args[2]['attributes']['data-element'] = '_-1';
   super(...args);
-  this.RefreshDialog(INITSERVICEDATA | CHECKDIALOGDATA | PARSEDIALOGDATA | PARSEEXPRESSIONS | SHOWDIALOGDATA);
+  this.RefreshDialog(INITSERVICEDATA | CHECKDIALOGDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
  }
 
  // Refresh all dialog entities
@@ -469,17 +430,22 @@ export class DialogBox extends Interface
  {
   if (flag & INITSERVICEDATA) this.InitDialogServiceData();										// Init dialog data
   if (flag & PARSEDIALOGDATA) this.ParseDialogData(this.data, flag & CHECKDIALOGDATA);			// Parse dialog data :)
-  if (flag & PARSEEXPRESSIONS) for (const e of this.elements) this.ParseElementExpression(e);	// Create element expression to pass to eval func from original 'expr' element property
   if (flag & SHOWDIALOGDATA) this.ShowDialogBox();												// Show dialog data (dialog box:)
+  if (flag & PARSEEXPRESSIONS) for (const e of this.elements) this.ParseElementExpression(e);	// Adjust all elements 'expr' property
  }
 
- // Function parses expression 'e.expr' checking restricted chars and prop existing
+ // Function parses expression 'e.expr', checks its syntax (restricted chars, evaluating) and put parsed string back to the 'e.expr'
  ParseElementExpression(e)
  {
-  if (!('expr' in e) || !['button', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type))
-	 return delete e.expr;																							// Return and delete expression for non suitable element types
-  const matches = Array.from(e.expr.matchAll(EXPRISREGEXP));														// Search all regexp via pattern EXPRISREGEXP, the result array has 'index' property the position of the matched regexp is found on
-  if (!matches.length) return delete e.expr;																		// and return with delete for no match found case
+  if (e.expr === undefined) return;																					// Return for undefined expression
+  if (!['button', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type)) return delete e.expr;			// Return and delete expression for non suitable types
+  const matches = Array.from(e.expr.matchAll(EXPRISREGEXP));														// Search all regexp via pattern EXPRISREGEXP, the result array has .index property the position of the matched regexp is found on
+  if (!matches.length) //return delete e.expr;																		// and return with delete for no match found case
+      {
+		SetFlag(e, 'readonly', false);
+		delete e.expr;
+		return;
+	  }
 
   let currentpos = 0;
   let expression = '';
@@ -488,14 +454,23 @@ export class DialogBox extends Interface
    	  {
 	   if (currentpos < match.index)																				// If cursor current position lower than current regexp found
 		  {
-	   	   if (EXPRPROPDISALLOWEDCHARSREGEXP.test(e.expr.substring(currentpos, match.index))) return delete e.expr;	// then test non-regexp string (before the position the regexp is found) for allowed chars ['()&&||!'] and return for restricted chars found
-	   	   expression += e.expr.substring(currentpos, match.index);													// Collect to 'expression' var substring from current pos till match start index
+	   	   if (EXPRPROPDISALLOWEDCHARSREGEXP.test(e.expr.substring(currentpos, match.index)))// return delete e.expr;	// then test non-regexp string (before the position the regexp is found) for allowed chars ['()&&||!'] and return restricted chars found
+		         {
+		SetFlag(e, 'readonly', false);
+		delete e.expr;
+		return;
+	  }
+
+	   	   expression += e.expr.substring(currentpos, match.index);													// Collect match string to 'expression' var
 		  }
 	   currentpos = e.expr.indexOf(' ', match.index + match[0].length);												// Get position from the end of a regexp (match.index + match[0].length) for the 1st space found to parse the interface element property name
-	   let name = e.expr.substring(match.index + match[0].length, currentpos === -1 ? e.expr.length : currentpos);	// Parse element property name as a substring from the end of a regexp till the calculated space char position above
-	   if (!name) name = e.name;																					// For empty parsed name use current element one
-	   if (!(name in this.elementnames) || typeof this.elements[this.elementnames[name]]['data'] !== 'string')
-		  return delete e.expr;																						// Non existing element or element with non-string (undefined/object type) 'data' property ? Return
+	   const name = e.expr.substring(match.index + match[0].length, currentpos === -1 ? e.expr.length : currentpos);// Parse element property name as a substring from the end of a regexp till the calculated space char position above
+	   if (!(name in this.elementnames) || typeof this.elements[this.elementnames[name]]['data'] !== 'string') //return delete e.expr;	// Non existing element or element with undefined data? Return
+	         {
+		SetFlag(e, 'readonly', false);
+		delete e.expr;
+		return;
+	  }
 
 	   this.elements[this.elementnames[name]]['affect'].add(e.id);													// Add parsing expression element id to the calculated element (via its property name above) affect list
 	   elementids.add(this.elementnames[name]);																		// so add to the 'elementids' var too - just to clear its 'affect' in case of error expression
@@ -503,6 +478,73 @@ export class DialogBox extends Interface
 	   if (currentpos === -1) break;																				// The end of expression string is reached (index of space char to parse property name reached end of string), so break the cycle
 	  }
   e.test = expression;
+  this.EvaluateElementExpression([e.id]);
+ }
+
+ EvaluateElementExpression(expressionids)
+ {
+  if (!expressionids) return; // Return for unknown element with expression array
+  const refreshelementids = new Set(); // Element ids to refresh (change readonly status)
+  let e;
+  for (const id of expressionids)
+	  {
+	   let result;
+	   if (!(e = this.elements[id])) continue;
+	   try { result = eval(e.test); }
+	   catch { app.lg('Evaluation exception detected on element:', e); }
+	   if (result === undefined) // Result is undefined in case of eval exception
+		  {
+		   delete e.expr; // Delete 'expr' property and this element id from all other elements which data prop affects to
+		   SetFlag(e, 'readonly', false); 
+		   delete e.test;
+		   for (const element of this.elements) element.affect.delete(e.id);
+		   continue;
+		  }
+	   if ([0, 2].includes(+SetFlag(e, 'readonly') + +result)) continue; // Continue for no readonly and falsy result (0 + 0) or readonly and true result (1 + 1)
+	   SetFlag(e, 'readonly', result); // Otherwise set 'result' readonly status
+	   refreshelementids.add(e.id); // and add this element id 'refresh' set
+	  }
+  this.RefreshElementReadonlyAttribute(refreshelementids); // Change element readonly status for 'refresh' set
+ }
+
+ RefreshElementReadonlyAttribute(refreshelementids)
+ {
+  if (!refreshelementids?.size) return;
+  for (const id of refreshelementids)
+	  {
+	   let target;
+	   const e = this.elements[id];
+	   const readonly = SetFlag(e, 'readonly');
+	   switch (e.type) // Defined target (DOM element) for every element type and do some specific DOM element actions (readonly/disabled attributes for input elements and 'push' control element set for buttons)
+			  {
+			   case 'text':
+			   case 'textarea':
+			   case 'password':
+					if (!this.Nodes.textinputs[id]) continue;
+					target = this.Nodes.textinputs[id];
+					readonly ? target.setAttribute('readonly', '') : target.removeAttribute('readonly', '');
+					break;
+			   case 'select':
+			   case 'multiple':
+			   case 'radio':
+			   case 'checkbox':
+					if (!this.Nodes.selects[id]) continue;
+					target = this.Nodes.selects[id];
+					if (['radio', 'checkbox'].includes()) readonly ? target.setAttribute('disabled') : target.removeAttribute('disabled', '');
+					break;
+			   case 'table':
+					if (!this.Nodes.tables[id]) continue;
+					target = this.Nodes.tables[id];
+					break;
+			   case 'button':
+					if (!this.Nodes.buttons[id]) continue;
+					target = this.Nodes.buttons[id];
+	   				if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))])); // Set btn element (with all childs in) pushable for no readonly button
+					 else for (const i in this.props.control.push.elements) if (this.props.control.push.elements[i][0] === target && delete this.props.control.push.elements[i]) break; // The button is readonly, so delete button pushable feature via removing btn DOM element from 'push' control.elements array
+					break;
+			  }
+	   readonly ? target.classList.add('readonlyfilter') : target.classList.remove('readonlyfilter'); // Add/remove readonly class (filter, cursor)
+	  }
  }
 
  // Get interface element header+hint inner html for non title/button/padbar element types only
@@ -527,7 +569,7 @@ export class DialogBox extends Interface
  GetElementContentHTML(e, inner)
  {
   if (!e) return '';
-  const readonly = this.SetFlag(e, 'readonly');
+  const readonly = SetFlag(e, 'readonly');
   const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
   const dataattribute = `data-element="${uniqeid}"`;																								// Set html attribute to access this uniq id
   const styleattribute = e.style ? ` style="${Application.AdjustString(e.style, Application.TAGATTRIBUTEENCODEMAP)}"` : ``;
@@ -691,7 +733,7 @@ export class DialogBox extends Interface
 	 {
 	  this.props.control.push.elements = [];
   	  for (const i in this.Nodes.buttons)
-		  if (this.Nodes.buttons[i] && !this.SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))])); 
+		  if (this.Nodes.buttons[i] && !SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(Application.ELEMENTINNERALLOWEDTAGS.join(', '))])); 
 	 }
   this.RefreshControlIcons();
  }
@@ -701,7 +743,7 @@ export class DialogBox extends Interface
  {
   if (!this.elementDOM) return;
   for (const id in this.Nodes.textinputs)
-	  if (!this.SetFlag(this.elements[id], 'readonly')) return this.Nodes.textinputs[id].focus();
+	  if (!SetFlag(this.elements[id], 'readonly')) return this.Nodes.textinputs[id].focus();
  }
 
  RemoveTextInput()
@@ -724,7 +766,7 @@ export class DialogBox extends Interface
   style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
   e.data[name + flags + style] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
   e.options.push({origin: name + flags + style});
-  this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | PARSEEXPRESSIONS | SHOWDIALOGDATA); // and refresh dialog with a new profile added
+  this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS); // and refresh dialog with a new profile added
  }
 
  // Inheritance function that is called on mouse/keyboard events on dialog box
@@ -752,7 +794,7 @@ export class DialogBox extends Interface
 					   case 'Enter': // Enter key for btn-apply/profile-cloning
 					   case 'NumpadEnter':
 				   			if (this.Nodes.CloneInput) this.Nodes.CloneInput.input.blur();
-				   			else if ((e?.type === 'text' || e?.type === 'password') && !this.SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
+				   			else if ((e?.type === 'text' || e?.type === 'password') && !SetFlag(e, 'readonly'))	// For 'text' type and no readonly elements only
 				   	  				{
 					   				 for (id in this.Nodes.buttons)												// Go through all btns and apply first non readonly one
 					   	   				if (event = this.ButtonApply(this.elements[id])) return event;
@@ -773,7 +815,7 @@ export class DialogBox extends Interface
 			   if (ELEMENTTEXTTYPES.includes(e.type))
 				  {
 				   e.data = target.value;														// Get text element data directly from its DOM element value
-				   this.ChangeAllElementAffectIdsReadonlyStatus(e);
+				   this.EvaluateElementExpression(e.affect);
 				   break;
 				  }
 			   if (['radio', 'checkbox'].includes(e.type))
@@ -788,7 +830,7 @@ export class DialogBox extends Interface
 	       	   break;
 
 	  	  case 'mousedown':																		// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (!e || this.SetFlag(e, 'readonly')) break;											// Break for readonly element
+			   if (!e || SetFlag(e, 'readonly')) break;											// Break for readonly element
 			   if (event.button === 0 && event.buttons === 3)									// Left button down with right button hold? Do some element extra actions lower
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
@@ -882,27 +924,20 @@ export class DialogBox extends Interface
   if (!['boolean', 'number', 'string'].includes(typeof id)) return;
   if (!SetElementOption(e, id)) return;
   CreateSelectableElementData(e);
+  this.EvaluateElementExpression(e.affect);
+  if (e.type === 'select')
+	 {
+	  if (typeof e.data === 'object') this.RefreshDialog(SHOWDIALOGDATA);
+	   else target.innerHTML = this.GetElementContentHTML(e, true); // Show full dialog structure with new profile activate for profile selections or refresh element inner HTML otherwise
+	  return;
+	 }
   if (e.type === 'multiple') target.classList.toggle("selected");	// Refresh 'multiple' element via option class toggle. For other types (radio and checkbox) make no action due to its native form
-  if (e.type === 'select' && typeof e.data === 'object') return this.RefreshDialog(SHOWDIALOGDATA);
-  if (e.type === 'select') target.innerHTML = this.GetElementContentHTML(e, true); // Show full dialog structure with new profile activate for profile selections or refresh element inner HTML otherwise
-  this.ChangeAllElementAffectIdsReadonlyStatus(e);
  }
  
- ChangeAllElementAffectIdsReadonlyStatus(e)
- {
-  for (const id of e.affect) this.SetFlag(this.elements[id], 'readonly', true);
- }
-
- SetFlag(...args)
- {
-  const bindedFunction = SetFlag.bind(this, ...args);
-  return bindedFunction();
- }
-
  ButtonApply(e, target)
  {
   let events = [];
-  if (!['button', 'table'].includes(e.type) || this.SetFlag(e, 'readonly')) return;					// Return for disabled (or non button/table type) element
+  if (!['button', 'table'].includes(e.type) || SetFlag(e, 'readonly')) return;						// Return for disabled (or non button/table type) element
   if (e.type === 'button' && !SetFlag(e, 'appliable')) return { type: 'KILL', destination: this };	// Return dialog kill for non-appliable button
   if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;	// Return for non-appliable table element
 

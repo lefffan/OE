@@ -423,3 +423,4 @@ for (const classname in branchclasses)
      Sidebar.style[classname]['background-color'] = 'transparent;';
      Sidebar.style[classname]['padding'] = '0px 10px;';
     }
+    

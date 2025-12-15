@@ -1,12 +1,15 @@
-//
+import * as globalnames from './globalnames.js';
 
-function AddUser(element, value)
+// Function return element data for new objects od OD 'Users', function args: eid - element id to return data for, value - input data, username - user name to return data for (return events dialog structure for root user only)
+function AddUser(eid, value, username)
 {
- switch (element)
+ let dialog;
+
+ switch (eid)
         {
-         case 'username':
-              return `{ "cmd": "SET", "data": "${value}" }`;
-         case 'policy':
+         case '1': // username
+              return `{ "cmd": "SET", "data": "${value.replace(/\W|\!/g, '')}" }`;
+         case '2': // policy
 			  return {
                       title: { type: 'title', data: 'Policy settings' },
                       groups: { type: 'textarea', head: 'Groups~Enter group names one by line the user belongs to. User groups are defined here only and act as kind of user tags in any user specific permission/restriction settings. Any names in that kind of settings are interpreted as user names, in case of no user name - as a group name', data: '' },
@@ -17,24 +20,20 @@ function AddUser(element, value)
                       create: { type: 'checkbox', data: 'Restrict the user to create OD' },
                       run: { type: 'checkbox', data: 'Restrict the user to run Task Manager' },
                      };
-         case 'macroses':
+         case '3': // macroses
 			  return {
                       title: { type: 'title', data: 'Macroses' },
                       macroses: { type: 'select', flag: '+Enter new macros name', head: `Macros list~User macros list is an optional list of some text data associated with the specified macros, which may be used in any database configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored. Loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`,
-                                  data: { 'New macros~+-': { 10: { type: 'textarea', head: 'Macros value', data: '' },
+                                  data: { 'New macros~+': { 10: { type: 'textarea', head: 'Macros value', data: '' },
                                                              20: { type: 'textarea', head: 'Macros description', flag: '*', data: '' }
                                                            }
                                         }
                                 }
 
                      };
-         case 'customization':
-              return;
-         case 'events':
+         case '4': // customization
+              return globalnames.CUSTOMIZATIONDIALOG;
+         case '5': // events
               return;
         }
 }
-
-    //44: { type: 'select', head: 'Event list~Event list is a list client events, each event has its name, modifier keys and other settings. To create new event (the handler below will be called on) just clone "New event template"', data: { 'New event template': {
-    //50: { type: 'select', head: 'Select event', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
-    //60: { type: 'checkbox', head: 'Select modifier key~For the mouse and keyboards events only. Also note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser), so may not cancel client side default behaviour and may never occur', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },

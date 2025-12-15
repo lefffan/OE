@@ -9,6 +9,7 @@ import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
+import * as globalnames from './globalnames.js';
 
 const LOGINDIALOG = { title: { type: 'title', data: 'Login' },
                       username: { type: 'text', head: 'Username', data: 'root' },
@@ -109,7 +110,7 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(NEWOBJECTDATABASE)), this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER', attributes: { class: 'dialogbox selectnone' } });
+               new DialogBox(JSON.parse(JSON.stringify(globalnames.NEWOBJECTDATABASE)), this, { overlay: 'MODAL', animation: 'rise', position: 'CENTER', attributes: { class: 'dialogbox selectnone' } });
                break;
 	     case 'SETDATABASE': 
                this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.id } }); // Send new OD dialog data to controller via WS
@@ -156,7 +157,7 @@ export class Connection extends Interface
   catch (err)
         {
          app.lg(err);
-         setTimeout(this.Login.bind(this), 0, 'No server respond!');
+         setTimeout(this.Login.bind(this), 0, this.logintitle = 'No server respond!');
         }
  }
 
@@ -170,6 +171,7 @@ export class Connection extends Interface
  }
 }
 
+/*
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
                       General: {
                                 dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as an object database name, others before - as a folders. Empty folders are ignored` }, 
@@ -214,7 +216,7 @@ const VIEWPAD = {
                            limit: { type: 'textarea', head: 'ORDER BY, LIMIT, OFFSET, FETCH', data: '', flag: '*' },
                            linkname: { type: 'text', head: 'Object selection link name', data: '' }, }, 
                  Argumnets: {
-                           autoset: { type: 'checkbox', data: 'Auto', head: `This 'View' dialog definition args~All 'Object Database' configuration or/and this 'Object View' selection, layout (and others) specific text settings containing macroses may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before 'View' opening. Manually define dialog structure JSON in text area below or set it to 'Auto' for the dialog to be created automatically with input fields for all undefined macroses. Empty/error dialog structure with no 'Auto' option set (or no any macroses with 'Auto' set) - no dialog is called. Any valid dialog structure with no 'Auto' set is called anyway regardless of macroses in text settings and may be used as an info/warning message for the user before 'View' opening` },
+                           autoset: { type: 'checkbox', data: 'Auto', head: `Macros definition dialog~This 'View' layout/selection and rule message/query text settings containing macroses may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before 'View' opening. Manually define dialog structure JSON in text area below or set it to 'Auto' for the dialog to be created automatically with input fields for all undefined macroses. Empty/error dialog structure with no 'Auto' option set (or no any macroses with 'Auto' set) - no dialog is called. Any valid dialog structure with no 'Auto' set is called anyway regardless of macroses in text settings and may be used as an info/warning message for the user before 'View' opening` },
                            dialog: { type: 'textarea', head: ``, data: '', flag: '*' }, }, 
                  Layout: {
                            template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map' },
@@ -247,3 +249,31 @@ const NEWOBJECTDATABASE = {
                            SETDATABASE: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
                            cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
                           };
+*/
+
+/*							  
+   +--------+                                                                                       +------------+                                   +---------+                                     
+   |        | LOGIN[HTTP:Connection:username,password] ->		                                   |            |                                   |         |                
+   |        |     <- LOGINACK[HTTP:Controller:ip,proto,authcode]|LOGINERROR[HTTP:Controller:error]  |            |                                   |         |                
+   |        | CREATEWEBSOCKET[WS:Connection:userid,authcode) ->                                     |            |                                   |         |                
+   |        |              <- CREATEWEBSOCKETACK[WS:Controller]|DROPWEBSOCKET[WS:Controller]        |            |                                   |         |                
+   |        |                        		    		                                             |            |                                   |         |                
+   | Client | SIDEBARGET[WS:Controller] -> 			                                             | Controller |                                   | Handler |                
+   |        |                               <- SIDEBARSET[WS:Controller:odid,path,ov]               |            |                                   |         |                
+   |        |                        		                                        	          |            |                                   |         |                
+   |        | CREATEDATABASE[LOCAL:Sidebar] -> SETDATABASE[WS:Connection:dialogdata) ->			|            |                                   |         |                
+   |        |                                <- SIDEBARSET[...]|DIALOG[WS:Controller:dialogdata]    |            |                                   |         |                
+   |        |                        		    		                                             |            |                                   |         |                
+   |        | GETDATABASE[WS:Sidebar|Connection:odid] ->                                            |            |                                   |         |                
+   |        |                   			<- CONFIGUREDATABASE[WS:controller:dialog,odid] 	     |            |                                   |         |                
+   |        | SETDATABASE[WS:Connection:dialogdata,odid) ->           			               |            |                                   |         |                
+   |        | <- SIDEBARSET[WS:Controller:odid,path,ov]|SIDEBARDELETE[WS:Controller:odid]|DIALOG[WS]|            |                                   |         |                
+   |        |                        		    		                                             |            |                                   |         |                
+   |        |                        		    		                                             |            |                                   |         |                
+   |        | GETVIEW[WS:Sidebar|Connection:ovid,odid,childid,newwindow) -> 			          |            |                                   |         |                
+   |        |                              			  <- SETVIEW[WS:Connection:odid/ovid/childid)|            |                                   |         |                
+   |        |                                											|            |                                   |         |                
+   |        |                            				     <- SETVIEW[WS:Connection:odid/ovid)|            |                                   |         |                
+   |        |                        		    		                                             |            |                                   |         |                
+   +--------+                                                                                       +------------+                                   +---------+                                     
+*/

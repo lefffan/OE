@@ -464,7 +464,7 @@ export class Interface
  static MinimizeScreenControl(userevent, control, phase)
  {
   if (phase !== 'init' && phase !== 'release') return;																							// No minimize screen toggle for 'capture' phase
-  if (phase === 'release') control.child.elementDOM.classList.add('smooth');																	
+  if (phase === 'release') control.child.elementDOM.classList.add('smooth');
   const style = control.child.elementDOM.style;
 
   if (control.data)																																// Minimized screen state toggles to initial size
@@ -515,6 +515,7 @@ export class Interface
   if (!control.data) control.data = { resizingElement: control.child.elementDOM };																				// DOM element to change its width and height
   if (phase === 'capture')
 	 {
+	  control.child.elementDOM.classList.remove('smooth');
 	  [ control.data.x, control.data.y, control.data.rect ] = [ userevent.clientX, userevent.clientY, control.data.resizingElement.getBoundingClientRect() ];	// For 'capture' phase fix only mouse cursor coordinates and resizing element rectangle to calculate width and height at mouse move ('process' phase)
 	  return;
 	 }
@@ -528,6 +529,7 @@ export class Interface
   if (!userevent) return;
   if (phase === 'capture')																															// For 'capture' phase fix only relative mouse cursor coordinate offsets to calculate its left/right position at mouse move ('process' phase)
 	 {
+	  control.child.elementDOM.classList.remove('smooth');
 	  control.data = {};
 	  control.data.offsetx = userevent.clientX - control.child.elementDOM.offsetLeft + ElementScrollX(control.child.elementDOM.parentNode);
 	  control.data.offsety = userevent.clientY - control.child.elementDOM.offsetTop + ElementScrollY(control.child.elementDOM.parentNode);
@@ -771,28 +773,3 @@ const CHILDCONTROLTEMPLATES = {
 							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
 							   default: { callback: [] }, 
 							  };
-							  
-// +--------+                                                                                       +------------+                                   +---------+                                     
-// |        | LOGIN[HTTP:Connection:username,password] ->		                                    |            |                                   |         |                
-// |        |     <- LOGINACK[HTTP:Controller:ip,proto,authcode]|LOGINERROR[HTTP:Controller:error]  |            |                                   |         |                
-// |        | CREATEWEBSOCKET[WS:Connection:userid,authcode) ->                                     |            |                                   |         |                
-// |        |              <- CREATEWEBSOCKETACK[WS:Controller]|DROPWEBSOCKET[WS:Controller]        |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// | Client | SIDEBARGET[WS:Controller] -> 			                                              	| Controller |                                   | Handler |                
-// |        |                               <- SIDEBARSET[WS:Controller:odid,path,ov]               |            |                                   |         |                
-// |        |                        		                                        	          	|            |                                   |         |                
-// |        | CREATEDATABASE[LOCAL:Sidebar] -> SETDATABASE[WS:Connection:dialogdata) ->				|            |                                   |         |                
-// |        |                                <- SIDEBARSET[...]|DIALOG[WS:Controller:dialogdata]    |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        | GETDATABASE[WS:Sidebar|Connection:odid] ->                                            |            |                                   |         |                
-// |        |                   			<- CONFIGUREDATABASE[WS:controller:dialog,odid] 	    |            |                                   |         |                
-// |        | SETDATABASE[WS:Connection:dialogdata,odid) ->           			                    |            |                                   |         |                
-// |        | <- SIDEBARSET[WS:Controller:odid,path,ov]|SIDEBARDELETE[WS:Controller:odid]|DIALOG[WS]|            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// |        | GETVIEW[WS:Sidebar|Connection:ovid,odid,childid,newwindow) -> 			            |            |                                   |         |                
-// |        |                              			  <- SETVIEW[WS:Connection:odid/ovid/childid)	|            |                                   |         |                
-// |        |                                														|            |                                   |         |                
-// |        |                            				      <- SETVIEW[WS:Connection:odid/ovid)	|            |                                   |         |                
-// |        |                        		    		                                            |            |                                   |         |                
-// +--------+                                                                                       +------------+                                   +---------+                                     
