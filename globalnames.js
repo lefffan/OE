@@ -1,3 +1,5 @@
+console.log('Executing globalnames.js!!');
+
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
                       General: {
                                 dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as an object database name, others before - as a folders. Empty folders are ignored` }, 
@@ -225,21 +227,22 @@ for (const customization in CUSTOMIZATIONS)
 const OPTIONSDIVIDER              = '/';
 const CLIENTEVENTS                = ['INIT', 'DELETE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
 const handlerprofile              = {
-                                     type: { type: 'radio', head: 'Select handler type', data: 'Command line/Custom stdout/Module/None~!', expr: '//' },
-                                     data: { type: 'textarea', head: 'Enter data for specified handler type above', data: '', expr: '/None~!/type' },
-                                     output: { type: 'checkbox', head: 'Process next handler output only', data: 'correct JSON (stdout)~!/any output (stdout)/stderr/undefined', expr: '/None~!/type', flag: '!' },
-                                     action: { type: 'radio', head: 'Handler output action', data: 'Apply~!/Message/Ignore/Redirect to next step', flag: '*', expr: '/None~!/type' },
-                                     timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' or 'Module' handler types only`, data: '30', expr: '/None~!/type' },
-                                     retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Module' handler types only`, data: '0', expr: '/None~!/type' },
+                                     type: { type: 'radio', head: 'Select handler type', data: 'Command line/Fixed stdout/Eval/Disabled~!' },
+                                     data: { type: 'textarea', head: 'Enter data for specified handler type above', data: '', expr: '/Disabled~!/type' },
+                                     output: { type: 'checkbox', head: 'Process next handler output only', data: 'correct JSON (stdout)~!/any output (stdout)/stderr/undefined', expr: '/Disabled~!/type', flag: '!' },
+                                     action: { type: 'radio', head: 'Handler output action', data: 'Apply~!/Message/Ignore/Redirect to next step', flag: '*', expr: '/Disabled~!/type' },
+                                     timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '30', expr: '/Disabled~!/type' },
+                                     retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', expr: '/Disabled~!/type' },
                                     };
 const eventtemplate               = {
-                                     events: { type: 'select', head: 'Select event', data: `NONE${OPTIONSDIVIDER}` + CLIENTEVENTS.join(OPTIONSDIVIDER) },
+                                     //events: { type: 'select', head: 'Select event type', data: `NONE${OPTIONSDIVIDER}` + CLIENTEVENTS.join(OPTIONSDIVIDER) },
+                                     events: { type: 'select', head: 'Select event type', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
                                      modifier: { type: 'checkbox', head: 'Select modifier keys~For mouse and keyboard events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },
                                      step1: { type: 'select', head: 'Select a handler output data redirection step', data: { 'Step1': handlerprofile } } 
                                     };
-const eventlistprofiletemplate    = { 10: { type: 'select', head: 'Select event profile', data: { 'New event profile template~+': eventtemplate }, flag: '*' } };
+const eventlistprofiletemplate    = { 10: { type: 'select', head: 'Select event profile', data: { 'New event~+': eventtemplate }, flag: '*' } };
 export const EVENTPROFILINGDIALOG = { title: { type: 'title', data: 'Event profiling' },
-                                      eventprofiles: { type: 'select', head: 'Select event list profile', data: { 'New event list profile template~+': eventlistprofiletemplate } },
-                                      ok: { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' },
+                                      eventprofiles: { type: 'select', head: 'Select event group profile', data: { 'New event group~+': eventlistprofiletemplate } },
+                                      ok: { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' },
                                       cancel: { type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
                                     };

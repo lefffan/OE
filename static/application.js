@@ -247,7 +247,7 @@ export class Application extends Interface
 							break;
 					   case 'Help':
 			   				//new DialogBox(globalnames.CUSTOMIZATIONDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
-			   				new DialogBox(globalnames.EVENTPROFILINGDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+			   				new DialogBox(globalnames.EVENTPROFILINGDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODA', attributes: { class: 'dialogbox selectnone' } });
 							break;
 					  }
 		  	   break;

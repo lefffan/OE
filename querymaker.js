@@ -26,6 +26,8 @@ const REGEXPISUSERELEMENTCOLUMN           = new RegExp(`^${ELEMENTCOLUMNPREFIX}[
 const REGEXPSEARCHUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
 const PRIMARYKEYSTARTVALUE                = 3;
 
+console.log('Executing querymaker.js!!');
+
 export class QueryMaker
 {
  constructor()

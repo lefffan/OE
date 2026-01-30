@@ -15,6 +15,8 @@ const LAYOUTEVENTPROPS          = ['event', 'x', 'y', 'row', 'col'];
 const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'style', 'hint'];
 const NONEXPRESSIONCHARS        = /[^rcq\+\-\;\&\|\!\*\/0123456789\.\%\>\<\=\(\) ]/;
 
+console.log('Executing objectdatabase.js!!');
+
 export function GetTableNameId(name)
 {
  let pos = name.indexOf('_');
@@ -93,9 +95,10 @@ export function CalcMacrosValue(name, value, collect = [])
  collect.push(name);
 }
 
-export async function EditDatabase(msg, client)
+// Function creates new or edit existing OD received in msg and send a dialog msg to client socket in case of a error. Var <init> indicates the initial OD 'Users' creating by the main script
+export async function EditDatabase(msg, client, init)
 {
- if (!client) return; // No valid web socket client in controller clients map? Return
+ if (!client && !init) return; // No valid web socket client in controller clients map? Return
  let lastelementid = 0, lastviewid = 0, oldids = [];
  const transaction = await pool.connect();
  const restrictedsections = [];
@@ -122,11 +125,14 @@ export async function EditDatabase(msg, client)
 
  try {
       await transaction.query('BEGIN');
-      if (!CheckDatabaseConfigurationDialogStructure(msg.data.dialog)) // OD check is failed. Failed check is a faulsy result that means empty db name. For incorrect db structure exception is throwed and handled below
+
+      // OD check is failed. Failed check is a faulsy result that means empty db name. For incorrect db structure exception is throwed and handled below
+      if (!CheckDatabaseConfigurationDialogStructure(msg.data.dialog))
          {
           if (!msg.data.odid) // New OD creation
              {
-              client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: INCORRECTDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
+              lg(INCORRECTDBCONFDBNAME);
+              if (!init) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: INCORRECTDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
               await transaction.query('ROLLBACK');
               return;
              }
@@ -137,7 +143,9 @@ export async function EditDatabase(msg, client)
           await transaction.query('COMMIT');
           return;
          }
-      if (!msg.data.odid) // OD check is passed, so process new OD creation (undefined msg.data.odid)
+
+      // OD check is passed, so process new OD creation (undefined msg.data.odid)  
+      if (!msg.data.odid)
          {
           const tablelist = await transaction.query(...qm.Table().ShowTables().Make()); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
           msg.data.odid = 0;
@@ -191,13 +199,16 @@ export async function EditDatabase(msg, client)
                                                                                      dialog: {value: JSON.stringify(msg.data.dialog), escape: true},
                                                                                      lastelementid: elementclonedids.length ? elementclonedids.at(-1) : lastelementid,
                                                                                      lastviewid: viewclonedids.length ? viewclonedids.at(-1) : lastviewid }).Make());
-      // Old OD version element ids (oldids) doesn't exist in new OD version noncloned elements? If so - element was removed by client, so corresponded column should be dropped                                                                                     
+
+      // Old OD version element ids (oldids) doesn't exist in new OD version noncloned elements? If so - element was removed by client, so corresponded column should be dropped. For non initial db creating only
+      if (!init)
       for (const id of oldids)
           {
            if (elementnonclonedids.includes(id)) continue;
            await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNPREFIX}${id}`).Make());
            await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNPREFIX}${id}`).Make());
           }
+
       // Go through all OD elements and create a new column for data/metr tables associated with a new elements got from cloned ids. Create/drop column indexes also
       const e = GetDialogElement(msg.data.dialog, 'padbar/Element/elements');
       if (e) for (const option in e.data)
@@ -225,14 +236,16 @@ export async function EditDatabase(msg, client)
  catch (error)
      {
       await transaction.query('ROLLBACK');
-      client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: error.message, title: 'Error' } }));
       lg(error);
+      if (!init) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: error.message, title: 'Error' } }));
       return;
      }
  finally
      {
       transaction.release();
      }
+
+ if (init) return; // Return for initial db creating, otherwise check some restrictions and suck OD structure in memory below
  if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!`, title: 'Warning' } }));
  SuckLayoutAndQuery(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
  SendViewsToClients(msg.data.odid); // Refresh OD tree with its vews and folders to all wss clients

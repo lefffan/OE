@@ -1,5 +1,6 @@
 // Todo0 - Study the doc:
 //         NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
+//         NodeJS multithread https://tproger.ru/translations/guide-to-threads-in-node-js
 //         Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
 //         scrypt from openssl (passwords hashing)
 //         auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
@@ -10,6 +11,7 @@ import {} from './http.js';
 import { Controller } from './controller.js';
 import { QueryMaker } from './querymaker.js';
 import * as globalnames from './globalnames.js';
+import { EditDatabase } from './objectdatabase.js';
 
 const RANDOMSTRINGCHARS         = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const { Pool, Client }          = pg;
@@ -30,7 +32,8 @@ switch (process.argv[2])
         case 'reset':
              console.log('Dropping all existing and creating initial user database..');
              const userdb = JSON.parse(JSON.stringify(globalnames.NEWOBJECTDATABASE));
-             
+             userdb.padbar.data.Database.settings.data.General.dbname.data = 'Users';
+             EditDatabase({ type: 'SETDATABASE', data: { dialog: userdb } }, null, true);
              process.exit(0);
              // ended here - make sitch/case for app start/reset, then edit new db template to userdb and create a root user
         default:

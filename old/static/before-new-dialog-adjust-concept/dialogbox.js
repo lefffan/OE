@@ -1,8 +1,3 @@
-// Dialog data consists of some GUI elements with next format:
-// { type: select, data: 
-//  					option1: { element1: {}, element2: {type: data:  }, element3: {}, }
-//  					option2: {..}
-// }
 // Dialog data consists of profiles and its options. Profiles consist of options only. Options consist of profiles and interface elements
 // Root profile selection is an usual pad bar, non root - dropdown list option selection
 // Single option profile selection is hidden until the profile head/hint)is set. Multiple options - selection list is always displayed.
@@ -16,10 +11,10 @@
 // For all types except 'title'/'button' - in case of incorrect/undefined data, interface element is frozen and its purpose is to display head/divider only
 // 										   For all these types: 'head' - interface element header inner html with optional divider '/' with text after set as a hint
 // interface element type 'title': 'data' is a dialog title inner html. This prop of any path first appearance sets the title as a default one.
-// 								First title element appeared acts as a default one, default title is used in case of no any other title in active profile bundle. Undefined title element 'data' sets it invisible
+// 								The title will be displayed until any other title appeared in an active profile bundle. Undefined 'data' sets title invisible
 // text types 'textarea', 'text', 'password': 'data' is an interface element text content,
 // 											  'flag - divider(*), readonly(!), placeholder attribute (+),
-// 										      'expr' is a combination of strings like `/regexp/prop_name` via logical operators `&& || ! ( )` to manage element readonly status. 'expr' true value - the element becomes readonly and vice versa. Undefined/incorrect 'expr' has negative value. Strings <regexp> and <prop_name> cannot include slash char '/' cause it's used divider between regexp and property name the data to be tested on. String <prop_name> is optional, so absent one forces the regexp test to be done on its own element data. To force element to be always readonly use /^/ as an expr, for a example.
+// 										      'expr' is a combination of `/regexp/prop_name` via logical operators `&& || ! ( )`. In case of no readonly flag set and this 'expr' true value - the element becomes readonly. Undefined/incorrect 'expr' has negative value
 // selectable types 'select', 'multiple', 'checkbox', 'radio': 'data' is an interface element content of selectable options divided by '/'. Options with char '!' before are considered as a selected/checked one,
 //															   'flag' - divider(*), sort order(a-), readonly(!),
 // 															   'expr' - see text type description
@@ -37,9 +32,11 @@
 
 // Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
 // Todo2 - Multuiple flag * creates rounded area arount GUI element. 
+// Todo2 - Review all css props, its content props, some for builtin conf (index.html), some for configurable GUI via user customization
+// Todo2 - make "cursor: not-allowed;" for disabled buttons like in VMWARE vcenter
+// Todo1 - icon control for pad area sort order
 // Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
-// Todo0 - Use adjusted dialog data (without service props like id, padarea, options..) at interactive (or for non interactive too?) mode just the pure dialog data to be passed to the controller
-// Todo0 - table btn push should call the controller/callback with element 'table' data?
+// Todo0 - what if regexp in 'expr' contains '/' char? May be ignore regexp string end at these two chars: '\/' ?
 
 import { app } from './application.js';
 import { Application } from './application.js';
@@ -47,7 +44,7 @@ import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
 
 const EMPTYOPTIONTEXT					= ' ';
-const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 10240;
+const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 1024;
 const BUTTONTIMERMAXSECONDS				= 60 * 60 * 24 * 7; // One week
 const ELEMENTUSERPROPS					= { type: undefined, flag: '', head: undefined, data: undefined, style: undefined, expr: undefined };
 const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
@@ -62,11 +59,11 @@ const FIELDSDIVIDER						= '~';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 const DIALOGBOXMACROSSTYLE				= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
-const CHECKSYNTAX						= 0b10000; 
-const SETSERVICEDATA					= 0b01000; 
-const SHOWDIALOGDATA					= 0b00100; 
-const RESTOREINITIALORDER				= 0b00010; 
-const CLEARELEMENTFROMUNNECESSARYPROPS	= 0b00001; 
+const INITSERVICEDATA					= 0b100000; 
+const CHECKDIALOGDATA					= 0b010000; 
+const PARSEDIALOGDATA					= 0b001000; 
+const SHOWDIALOGDATA					= 0b000100; 
+const PARSEEXPRESSIONS					= 0b000010; 
 
 // Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg. For 'readonly' flag non-undefined <value> arg just set readonly status of html interface element of <e>
 function SetFlag(e, name, value)
@@ -166,27 +163,25 @@ function CreateSelectableElementOptions(e)
  // Option structure: <name~flags~style>, where flags are: checked, clonable, removable, cloned
  for (let origin in list)
      {
+      if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) break;	// Options number exceeds max allowed? Break
 	  origin = Array.isArray(list) ? list[origin] : origin;				// Get full option name with flags and style joined via divider
 	  [name, flag, ...style] = origin.split(FIELDSDIVIDER);			// Split it to get option name without flags, flag and style
 	  if (typeof e.data === 'object')
 		 {
-		  if (names.has(name)) delete e.data[origin];		// Option name (profile) without flags has already exist in e.data profile list? Delete it and continue
-		  if (names.has(name)) continue;
+		  if (names.has(name) && delete e.data[origin]) continue;		// Option name (profile) without flags has already exist in e.data profile list? Delete it and continue
 	  	  names.add(name);
 	  	 }
-	  const option = { id: e.options.length + '',					// Push option object with all its values and flags
-					   origin: origin,
-					   name: name,
-					   inner: Application.AdjustString(name ? name : EMPTYOPTIONTEXT, Application.HTMLINNERENCODEMAP),
-					   checked: (flag || '').includes(OPTIONISCHECKED),
-					   clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
-					   removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
-					   cloned: (flag || '').includes(OPTIONISCLONED) && typeof e.data === 'object',
-					   style: style.length ? style.join(FIELDSDIVIDER) : '',
-					   styleattribute: style.length ? ` style="${style.join(FIELDSDIVIDER)}"` : `` };
-	  if (e.options.push(option) > DIALOGSELECTABLEELEMENTMAXOPTIONS) return;	// Options number exceeds max allowed? Return faulsy result to delete element as an error one
+	  e.options.push({	id: e.options.length + '',					// Push option object with all its values and flags
+						origin: origin,
+					   	name: name,
+					   	inner: Application.AdjustString(name ? name : EMPTYOPTIONTEXT, Application.HTMLINNERENCODEMAP),
+					   	checked: (flag || '').includes(OPTIONISCHECKED),
+					   	clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
+					   	removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
+					   	cloned: (flag || '').includes(OPTIONISCLONED) && typeof e.data === 'object',
+					   	style: style.length ? style.join(FIELDSDIVIDER) : '',
+					   	styleattribute: style.length ? ` style="${style.join(FIELDSDIVIDER)}"` : `` });
      }
- return true;
 }
 
 // Function creates and returns selectable element data from option list 'options'
@@ -318,7 +313,7 @@ function GetEventTargetInterfaceElement(target)
  return attribute ? [attribute.substr(attribute.indexOf('_') + 1), target] : [];	// Return result array with interface element id (string after char '_') and element target (wrapped DOM element)
 }
 
-// Check element syntax
+ // Check element syntax
 function CheckElementSyntax(e)
 {
  if (!e || typeof e !== 'object' || !ELEMENTALLTYPES.includes(e.type)) return; // Return falsy value for incorrect element
@@ -406,6 +401,58 @@ export class DialogBox extends Interface
 	"textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
  };
 
+ // Init <elements> (element list), elementnames (element ids list via names) and <Nodes> keeping autoapply buttons alive to retreive its timer data after dialog refresh
+ InitDialogServiceData()
+ {
+  this.elements = [];
+  this.elementnames = {};
+ }
+
+ // Check all dialog interface elements and clear them from unnecessary props
+ // Dialog data consists of some GUI elements with next types:
+ // Gui elements can be set in any order, but first title appeard is default title.
+ // { type: select, data: 
+ //  					option1: { element1: {}, element2: {type: data:  }, element3: {}, }
+ //  					option2: {..}
+ // }
+ ParseDialogData(profile, syntax, service = true)
+ {
+  let elementcount = 0;
+  if (typeof profile === 'object') for (const elementname in profile)
+  	 {
+	  const e = profile[elementname];
+	  if (!e || typeof e !== 'object') continue;
+	  if (e.type === 'select' && typeof e.data === 'object' && Array.isArray(e.options)) // Profile clone/remove breaks default appearance initial sort order for already inited selections, so set it back as it was at initial time
+		 {
+		  const flag = e.flag;
+		  const newdata = {};
+		  e.flag = '';
+		  SortSelectableElementData(e);
+		  for (const option of e.options) newdata[option.origin] = e.data[option.origin];
+		  [e.data, e.flag] = [newdata, flag];
+		}
+	  if (syntax && !CheckElementSyntax(e) && delete profile[elementname]) continue;
+	  if (e.type === 'select' && typeof e.data === 'object')
+		 {
+		  let optioncount = 0;
+		  for (const i in e.data) optioncount < DIALOGSELECTABLEELEMENTMAXOPTIONS && this.ParseDialogData(e.data[i], syntax, service) ? optioncount++ : delete e.data[i]; // Options number exceeds max allowed or dialog parse returns no elements? Delete option
+		  if (!optioncount && delete e.data) if (syntax && !CheckElementSyntax(e) && delete profile[elementname]) continue; // For zero option count delete 'data' prop and check element syntax again. So delete element of itself for no pass syntax check and continue
+		 }
+	  elementcount++;
+	  if (!service) continue;
+	  if (ELEMENTSELECTABLETYPES.includes(e.type)) CreateSelectableElementOptions(e);
+	  if (ELEMENTSELECTABLETYPES.includes(e.type)) CorrectCheckedOptions(e);
+	  if (ELEMENTSELECTABLETYPES.includes(e.type)) SortSelectableElementData(e); // Create parsed options array for selectable elements
+	  e.id = this.elements.length; e.uplink = profile; //hui// this.elementnames[elementname] = e.id = this.elements.length;
+	  e.name = elementname;
+	  this.elements.push(e); // Insert user defined element to the 'allelements' global array
+	  e.affect = new Set();	// Add empty set collection to all elements which data can affect to other elements readonly flag. Old version: if ([...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type)) e.affect = new Set();
+	  if (elementcount === 1 && e.type === 'select' && typeof e.data === 'object' && profile === this.data) e.padbar = true;
+	 }
+  if (profile === this.data && !elementcount) this.data = {}; // No valid dialog structure? Set it empty
+  return elementcount;
+ }
+ 
  // Init dialog specific data with overriding 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1) for the search to be terminated on. Call then parent constructor for the given args (data, parentchild, props)
  constructor(...args)
  {
@@ -414,7 +461,57 @@ export class DialogBox extends Interface
   if (!args[2].attributes) args[2].attributes = {};
   args[2]['attributes']['data-element'] = '_-1';
   super(...args);
-  this.RefreshDialog(CHECKSYNTAX | SETSERVICEDATA | SHOWDIALOGDATA);
+  this.RefreshDialog(INITSERVICEDATA | CHECKDIALOGDATA | PARSEDIALOGDATA | PARSEEXPRESSIONS | SHOWDIALOGDATA);
+ }
+
+ // Refresh all dialog entities
+ RefreshDialog(flag)
+ {
+  if (flag & INITSERVICEDATA) this.InitDialogServiceData();										// Init dialog data
+  if (flag & PARSEDIALOGDATA) this.ParseDialogData(this.data, flag & CHECKDIALOGDATA);			// Parse dialog data :)
+  if (flag & PARSEEXPRESSIONS) for (const e of this.elements) this.ParseElementExpression(e);	// Create element expression to pass to eval func from original 'expr' element property
+  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();												// Show dialog data (dialog box:)
+ }
+
+ // Function parses expression 'e.expr' checking restricted chars and prop existing
+ ParseElementExpression(e)
+ {
+  if (!('expr' in e) || !['button', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type))
+	 return delete e.expr;																							// Return and delete expression for non suitable element types
+  const matches = Array.from(e.expr.matchAll(EXPRISREGEXP));														// Search all regexp via pattern EXPRISREGEXP, the result array has 'index' property the position of the matched regexp is found on
+  if (!matches.length) return delete e.expr;																		// and return with delete for no match found case
+
+  let currentpos = 0;
+  let expression = '';
+  const elementids = new Set();
+  for (const match of matches)																						// Go through all matches
+   	  {
+	   if (currentpos < match.index)																				// If cursor current position lower than current regexp found
+		  {
+	   	   if (EXPRPROPDISALLOWEDCHARSREGEXP.test(e.expr.substring(currentpos, match.index))) return delete e.expr;	// then test non-regexp string (before the position the regexp is found) for allowed chars ['()&&||!'] and return for restricted chars found
+	   	   expression += e.expr.substring(currentpos, match.index);													// Collect to 'expression' var substring from current pos till match start index
+		  }
+	   currentpos = e.expr.indexOf(' ', match.index + match[0].length);												// Get position from the end of a regexp (match.index + match[0].length) for the 1st space found to parse the interface element property name
+	   let name = e.expr.substring(match.index + match[0].length, currentpos === -1 ? e.expr.length : currentpos);	// Parse element property name as a substring from the end of a regexp till the calculated space char position above
+	   if (!name) name = e.name;																					// For empty parsed name use current element one
+
+
+	   if (typeof e.uplink[name]?.['data'] !== 'string') return delete e.expr;																						// Non existing element or element with non-string (undefined/object type) 'data' property ? Return
+	   e.uplink[name]['affect'].add(e.id);													// Add parsing expression element id to the calculated element (via its property name above) affect list
+	   expression += match[0] + ".test(this.elements[e.uplink['" + name + "'].id]['data'])";					// Collect new expression in js format to pass it to eval function
+	   if (currentpos === -1) break;																				// The end of expression string is reached (index of space char to parse property name reached end of string), so break the cycle
+
+	   /*
+	   if (!(name in this.elementnames) || typeof this.elements[this.elementnames[name]]['data'] !== 'string')
+		  return delete e.expr;																						// Non existing element or element with non-string (undefined/object type) 'data' property ? Return
+
+	   this.elements[this.elementnames[name]]['affect'].add(e.id);													// Add parsing expression element id to the calculated element (via its property name above) affect list
+	   elementids.add(this.elementnames[name]);																		// so add to the 'elementids' var too - just to clear its 'affect' in case of error expression
+	   expression += match[0] + ".test(this.elements[this.elementnames['" + name + "']]['data'])";					// Collect new expression in js format to pass it to eval function
+	   if (currentpos === -1) break;																				// The end of expression string is reached (index of space char to parse property name reached end of string), so break the cycle
+		  */
+	  }
+  e.test = expression;
  }
 
  // Get interface element header+hint inner html for non title/button/padbar element types only
@@ -542,6 +639,54 @@ export class DialogBox extends Interface
 	  }
  }
 
+ ShowDialogBox()
+ {
+  let inner = { title: '', padarea: '', mainarea: '', footer: '' };
+  this.Nodes = this.Nodes ? { autoapplybuttons: this.Nodes.autoapplybuttons, textinputs: {}, selects: {}, tables: {}, buttons: {}, CloneInput: this.Nodes.CloneInput } : { autoapplybuttons: new Map(), textinputs: {}, selects: {}, tables: {}, buttons: {} };
+  this.GetDialogInner(inner); // Get dialog inner for each area
+
+  if (inner.padarea || inner.mainarea) inner.mainarea = `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`; // Wrap pad/main area to div
+  if (inner.footer) inner.footer = `<div class="footer">${inner.footer}</div>`; // so do footer..
+  inner.title += inner.mainarea + inner.footer; // Collect title, content and footer to title
+  if (!inner.title) return;
+  this.elementDOM.innerHTML = inner.title; // and set it to dialog root DOM element
+
+  for (const [e, button] of this.Nodes.autoapplybuttons) // Go through all auto apply btns and delete with timer clear any btn not in all btn list (Nodes.buttons)
+	  {
+	   if (e.id in this.Nodes.buttons) continue;
+	   clearTimeout(button.timeoutid);
+	   this.Nodes.autoapplybuttons.delete(e);
+	  }
+  for (const id in this.Nodes.buttons) // Then all btns in <button> set object are checked on 'autoapply' feature and added to Nodes.autoapplybuttons object (if not exist) with new timers or left with old timers (if exist)
+	  {
+	   const e = this.elements[id];
+	   if (this.Nodes.autoapplybuttons.has(e)) continue;
+	   const timer = Math.min(SetFlag(e, 'autoapply'), BUTTONTIMERMAXSECONDS) * 1000;
+	   if (timer) this.Nodes.autoapplybuttons.set(e, { timer: timer, timerstart: new Date().getTime(), timeoutid: setTimeout(() => this.ButtonTimer(e), 0) });
+	  }
+
+  for (let target of [...this.elementDOM.querySelectorAll('.boxcontentwrapper, .title, .padbar, input, textarea, .select, .boxtable, .button')]) // Go through all dialog DOM elements to set them to <Nodes> object in appropriate sub objects 
+	  {
+	   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') target.addEventListener('input', this.Handler.bind(this)); // not forgetting to add listeners on native input elements to intercept its data keeping it in actual state at main dialog data object
+	   if (target.classList.contains('boxcontentwrapper')) this.Nodes.contentwrapper = target;
+	   let e, id;
+  	   [id, target] = GetEventTargetInterfaceElement(target); // Define the clicked element 'id' and its wrapped target
+  	   if (!(e = this.elements[id])) continue;
+	   if (e.type === 'title') this.Nodes.title = target;
+	   if (ELEMENTTEXTTYPES.includes(e.type)) this.Nodes.textinputs[e.id] = target;
+	   if (ELEMENTSELECTABLETYPES.includes(e.type)) this.Nodes.selects[e.id] = target;
+	   if (e.padbar) this.Nodes.padbar = target;
+	   if (e.type === 'table') this.Nodes.tables[e.id] = target;
+	   if (e.type === 'button') this.Nodes.buttons[e.id] = target;
+	  }
+
+  // Set 'fullscreendblclick' and 'drag' with 'push' controls <elements> property
+  this.RefreshControlElements();
+
+  // Set focus to the first found text element
+  setTimeout(this.SetFirstTextElementFocus.bind(this), 401); // Old version is not suitable due to incomplete animation, so unknown element to focus: requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
+ }
+
  // Refresh dialog drag, icon and push control elements not forgetting to refresh its icons via function 'RefreshControlIcons' direct call
  RefreshControlElements()
  {
@@ -577,20 +722,31 @@ export class DialogBox extends Interface
   delete this.Nodes.CloneInput;																							
  }
 
+ DialogProfileElementsAdjust(profile, recursive, callback)
+ {
+  for (const ename in profile)
+	  {
+	   const e = profile[ename];
+	   callback(profile, ename);
+	   if (recursive && e?.type === 'select' && e.data && typeof e.data === 'object')
+		  for (const profilename in e.data) this.DialogProfileElementsAdjust(e.data[profilename], true, callback);
+	  }
+ }
+
  CloneNewProfile(e)
  {
   if (this.Nodes.CloneInput.esc) return; // Pressed Esc btn caused blur event, so profile cloning is not needed
   let name, flags, style;
   [name, flags, ...style] = this.Nodes.CloneInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
   for (const option of e.options) if (option.name === name) return app.MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error'); // Check name exist in e.data profile list and return warning msg in success
-  if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) return app.MessageBox(this.parentchild, `The number of options exceeds the limit of ${DIALOGSELECTABLEELEMENTMAXOPTIONS}!`, 'Clone error'); // Check option number limit
   flags = FIELDSDIVIDER + (flags || '');
   if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
   style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
   
+  this.DialogProfileElementsAdjust(this.data, true, (profile, ename) => delete profile[ename]?.uplink);
   e.data[name + flags + style] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
   e.options.push({origin: name + flags + style});
-  this.RefreshDialog(SETSERVICEDATA | SHOWDIALOGDATA); // and refresh dialog with a new profile added
+  this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | PARSEEXPRESSIONS | SHOWDIALOGDATA); // and refresh dialog with a new profile added
  }
 
  // Inheritance function that is called on mouse/keyboard events on dialog box
@@ -707,9 +863,8 @@ export class DialogBox extends Interface
 					   if (event.target.classList.contains('itemremove'))								// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   if (e.options.length === 1 && !app.MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error')) break;
-						   this.RestoreInitialOrder(e);
 						   delete e.data[GetElementOption(e).origin];									// Removing current profile
-						   this.RefreshDialog(SETSERVICEDATA | SHOWDIALOGDATA);
+						   this.RefreshDialog(INITSERVICEDATA | PARSEDIALOGDATA | SHOWDIALOGDATA | PARSEEXPRESSIONS);
 						   break;
 						  }
 					   if (e.padbar)																	// Pad selection?
@@ -773,238 +928,13 @@ export class DialogBox extends Interface
   if (e.type === 'button' && !SetFlag(e, 'appliable')) return { type: 'KILL', destination: this };	// Return dialog kill for non-appliable button
   if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;	// Return for non-appliable table element
 
-  // Element is appliable
-  if (SetFlag(e, 'appliable'))
+  if (SetFlag(e, 'appliable')) // Element is appliable
 	 {
-	  events.push({ type: e.type === 'button' ? this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id) : target.attributes['data-id']?.value, data: e.data, destination: this.parentchild });
+	  events.push({ type: e.type === 'button' ? e.name : target.attributes['data-id']?.value, data: e.data, destination: this.parentchild });
+  	  this.ParseDialogData(this.data, true, false);
 	 }
 
-  // Button is non interactive and element is not a table? Add KILL event 
-  if (!SetFlag(e, 'interactive') && e.type !== 'table')
-	 {
-	  events.push({ type: 'KILL', destination: this });
-	  this.RefreshDialog(RESTOREINITIALORDER | CLEARELEMENTFROMUNNECESSARYPROPS);
-	 }
+  if (!SetFlag(e, 'interactive') && e.type !== 'table') events.push({ type: 'KILL', destination: this }); // Button is non interactive and element is not a table? Add KILL event
   return events;
- }
-
- // Function goes through dialog <profile> elements calling <callback> function for each one. Root <profile> and true <recursive> args iterate all dialog elements
- DialogProfileElementsAdjust(profile, recursive, callback, ...args)
- {
-  for (const ename in profile)
-	  {
-	   const e = profile[ename];
-	   const result = callback(profile, ename, ...args);
-	   if (result !== undefined) return result;
-	   if (recursive && e?.type === 'select' && e.data && typeof e.data === 'object')
-		  for (const profilename in e.data)
-			  {
-			   const result = this.DialogProfileElementsAdjust(e.data[profilename], true, callback, ...args);
-			   if (result !== undefined) return result;
-			  }
-	  }
- }
-
- // Refresh specified dialog entities
- RefreshDialog(flag)
- {
-  if (flag & CHECKSYNTAX) this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
-  if (flag & SETSERVICEDATA) this.InitDialogData();																					// Init dialog data for SETSERVICEDATA flag set
-  if (flag & SETSERVICEDATA) this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this)); // Set every element service data (id, option array, padbar..)
-  if (flag & SETSERVICEDATA) this.DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);						// Create element expression to pass to eval func from original 'expr' element property
-  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																					// Show dialog box creating html from dialog data initial source (this.data)
-  if (flag & RESTOREINITIALORDER) this.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
-  if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) this.DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);// Clear element from unnecessary props
- }
-
- // Init <elements> (element list)
- InitDialogData()
- {
-  this.elements = [];
- }
-
- // Function checks element syntax and clears element from unnecessary props
- DialogProfileElementCheckSyntax(profile, ename)
- {
-  // Delete incorrect element
-  if (!profile[ename] || typeof profile[ename] !== 'object' || !ELEMENTALLTYPES.includes(profile[ename].type)) 
-	 {
-	  delete profile[ename];
-	  return;
-	 }
-  const e = profile[ename];
-
-  // Go through all element available props to check their values
-  for (const prop in ELEMENTUSERPROPS)
-	  {
-	   if (prop === 'data' && ['select', 'table'].includes(e.type) && e.data && typeof e.data === 'object' && Object.keys(e.data).length) continue; // Skip element property 'data' with real object type for select/table elements only
-	   if (typeof e[prop] !== 'string') ELEMENTUSERPROPS[prop] === undefined ? delete e[prop] : e[prop] = ELEMENTUSERPROPS[prop]; // Fallback to the default value `ELEMENTUSERPROPS[prop]` in case of non string type
-	  }
-
-  // Element check depending on its type
-  switch (e.type)
-	  	 {
-		  case 'title':
-			   break; 																			 // All titles are correct. Title undefined data makes it invisible, so such title last appearance in active profile bundle draws dialog with no title
-		  case 'button':
-			   if (typeof e.data !== 'string' && !SetFlag(e, 'autoapply')) delete profile[ename];// Invisible non-autoapply btns are incorrect
-			   break;
-		  default:
-			   if (!e.head && !('data' in e) && !SetFlag(e, 'underline')) delete profile[ename]; // Element is incorrect for a absent/empty head, no data prop and no underline flag
-		 }
- }
-
- // Restore profile selection element initial options order. Profile clone/remove breaks default appearance initial sort order for already inited selections, so set it back below as it was at initial time 
- RestoreInitialOrder(profile, ename)
- {
-  const e = ename === undefined ? profile : profile[ename]; // The function may be called with single arg only (e) or from wrapper above with two args (profile, ename)
-  if (e?.type !== 'select' || typeof e.data !== 'object' || !Array.isArray(e.options)) return;
-  const flag = e.flag;
-  const newdata = {};
-  e.flag = '';
-  SortSelectableElementData(e);
-  for (const option of e.options) newdata[option.origin] = e.data[option.origin];
-  [e.data, e.flag] = [newdata, flag];
- }
-
- // Function clears element from unnecessary props
- ClearElementUnnecessaryProps(profile, ename)
- {
-  const e = profile[ename];
-  if (!e || typeof e !== 'object') return;
-  for (const prop in e) if (!(prop in ELEMENTUSERPROPS)) delete e[prop];
- }
-
- DialogProfileElementSetServiceData(profile, ename)
- {
-  // Clear element from unnecessary props
-  const e = profile[ename];
-  this.ClearElementUnnecessaryProps(e);
- 
-  // Create selectable element parsed options array and delete it in case of options number exceed
-  if (ELEMENTSELECTABLETYPES.includes(e.type) && !CreateSelectableElementOptions(e))
-	 {
-	  delete profile[ename];
-	  return;
-	 }
-
-  // Check option if no any checked, remove multiple checked, etc..
-  if (ELEMENTSELECTABLETYPES.includes(e.type)) CorrectCheckedOptions(e);
-  if (ELEMENTSELECTABLETYPES.includes(e.type)) SortSelectableElementData(e);
-
-  // Insert user defined element to the 'allelements' global array and add empty set collection to all elements which data can affect to other elements readonly flag
-  e.id = this.elements.length;
-  this.elements.push(e);
-  e.affect = new Set();
-
-  // Set service prop 'padbar' for 1st appeared profile selection element of root profile forcing it to act as a pad bar at the top dialog box
-  for (const name in profile)
-	  {
-	   if (profile === this.data && profile[name]?.type === 'select' && typeof profile[name].data === 'object') profile[name].padbar = true;
-	   break;
-	  }
- }
-
- // Function parses expression 'e.expr' checking restricted chars and prop existing
- ParseElementExpression(profile, ename)
- {
-  // Return and delete expression for absent 'expr' or non suitable element types
-  const e = profile[ename];
-  if (!('expr' in e) || !['button', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES].includes(e.type))
-	 {
-	  delete e.expr;
-	  return;
-	 }
-
-  // Search all regexp via pattern EXPRISREGEXP, the result array has 'index' property the position of the matched regexp is found on and return with delete for no match found case
-  const matches = Array.from(e.expr.matchAll(EXPRISREGEXP));
-  if (!matches.length)
-	 {
-	  delete e.expr;
-	  return;
-	 }
-
-  // Go through all matches and replace it them with object vars to be tested on change
-  let currentpos = 0;
-  let expression = '';
-  for (const match of matches)
-   	  {
-	   if (currentpos < match.index)																				// If cursor current position lower than current regexp found
-		  {
-	   	   if (EXPRPROPDISALLOWEDCHARSREGEXP.test(e.expr.substring(currentpos, match.index)))						// then test non-regexp string (before the position the regexp is found) for allowed chars ['()&&||!'] and return for restricted chars found
-	 		  {
-	  		   delete e.expr;
-	  		   return;
-	 		  }
-	   	   expression += e.expr.substring(currentpos, match.index);													// Collect to 'expression' var substring from current pos till match start index
-		  }
-	   currentpos = e.expr.indexOf(' ', match.index + match[0].length);												// Get position from the end of a regexp (match.index + match[0].length) for the 1st space found to parse the interface element property name
-	   let name = e.expr.substring(match.index + match[0].length, currentpos === -1 ? e.expr.length : currentpos);	// Parse element property name as a substring from the end of a regexp till the calculated space char position above
-	   if (!name) name = ename;																					// For empty parsed name use current element one
-
-	   if (typeof profile[name]?.['data'] !== 'string')																// Non existing element or element with non-string (undefined/object type) 'data' property ? Return
-	 	  {
-	  	   delete e.expr;
-	  	   return;
-	 	  }
-
-	   profile[name]['affect'].add(e.id);																			// Add parsing expression element id to the calculated element (via its property name above) affect list
-	   expression += match[0] + ".test(this.elements['" + profile[name].id + "']['data'])";							// Collect new expression in js format to pass it to eval function
-	   if (currentpos === -1) break;																				// The end of expression string is reached (index of space char to parse property name reached end of string), so break the cycle
-	  }
-  e.test = expression;
- }
-
- DialogProfileElementGetName(profile, ename, eid)
- {
-  return profile[ename].id === eid ? ename : undefined;
- }
-
- ShowDialogBox()
- {
-  let inner = { title: '', padarea: '', mainarea: '', footer: '' };
-  this.Nodes = this.Nodes ? { autoapplybuttons: this.Nodes.autoapplybuttons, textinputs: {}, selects: {}, tables: {}, buttons: {}, CloneInput: this.Nodes.CloneInput } : { autoapplybuttons: new Map(), textinputs: {}, selects: {}, tables: {}, buttons: {} };
-  this.GetDialogInner(inner); // Get dialog inner for each area
-
-  if (inner.padarea || inner.mainarea) inner.mainarea = `<div class="boxcontentwrapper">${inner.padarea}${inner.mainarea}</div>`; // Wrap pad/main area to div
-  if (inner.footer) inner.footer = `<div class="footer">${inner.footer}</div>`; // so do footer..
-  inner.title += inner.mainarea + inner.footer; // Collect title, content and footer to title
-  if (!inner.title) return;
-  this.elementDOM.innerHTML = inner.title; // and set it to dialog root DOM element
-
-  for (const [e, button] of this.Nodes.autoapplybuttons) // Go through all auto apply btns and delete with timer clear any btn not in all btn list (Nodes.buttons)
-	  {
-	   if (e.id in this.Nodes.buttons) continue;
-	   clearTimeout(button.timeoutid);
-	   this.Nodes.autoapplybuttons.delete(e);
-	  }
-  for (const id in this.Nodes.buttons) // Then all btns in <button> set object are checked on 'autoapply' feature and added to Nodes.autoapplybuttons object (if not exist) with new timers or left with old timers (if exist)
-	  {
-	   const e = this.elements[id];
-	   if (this.Nodes.autoapplybuttons.has(e)) continue;
-	   const timer = Math.min(SetFlag(e, 'autoapply'), BUTTONTIMERMAXSECONDS) * 1000;
-	   if (timer) this.Nodes.autoapplybuttons.set(e, { timer: timer, timerstart: new Date().getTime(), timeoutid: setTimeout(() => this.ButtonTimer(e), 0) });
-	  }
-
-  for (let target of [...this.elementDOM.querySelectorAll('.boxcontentwrapper, .title, .padbar, input, textarea, .select, .boxtable, .button')]) // Go through all dialog DOM elements to set them to <Nodes> object in appropriate sub objects 
-	  {
-	   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') target.addEventListener('input', this.Handler.bind(this)); // not forgetting to add listeners on native input elements to intercept its data keeping it in actual state at main dialog data object
-	   if (target.classList.contains('boxcontentwrapper')) this.Nodes.contentwrapper = target;
-	   let e, id;
-  	   [id, target] = GetEventTargetInterfaceElement(target); // Define the clicked element 'id' and its wrapped target
-  	   if (!(e = this.elements[id])) continue;
-	   if (e.type === 'title') this.Nodes.title = target;
-	   if (ELEMENTTEXTTYPES.includes(e.type)) this.Nodes.textinputs[e.id] = target;
-	   if (ELEMENTSELECTABLETYPES.includes(e.type)) this.Nodes.selects[e.id] = target;
-	   if (e.padbar) this.Nodes.padbar = target;
-	   if (e.type === 'table') this.Nodes.tables[e.id] = target;
-	   if (e.type === 'button') this.Nodes.buttons[e.id] = target;
-	  }
-
-  // Set 'fullscreendblclick' and 'drag' with 'push' controls <elements> property
-  this.RefreshControlElements();
-
-  // Set focus to the first found text element
-  setTimeout(this.SetFirstTextElementFocus.bind(this), 401); // Old version is not suitable due to incomplete animation, so unknown element to focus: requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
  }
 }

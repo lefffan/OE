@@ -1,13 +1,12 @@
 // 2025 year:
 // Todo0 - Macroses
-//         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text that describes macros assgnment and implementation).
-//         Macroses can be placed in OD/user settings dialog only. Undefined macroses are empty strings.
+//         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text that describes macros assgnment and implementation). Undefined macroses are replaced by empty strings.
 //         Macros strategy definition:
-//		            Builtin macroses - ${OD} ${OV} ${oid} ${eid} ${date} ${ODid} ${OVid} ${datetime} ${time} ${username} ${userid} ${?RULEMSG} ${EVENT} ${MODIFIER} ${default element layout templates}.. ${EID} ${EPROP}
-//		            Object element props retriving for handler cmd line only - ${odid: 1, oid: 1, eid: 2: eprop: 'value'}
-//                Dialog defined (for OD conf (layout, selection...) and handler cmd line only). For OV settings add macros definition dialog: auto/custom text area
-//		            Db conf macroses (for OD conf only)
-//                User specific
+//		            System defined macroses:  ${RANDOM} ${OD} ${OV} ${ODID} ${OVID} ${OID} ${EID} ${EPROP} ${EVENT} ${MODIFIER} ${DATA} ${DATE} ${DATETIME} ${TIME} ${USERNAME} ${USERID} ${LAYOUT..}
+//		            System defined macroses:  Root user event handler data configuration - ${odid: 1, oid: 1, eid: 2: eprop: 'value'}
+//                User defined macroses:    OD Dialog OV args
+//		            User defined macroses:    OD configuration
+//                User defined macroses:    User configuration -  
 //         Macros area apply (per OD and user macros keeping, so OD or User props change pulls macros values recalculation, due to ease events recalculation via that already recaluclated macroses):
 //                View layout/selection ('view call' event)
 //                Rule message/query ('handler process' event)
@@ -17,6 +16,7 @@
 //         Main: 
 //               username [eid1] (username is unchangable after creation)
 //               pass (empty pass diallows login, but allows cron execution) [eid2] (changeble for own users only)
+//               other custom text fields (name, tel, email, foto, other info) [eid2] (changeble for own users only)
 //         Policy: [eid3] (changeble for previlige users only)
 //               groups [eid2] (changeble for previlige users only)
 //               Login instances to login (undefined/incorrect/zero - no login/no cron, for all users except root) [eid2] (changeble for previlige users only)
@@ -29,9 +29,6 @@
 //         Customization: [eid5] (Create system user read-only customization like github interface, for a example, so users can use it via 'force' option in user-customization dialog) (changeble for own users only)
 //         Events: [eid6] (changeble and viewable for root user only)
 //               profile list
-//         Custom:
-//               other custom text fields (name, tel, email, foto, other info) [eid2] (changeble for own users only)
-// Todo0 - Auth user process
 // Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
 //         At any client/server side element event occur - incoming event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 
 //         Every event may have 'none' action to explicitly set no call-handler, may be usefull to cancel through-profiles event search with no action
@@ -47,6 +44,7 @@
 //         Negative queue value (the scheduler sleep for) in msec on crontab line
 
 // Controller and event handlers
+// Todo0 - Auth user process
 // Todo0 - Restrict element handler call, so user double clicked on any object element is unable generate another double click event on other (or same) object element, 
 // Todo1 - Create a template from client event NEWOBJECTDATABASE to check dialog structure correctness
 // Todo0 - How to set comments on rule msg textarea? First nonempty line is a rule msg, other lines are a comment
@@ -56,8 +54,9 @@
 //         Plus some aliases to SET system call (PUT/WRITE/PUSH) to apply different rules depending on a SET alias
 // Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
 // Todo2 - Release CHANGE event subscribing feature to allow non-native object (another words - object subscribes for CHANGE event of other object in DB) elements react on
-// Todo0 - event 'VIEWREFRESH' occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event (handler system calls as an answers for 'VIEWREFRESH' events depends on a view type - SET|EDIT commands, for a example, are for table type only).
+// Todo0 - client event 'VIEWREFRESH' (or RELOAD??) occurs at OV open/refresh, the hanlder for this event is called similar 'NEWOBJECT' event (handler system calls as an answers for 'VIEWREFRESH' events depends on a view type - SET|EDIT commands, for a example, are for table type only).
 //		     This event 'VIEWREFRESH' is useful for some actions to be made at view OPEN, for a example, some objects elements data refresh (counters for a example) or execution of a script doing some external actions in 'ignore' mode
+// Todo0 - release client event 'ONMACROSCHANGE'
 // Todo0 - Ctrl+N creates a new object generating new element values based on table cells. In case of no 'new object' cell call dialog to add new object with elements defined in a view layout
 // Todo0 - Discover new object:
 //		     Object selection: SELECT NONE
@@ -74,6 +73,7 @@
 //         socket rate limit: https://javascript.info/websocket#rate-limiting
 //         How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
 //         Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
+//         Node module import/export syntax https://www.w3schools.com/nodejs/nodejs_modules_esm.asp https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Statements/import
 
 import { WSIP, WSPORT, GenerateRandomString, lg, qm, pool } from './main.js';
 import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
