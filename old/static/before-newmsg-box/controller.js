@@ -2,7 +2,7 @@
 // Todo0 - Macroses
 //         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text that describes macros assgnment and implementation). Undefined macroses are replaced by empty strings.
 //         Macros strategy definition:
-//		            System defined macroses:  ${RANDOM} ${OD} ${OV} ${ODID} ${OVID} ${OID} ${EID} ${EPROP} ${EVENT} ${MODIFIER} ${DATA} ${DATE} ${DATETIME} ${TIME} ${USERNAME} ${USERID} ${LAYOUT..} ${NULL}
+//		            System defined macroses:  ${RANDOM} ${OD} ${OV} ${ODID} ${OVID} ${OID} ${EID} ${EPROP} ${EVENT} ${MODIFIER} ${DATA} ${DATE} ${DATETIME} ${TIME} ${USERNAME} ${USERID} ${LAYOUT..}
 //		            System defined macroses:  Root user event handler data configuration - ${odid: 1, oid: 1, eid: 2: eprop: 'value'}
 //                User defined macroses:    OD Dialog OV args
 //		            User defined macroses:    OD configuration
@@ -13,7 +13,7 @@
 //                User customization ('user relogin')
 //                Handler data ('handler process' event)
 
-// Todo0 - User dialog settings
+// Todo0 - User dialog settings:
 //         Main: 
 //               username [eid1] username is unchangable after creation
 //               password [eid2] empty pass diallows login, but allows cron execution, changeble for own users only

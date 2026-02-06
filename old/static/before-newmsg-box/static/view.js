@@ -1,7 +1,6 @@
 import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
-import * as globals from './globals.js';
 
 const TITLEVIRTUALROWID     = -2;
 const NEWVIRTUALROWID       = -1;
@@ -30,6 +29,26 @@ function CheckXYpropsCorrectness(object)
 
 export class View extends Interface
 {
+ static name = 'Object view';
+ static style = {
+                  ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
+                  ".ovboxmessage":               { "display": "flex;", "overflow": "auto;", "justify-content": "center;", "align-items": "center;", "width": "100%;", "height": "100%;", "padding": "0 10px 0 10px;", "box-sizing": "border-box;", "t ext-align": "justify;" },
+		            ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
+		            ".gridcontainer":              { "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
+		            ".undefinedcell":              { "padding": "10px;", "background-color": "",                                                                              "border": "1px solid #999;" },
+		            ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "",                 "border": "1px solid #999;" },
+		            ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "",                 "border": "1px solid #999;" },
+		            ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
+		            ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+		            ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+                  ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                  ".interactivecursorcell":      { "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                  ".clipboardcell":              { "outline-style": "dashed;" }, 
+		            ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
+                  ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
+		            [`.ovbox table tbody tr td:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
+                };
+
  constructor(...args)
  {
   if (!args[2]) args[2] = {};
@@ -53,7 +72,7 @@ export class View extends Interface
   this.ovid = data.ovid;
   this.status = data.status;
   const statusstring = this.status === -1 ? 'server pending..' : `loaded ${this.status}%`;
-  this.props.control.text.icon = globals.SVGUrlHeader(350, 18) + globals.SVGText(3, 14, `database id: ${this.odid}, view id: ${this.ovid}, status: ${statusstring}`) + globals.SVGUrlFooter();
+  this.props.control.text.icon = Interface.SVGUrlHeader(350, 18) + Interface.SVGText(3, 14, `database id: ${this.odid}, view id: ${this.ovid}, status: ${statusstring}`) + Interface.SVGUrlFooter();
   this.RefreshControlIcons();
  }
 

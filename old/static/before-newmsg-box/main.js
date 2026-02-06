@@ -10,9 +10,10 @@ import { WebSocketServer } from 'ws';
 import {} from './http.js';
 import { Controller } from './controller.js';
 import { QueryMaker } from './querymaker.js';
+import * as globalnames from './globalnames.js';
 import { EditDatabase } from './objectdatabase.js';
-import * as globals from './globals.js';
 
+const RANDOMSTRINGCHARS         = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const { Pool, Client }          = pg;
 export const pool               = new Pool({ host: '127.0.0.1', port: 5433, database: 'oe', user: 'postgres', password: '123' }); // https://node-postgres.com/apis/pool
 export const qm                 = new QueryMaker();
@@ -30,10 +31,11 @@ switch (process.argv[2])
              break;
         case 'reset':
              console.log('Dropping all existing and creating initial user database..');
-             const userdb = JSON.parse(JSON.stringify(globals.NEWOBJECTDATABASE));
+             const userdb = JSON.parse(JSON.stringify(globalnames.NEWOBJECTDATABASE));
              userdb.padbar.data.Database.settings.data.General.dbname.data = 'Users';
              EditDatabase({ type: 'SETDATABASE', data: { dialog: userdb } }, null, true);
              process.exit(0);
+             // ended here - make sitch/case for app start/reset, then edit new db template to userdb and create a root user
         default:
              console.log(`Usage: ${process.argv[1]} start|reset`);
              process.exit(0);
@@ -78,8 +80,14 @@ export function loog(...data)
 export function GenerateRandomString(length)
 {
  let randomstring = '';
- for (let i = 0; i < length; i++) randomstring += globals.RANDOMSTRINGCHARS[Math.floor(Math.random() * globals.RANDOMSTRINGCHARS.length)];
+ for (let i = 0; i < length; i++) randomstring += RANDOMSTRINGCHARS[Math.floor(Math.random() * RANDOMSTRINGCHARS.length)];
  return randomstring;
+}
+
+export function CutString(string, length = RANDOMSTRINGCHARS.length)
+{
+ if (typeof string !== 'string') string = '';
+ return string.length > length ? string.substring(0, length - 2) + '..' : string;
 }
 
 // Function search specified element in splited path, zero based array has elements for non odd indexed and 'select' element option for odd indexes

@@ -45,7 +45,6 @@ import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
-import * as globals from './globals.js';
 
 const EMPTYOPTIONTEXT					= ' ';
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 10240;
@@ -339,30 +338,85 @@ function CheckElementSyntax(e)
 
 export class DialogBox extends Interface
 {
+ static name = 'Dialog box';
+ static style = {
+	// dialog box global css props
+	".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
+	// dialog box title
+	".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "padding": "5px;" },
+	// dialog box pad
+	".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	// dialog box active pad
+	".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	// dialog box pad bar
+	".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 20px 0;" },
+	// dialog box divider
+	".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
+	// dialog box button
+	".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${DIALOGBOXMACROSSTYLE.BUTTON_PADDING};`, "margin": "10px 10px 13px 10px;", "border-radius": "5px;", "font": `bold 12px ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "white;" },
+	// dialog box button and pad hover
+	".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
+	// dialog box element headers
+	".element-headers": { "margin": `${DIALOGBOXMACROSSTYLE.HEADER_MARGIN};`, "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "text-shadow": "none;" },
+	// dialog box help icon
+	".hint-icon": { "padding": "1px;", "font": `1em Arial Narrow, ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
+	// dialog box help icon hover
+	".hint-icon:hover": { "padding": "1px;", "font": `bold 1em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
+	// dialog box table
+	".boxtable": { "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
+	// dialog box table cell
+	".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
+	// dialog box readonly elements css filter
+	".readonlyfilter": { "filter": "opacity(50%);", " filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
+	//------------------------------------------------------------
+	// dialog box select
+	".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;" },
+	// dialog box select option
+	".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
+	// dialog box select option hover
+	".select:not([class*=arrow]) > div:hover": { "background-color": "rgb(211, 222, 192);", "color": "" },
+	// dialog box select option selected
+	".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
+	// Profile selection additional style
+	".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "4px;" },
+	//------------------------------------------------------------
+	// dialog box radio
+	"input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
+	// dialog box radio checked
+	"input[type=radio]:checked::after": { "content": "", "color": "white;" },
+	// dialog box radio checked background
+	"input[type=radio]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
+	// dialog box radio label
+	"input[type=radio] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
+	//------------------------------------------------------------
+	// dialog box checkbox
+	"input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
+	// dialog box checkbox checked
+	"input[type=checkbox]:checked::after": { "content": "", "color": "white;" },
+	// dialog box checkbox checked background
+	"input[type=checkbox]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
+	// dialog box checkbox label
+	"input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": "0px 10px 0px 0px;" },
+	//------------------------------------------------------------
+	// dialog box input text
+	"input[type=text]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	// dialog box input password
+	"input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	// dialog box input textarea
+	"textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+ };
+
  // Init dialog specific data with overriding 'data-element' attribute for dialog box DOM element to non-existent interface element id (-1) for the search to be terminated on. Call then parent constructor for the given args (data, parentchild, props)
  constructor(...args)
  {
-  // data
   if (typeof args[0] === 'string') args[0] = { message: { type: 'text', head: args[0].padEnd(60) } }; // Convrert string type data to object type
   if (!args[0] || typeof args[0] !== 'object') return; // Return for unknown dialog data
-  // title
-  if (typeof args[3] === 'string') args[0].title = { type: 'title', data: args[3] };
-  if (args[3] && typeof args[3] === 'object') args[0].title = args[3];
-  // ok
-  if (typeof args[4] === 'string') args[0].ok = { type: 'button', data: args[4], flag: 'a' };
-  if (args[4] && typeof args[4] === 'object') args[0].ok = args[4];
-  // cancel
-  if (typeof args[5] === 'string') args[0].cancel = { type: 'button', data: args[5], flag: '' };
-  if (args[5] && typeof args[5] === 'object') args[0].cancel = args[5];
-  // apply
-  if (typeof args[6] === 'string') args[0].apply = { type: 'button', data: args[6], flag: 'a*' };
-  if (args[6] && typeof args[6] === 'object') args[0].apply = args[6];
 
   if (!args[2]) args[2] = {}; // Props
   if (!args[2].control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
   if (!args[2].attributes) args[2].attributes = {};
   args[2]['attributes']['data-element'] = '_-1';
-
+  
   super(...args);
   this.RefreshDialog(CHECKSYNTAX | SETSERVICEDATA | SHOWDIALOGDATA);
  }
@@ -532,8 +586,8 @@ export class DialogBox extends Interface
   if (this.Nodes.CloneInput.esc) return; // Pressed Esc btn caused blur event, so profile cloning is not needed
   let name, flags, style;
   [name, flags, ...style] = this.Nodes.CloneInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
-  for (const option of e.options) if (option.name === name)  return new DialogBox(`Profile name '${name}' already exists!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Clone error'); // Check name exist in e.data profile list and return warning msg in success
-  if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) return new DialogBox(`The number of options exceeds the limit of ${DIALOGSELECTABLEELEMENTMAXOPTIONS}!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Clone error'); // Check option number limit
+  for (const option of e.options) if (option.name === name) return app.MessageBox(this.parentchild, `Profile name '${name}' already exists!`, 'Clone error'); // Check name exist in e.data profile list and return warning msg in success
+  if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) return app.MessageBox(this.parentchild, `The number of options exceeds the limit of ${DIALOGSELECTABLEELEMENTMAXOPTIONS}!`, 'Clone error'); // Check option number limit
   flags = FIELDSDIVIDER + (flags || '');
   if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
   style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
@@ -604,13 +658,15 @@ export class DialogBox extends Interface
 	       	   break;
 
 	  	  case 'mousedown':																		// Mouse any button down on element (event.which values: 1 - left mouse btn, 2 - middle btn, 3 - right btn)
-			   if (!e || this.SetFlag(e, 'readonly')) break;									// Break for readonly element
+			   if (!e || this.SetFlag(e, 'readonly')) break;											// Break for readonly element
 			   if (event.button === 0 && event.buttons === 3)									// Left button down with right button hold? Do some element extra actions lower
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
 					  {
-					   try { new DialogBox(JSON.parse(e.data), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { target: target, e: e } })); }
-					   catch {} // Content example: { "title":{"type":"title", "data":"Title"}, "input":{"type":"textarea", "head":"Input text", "data":""}, "btn":{"type":"button", "data":"  OK  ", "flag":"a"} }
+					   let content;
+					   try { content = JSON.parse(e.data); }
+					   catch {} // Content example: {"title":{"type":"title", "data":"Title"}, "input":{"type":"text", "head":"Input text", "data":""}}
+					   app.MessageBox(this, content, '', true, true);
 					   break;
 					  }
 				   if (ELEMENTSELECTABLETYPES.includes(e.type))									// or change sort order of selectable element
@@ -654,7 +710,7 @@ export class DialogBox extends Interface
 						  }
 					   if (event.target.classList.contains('itemremove'))								// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
-						   if (e.options.length === 1 && new DialogBox(`Profile cannot be removed, at least one must exist!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Remove profile error')) break;
+						   if (e.options.length === 1 && !app.MessageBox(this.parentchild, `Profile cannot be removed, at least one must exist!`, 'Remove profile error')) break;
 						   this.RestoreInitialOrder(e);
 						   delete e.data[GetElementOption(e).origin];									// Removing current profile
 						   this.RefreshDialog(SETSERVICEDATA | SHOWDIALOGDATA);
@@ -665,7 +721,7 @@ export class DialogBox extends Interface
 						   this.ActivateSelectedOption(e, event.target.attributes?.value?.value, target);
 						   break;
 						  }
-					   if (true) // Todo0 - CHECK DROPDOWN LIST POSITION AT DIALOG BOX CONTENT SCROLLING
+					   if (true) // Todo0 - Here must be dropdown list appearance check, PLUS CHECK DROPDOWN LIST POSITION AT DIALOG BOX CONTENT SCROLLING
 						  {
 						   if (e !== this.lastkilleddropdownlist?.e || event !== this.lastkilleddropdownlist?.event) new DropDownList(e, this, target.firstChild.offsetLeft + this.elementDOM.offsetLeft - this.Nodes.contentwrapper.scrollLeft, target.firstChild.offsetTop + this.elementDOM.offsetTop + target.firstChild.offsetHeight - this.Nodes.contentwrapper.scrollTop);
 						   break;
@@ -674,8 +730,8 @@ export class DialogBox extends Interface
 				  }
 			   break;
 
-		  case 'CONFIRMDIALOG':
-			   event.source.props.callback.e.data = event.source.props.callback.target.value = JSON.stringify(event.source.data); // Change element text area that was requested to change via dialog form (right btn hold with left btn click). Event source dialod <callback> is html element the innerHTML to change
+		  case 'OK':
+			   event.data.value = JSON.stringify(event.source.data); // Event data is text area target element (was set at dialog creation as a props event) wich value was requested to change, event source is a source dialog wich has its own data (dialog conetnt data)
 			   break;
 
 		  case 'OPTIONCHANGE':
@@ -724,11 +780,10 @@ export class DialogBox extends Interface
   // Element is appliable
   if (SetFlag(e, 'appliable'))
 	 {
-	  events.push({ type: 'CONFIRMDIALOG', data: e.type === 'button' ? this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id) : target.attributes['data-id']?.value, destination: this.parentchild });
-	  // Todo0 - dialog box is not killed for interactive flag, so all service data stays untouched, but should be removed in order to pass to the handler. Workaround - create a dialog data copy and remove all unnecessary stuff
+	  events.push({ type: e.type === 'button' ? this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id) : target.attributes['data-id']?.value, data: e.data, destination: this.parentchild });
 	 }
 
-  // Button is non interactive and element is not a table? Add KILL event
+  // Button is non interactive and element is not a table? Add KILL event 
   if (!SetFlag(e, 'interactive') && e.type !== 'table')
 	 {
 	  events.push({ type: 'KILL', destination: this });

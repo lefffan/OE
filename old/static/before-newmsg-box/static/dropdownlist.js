@@ -7,6 +7,13 @@ import { GetElementOption } from './dialogbox.js';
 
 export class DropDownList extends Interface
 {
+ static name = 'Drop down list';
+ static style = {
+				 // Expanded selection
+				 ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
+ 				}
+
+ //
  constructor(e, dialog, left, top)
  {
   super({ e: e, cursor: +(GetElementOption(e.options)?.id) }, dialog.parentchild, { overlay: 'NONSTICKY', animation: 'rise', control: { closeesc: {}, resize: {}, default: { releaseevent: 'mouseup|keydown' } }, attributes: { class: 'select expanded', style: `left: ${left}px; top: ${top}px;` } }); // (data, parentchild, props)

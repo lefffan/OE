@@ -1,4 +1,9 @@
-console.log('Executing globalnames.js!!');
+export const SUPERUSER     = 'root';
+export const BUTTONOK      = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
+export const BUTTONCANCEL  = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
+export const BUTTONAPPLY   = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
+export const MODALBOXPROPS = JSON.stringify({ animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+export const RANDOMSTRINGCHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
                       General: {
@@ -74,7 +79,7 @@ const RULEPAD = {
 export const NEWOBJECTDATABASE = {
                            padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
                            title: { type: 'title', data: 'New Database Configuration' },
-                           SETDATABASE: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
+                           ok: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
                            cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
                           };
 
@@ -83,8 +88,9 @@ const NOTEDITABLE           = 'false';
 const CELLMINWIDTH          = 25;
 const CELLMINHEIGHT         = 25;
 const DIALOGBOXMACROSSTYLE	= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
-const ANIMATIONS			= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
-const CUSTOMIZATIONS        =
+export const ANIMATIONS			= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
+
+export const CUSTOMIZATIONS =
 {
         "Sidebar": {
                     ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
@@ -169,7 +175,7 @@ const CUSTOMIZATIONS        =
 	                // dialog box input textarea
 	                "textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
                    },
- "Drop down list": {
+ "Dropdown list": {
 			        // Expanded selection
 				    ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
  				   },
@@ -206,8 +212,8 @@ const CUSTOMIZATIONS        =
 
 export const CUSTOMIZATIONDIALOG = { section: { type: 'select', head: 'Select customization section', data: {} },
                                      title: { type: 'title', data: 'Customization' },
-                                     ok: { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' },
-                                     cancel: { type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
+                                     ok: JSON.parse(BUTTONOK),
+                                     cancel: JSON.parse(BUTTONCANCEL),
                                    }
 for (const customization in CUSTOMIZATIONS)
     {
@@ -224,25 +230,85 @@ for (const customization in CUSTOMIZATIONS)
          }
     }
 
-const OPTIONSDIVIDER              = '/';
-const CLIENTEVENTS                = ['INIT', 'DELETE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
-const handlerprofile              = {
-                                     type: { type: 'radio', head: 'Select handler type', data: 'Command line/Fixed stdout/Eval/Disabled~!' },
-                                     data: { type: 'textarea', head: 'Enter data for specified handler type above', data: '', expr: '/Disabled~!/type' },
-                                     output: { type: 'checkbox', head: 'Process next handler output only', data: 'correct JSON (stdout)~!/any output (stdout)/stderr/undefined', expr: '/Disabled~!/type', flag: '!' },
-                                     action: { type: 'radio', head: 'Handler output action', data: 'Apply~!/Message/Ignore/Redirect to next step', flag: '*', expr: '/Disabled~!/type' },
-                                     timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '30', expr: '/Disabled~!/type' },
-                                     retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', expr: '/Disabled~!/type' },
-                                    };
-const eventtemplate               = {
-                                     //events: { type: 'select', head: 'Select event type', data: `NONE${OPTIONSDIVIDER}` + CLIENTEVENTS.join(OPTIONSDIVIDER) },
-                                     events: { type: 'select', head: 'Select event type', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
-                                     modifier: { type: 'checkbox', head: 'Select modifier keys~For mouse and keyboard events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },
-                                     step1: { type: 'select', head: 'Select a handler output data redirection step', data: { 'Step1': handlerprofile } } 
-                                    };
-const eventlistprofiletemplate    = { 10: { type: 'select', head: 'Select event profile', data: { 'New event~+': eventtemplate }, flag: '*' } };
-export const EVENTPROFILINGDIALOG = { title: { type: 'title', data: 'Event profiling' },
-                                      eventprofiles: { type: 'select', head: 'Select event group profile', data: { 'New event group~+': eventlistprofiletemplate } },
-                                      ok: { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' },
-                                      cancel: { type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` }
-                                    };
+export const OPTIONSDIVIDER              = '/';
+export const CLIENTEVENTS                = ['INIT', 'DELETE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
+
+export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
+{
+ if (url) return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
+ return `<svg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg' ${extraattribute}>`;
+}
+
+export function SVGUrlFooter(url = true)
+{
+ if (url) return `%3C/svg%3E")`;
+ return `</svg>`;
+}
+
+export function SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4', url = true, dashoffset, animation)
+{
+ const disp = Math.round(strength/2);
+ x += disp;
+ y += disp;
+ h -= disp * 2;
+ w -= disp * 2;
+ if (url) return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
+ return `<rect pathLength='100' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} ${100 - dash}' stroke-linejoin='round'${dashoffset ? " stroke-dashoffset='" + dashoffset + "'" : ''}>${animation ? ' ' + animation : ''}</rect>`;
+}
+
+export function SVGPath(path, color, width, url = true)
+{
+ if (url) return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
+ return `<path d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' />`;
+}
+
+export function SVGCircle(x, y, r, strength, color, fill = 'none', dash, url = true)
+{
+ if (url) return `%3Ccircle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} /%3E`;
+ return `<circle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} />`;
+}
+
+export function SVGText(x, y, text, color = 'grey', font = '.8em Lato, Helvetica;', url = true)
+{ 
+ if (url) return `%3Ctext x='${x}' y='${y}' style='fill: ${color}; font: ${font}' %3E${text}%3C/text%3E`;
+ return `<text x="${x}" y="${y}" style="font: ${font}">${text}</text>`;
+}
+                                    
+const branchclasses = {
+                       '.view': SVGUrlHeader(24, 24) + SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4') + SVGUrlFooter() + ';', 
+                       '.folderwrapped': SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(3, 3, 14, 14, 3, 105, 'RGB(97,120,82)', 'RGB(97,120,82)', '1') + SVGUrlFooter() + ';',
+                       '.folderunwrapped': SVGUrlHeader(24, 24) + SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + SVGRect(2, 2, 15, 15, 3, 105, 'RGB(97,120,82)', 'none', '1') + SVGUrlFooter() + ';',
+                       '.databaseunwrapped': `${SVGUrlHeader(24, 24)}${SVGPath('M6 12L18 12', 'rgb(97,120,82)', '4')}${SVGUrlFooter()};`,
+                       '.databasewrapped': SVGUrlHeader(24, 24) + SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 4) + SVGUrlFooter() + ';',
+                       '.databasewrappedempty': SVGUrlHeader(24, 24) +  SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 4) + SVGUrlFooter() + ';',
+                      };
+
+for (const classname in branchclasses)
+    {
+     CUSTOMIZATIONS["Sidebar"][classname] = {};
+     CUSTOMIZATIONS["Sidebar"][classname]['background-image'] = branchclasses[classname];
+     CUSTOMIZATIONS["Sidebar"][classname]['background-repeat'] = 'no-repeat !important;';
+     CUSTOMIZATIONS["Sidebar"][classname]['background-position'] = 'center;';
+     CUSTOMIZATIONS["Sidebar"][classname]['background-color'] = 'transparent;';
+     CUSTOMIZATIONS["Sidebar"][classname]['padding'] = '0px 10px;';
+    }
+    
+export function CutString(string, limit = 12, termination = '..')
+{
+ if (typeof string !== 'string' || typeof termination !== 'string') return '';
+ if (termination.length > limit) termination = termination.substring(0, limit);
+ return string.length > limit ? string.substring(0, limit - termination.length) + termination : string;
+}
+
+ // Function searches 'string' in 'source' and return the source with excluded string or added string otherwise
+export function ToggleString(source, string)
+{
+ if (typeof source !== 'string' || typeof string !== 'string') return '';
+ return source.indexOf(string) === -1 ? source + string : source.replaceAll(string, '');
+}
+
+export function SearchPropValue(object, value)
+{
+ if (typeof object === 'object')
+    for (const i in object) if (object[i] === value) return i;
+}

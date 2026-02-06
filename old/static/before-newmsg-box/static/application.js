@@ -112,20 +112,19 @@ import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
 import { DropDownList } from './dropdownlist.js';
 import { View } from './view.js';
-import * as globals from './globals.js';
+import * as globalnames from './globalnames.js';
 
-function GetStyleInnerHTML(customizations) //https://dev.to/karataev/set-css-styles-with-javascript-3nl5, https://professorweb.ru/my/javascript/js_theory/level2/2_4.php
+function GetStyleInnerHTML(...objects) //https://dev.to/karataev/set-css-styles-with-javascript-3nl5, https://professorweb.ru/my/javascript/js_theory/level2/2_4.php
 {
  let inner = '';
 
- for (const customization in customizations)
- for (const selectorname in customizations[customization])
+ for (const object of objects)
+ for (const selector in object)
      {
-      if (selectorname[0] === ' ') continue; // CSS selectors with leading space are ignored and used as non css customization element
-      const selector = customizations[customization][selectorname];
-      inner += `${selectorname} {`;
-      for (const prop in selector)
-          if (prop[0] !== ' ' && selector[prop]) inner += `${prop}: ${selector[prop]}`; // Empty selector prop values are ignored. Props with leading space are ignored too, but its values are used as a hints for corresponded props in UI dialog configuration
+      if (selector[0] === ' ') continue; // CSS selectors with leading space are ignored and used as non css customization element
+      inner += `${selector} {`;
+      for (const prop in object[selector])
+          if (prop[0] !== ' ' && object[selector][prop]) inner += `${prop}: ${object[selector][prop]}`; // Empty selector prop values are ignored. Props with leading space are ignored too, but its values are used as a hints for corresponded props in UI dialog configuration
       inner += '}';
      }
 
@@ -139,6 +138,21 @@ export class Application extends Interface
  static TAGHTMLCODEMAP		    = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
  static ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
  static MODALBROTHERKILLSME		= 0b10;
+ static ANIMATIONS				= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
+ static name					= 'Application';
+ static style                   = { " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${Application.ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
+				                    ".modalfilter": { "filter": "opacity(50%);", " filter": "Dialog box modal effect appearance via css filter property (such as opacity, blur and others), see appropriate css documentaion." },
+				                    "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
+				                    //" Key combination to apply cell text": {},
+				                    //" Logon events": { "Log unsuccessful logons": "", },
+				                  };
+
+ static CutString(string, termination = '..', limit = 13)
+ {
+  if (typeof string !== 'string' || typeof termination !== 'string') return '';
+  if (termination.length > limit) termination = termination.substring(0, limit);
+  return string.length > limit ? string.substring(0, limit - termination.length) + termination : string;
+ }
 
  // Function creates regexp to match tag names list 'tags'
  static HTMLTagsRegexp(tags)
@@ -176,13 +190,26 @@ export class Application extends Interface
   return newstring + Application.EncodeString(string, encodemap);
  }
 
+ // Function searches 'string' in 'source' and return the source with excluded string or added string otherwise
+ static ToggleString (source, string)
+ {
+  if (typeof source !== 'string' || typeof string !== 'string') return '';
+  return source.indexOf(string) === -1 ? source + string : source.replaceAll(string, '');
+ }
+
+ static SearchPropValue(object, value)
+ {
+  if (typeof object === 'object')
+     for (const i in object) if (object[i] === value) return i;
+ }
+
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
  constructor()
  {
   const style = document.createElement('style');
-  style.innerHTML = GetStyleInnerHTML(Object.assign(globals.CUSTOMIZATIONS, { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } }));
-
+  style.innerHTML = GetStyleInnerHTML(Application.style, DialogBox.style, DropDownList.style, ContextMenu.style, Connection.style, Sidebar.style, View.style, window.navigator.userAgent.indexOf('irefox') === -1 ? '' : { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } });
   document.head.appendChild(style);
+  
   const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
   super({}, null, { tagName: 'BODY', control: { default: { releaseevent: 'mouseup', button: 2 } }, attributes: { style: `background-color: ${NICECOLORS[7]};` } });
 
@@ -194,6 +221,8 @@ export class Application extends Interface
   document.addEventListener('mousemove', Interface.EventListener);
   document.addEventListener('click', Interface.EventListener);
   document.addEventListener('contextmenu', (event) => event.preventDefault());
+
+  this.GetCustomizationDialogStructure(Application, DialogBox, DropDownList, ContextMenu, Connection, Sidebar, View);
  }
 
  // Override main application child activation styling to exclude any effects for document.body
@@ -216,12 +245,59 @@ export class Application extends Interface
 			   				new Connection(null, this);	// Args: data, parent
 							break;
 					   case 'Help':
-			   				//new DialogBox(globals.CUSTOMIZATIONDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
-			   				//new DialogBox(globals.EVENTPROFILINGDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
+			   				//new DialogBox(globalnames.CUSTOMIZATIONDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+			   				new DialogBox(globalnames.EVENTPROFILINGDIALOG, this, { animation: 'rise', position: 'CENTER', overlay: 'MODA', attributes: { class: 'dialogbox selectnone' } });
 							break;
 					  }
 		  	   break;
 	     }
+ }
+
+ // Function creates a dialog box int parentchild with content of <content> (object/string type) and with title <title> (for string type content only). Faulsy <dialogform> generates a box with one btn 'OK', truthy - two btns 'OK'/'CANCEL'.
+ // Var <overridebtns> overrides dialog btns 'OK' or/and 'CANCEL' (usefull for textarea user defined content om OD settings)
+ MessageBox(parentchild, content, title, dialogform, overridebtns)
+ {
+  const MESSAGEMINCHARS = 60;
+  const okbtn = { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: dialogform ? 'a' : '' };
+  const cancelbtn = dialogform ? { type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` } : null;
+
+  if (typeof content === 'string')	content = {
+											   title: { type: 'title', data: typeof title === 'string' ? title : 'Warning' },
+ 				  							   message: { type: 'text', head: content.padEnd(MESSAGEMINCHARS) },
+				  							   OK: okbtn,
+				  							   CANCEL: cancelbtn
+											  };
+  if (typeof content !== 'object' || !content) return; // Dialog content should be a non-null dialog structure (object type)											  
+  if (overridebtns)
+	 {
+	  content.OK = okbtn;
+	  content.CANCEL = cancelbtn;
+	 }
+
+  new DialogBox(content, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+ }
+
+ // Function creates a modal dialog box in parentchild with content of <content>, other args override/add content specific interface elements
+ ModalMessageBox(parentchild, content, title, ok, apply, cancel)
+ {
+  const MESSAGEMINCHARS = 60;
+  const okbtn = { type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: dialogform ? 'a' : '' };
+  const cancelbtn = dialogform ? { type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` } : null;
+
+  if (typeof content === 'string')	content = {
+											   title: { type: 'title', data: typeof title === 'string' ? title : 'Warning' },
+ 				  							   message: { type: 'text', head: content.padEnd(MESSAGEMINCHARS) },
+				  							   OK: okbtn,
+				  							   CANCEL: cancelbtn
+											  };
+  if (typeof content !== 'object' || !content) return; // Dialog content should be a non-null dialog structure (object type)											  
+  if (overridebtns)
+	 {
+	  content.OK = okbtn;
+	  content.CANCEL = cancelbtn;
+	 }
+
+  new DialogBox(content, parentchild, { animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
  }
 
  lg(...data)
@@ -232,6 +308,31 @@ export class Application extends Interface
  dir(...data)
  {
   data.forEach(value => console.dir(value));
+ }
+
+ GetCustomizationDialogStructure(...classes)
+ {
+  let dialog = {
+                title: { type: 'title', data: 'Customization' },
+                section: { type: 'select', head: 'Select customization section', data: {} }
+               };
+
+  for (const clas of classes)
+	  {
+	   const section = { type: 'select', head: 'Select interface element to customize', data: {} };
+	   let clasindex = 0;
+	   dialog.section.data[clas.name] = { [clasindex++]: section }; // Class name is a profile name
+	   for (let profilename in clas.style)
+     	   {
+		    section.data[profilename.trim()] = {}; // Class static <style> object property name is a nested profile name too
+		    let propindex = 0;
+		    for (const propname in clas.style[profilename])
+		   	    if (propname[0] !== ' ') section.data[profilename.trim()][propindex++] = { type: 'text', head: `${propname}${clas.style[profilename][' ' + propname] ? '~' + clas.style[profilename][' ' + propname] : ''}`, data: clas.style[profilename][propname] };
+		   }
+	  }
+
+  this.dialog = dialog;
+  return dialog;
  }
 }
 

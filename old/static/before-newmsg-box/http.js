@@ -18,7 +18,7 @@ const staticdocs = {
     '/interface.js': '/static/interface.js',
     '/sidebar.js': '/static/sidebar.js',
     '/view.js': '/static/view.js',
-    '/globals.js': '/globals.js',
+    '/globalnames.js': '/globalnames.js',
    };
 
 http.createServer(Connection).listen(8001);

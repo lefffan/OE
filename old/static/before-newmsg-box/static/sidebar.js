@@ -10,7 +10,6 @@ import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 import { View } from './view.js';
-import * as globals from './globals.js';
 
 function OnDraw(func)
 {
@@ -19,6 +18,18 @@ function OnDraw(func)
 
 export class Sidebar extends Interface
 {
+ static name = 'Sidebar';
+ static style = {
+                 ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
+                 ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
+                 ".sidebar tr:hover": { "background-color": "#25589F;", "cursor": "pointer;", "margin": "100px 100px;" },
+                 ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+                 ".sidebar_database": { "color": "", "font": "1.6em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+                 ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
+                 ".searchbar": { "margin": "4px 17px 1px 17px;", "border-radius": "5px;", "background-color": "rgb(32,88,138);", },
+                 ".searchinput": { "color": "", "font": "0.9em Lato, Helvetica;", "paddin": "0;", "margin": "4px;", "outline": "none;", "border": "none;", "background-color": "inherit;", "color": "inherit;", "width": "90%;" },
+                }
+
  static LupaControl(userevent, control, phase)
  {
   if (phase !== 'release') return;     // For 'release' phase only at left mouse btn released
@@ -187,7 +198,7 @@ export class Sidebar extends Interface
                   }
                if (event.button === 2)
                   {
-                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + globals.CutString(this.username)]];
+                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + Application.CutString(this.username)]];
                    const odid = event.target.attributes['data-odid']?.value;
                    const ovid = event.target.attributes['data-ovid']?.value;
                    if (odid !== undefined) contextmenuoptions[1] = [ 'Configure Database', odid ];
@@ -379,18 +390,37 @@ export class Sidebar extends Interface
          {
           case undefined:
           case -2:
-               return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGUrlFooter(false);
+               return Interface.SVGUrlHeader(24, 24, false, attribute) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + Interface.SVGUrlFooter(false);
           case -1:
-               return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + globals.SVGUrlFooter(false);
+               return Interface.SVGUrlHeader(24, 24, false, attribute) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + Interface.SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + Interface.SVGUrlFooter(false);
           default:
-               return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + globals.SVGUrlFooter(false);
+               return Interface.SVGUrlHeader(24, 24, false, attribute) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + Interface.SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + Interface.SVGUrlFooter(false);
          }
  }
 }
 
 const WEIGHTS       = { 'view': 1, 'database': 2, 'folder': 3 };
-const ARROW         = [ globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + globals.SVGUrlFooter(), // bright green 139,188,122
-                        globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + globals.SVGUrlFooter(),
-                        globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + globals.SVGUrlFooter(),
-                        globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + globals.SVGUrlFooter() ];
-const LUPA          =   globals.SVGUrlHeader(12, 12) + globals.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + globals.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + globals.SVGUrlFooter();
+const ARROW         = [ Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + Interface.SVGUrlFooter(), // bright green 139,188,122
+                        Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + Interface.SVGUrlFooter(),
+                        Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + Interface.SVGUrlFooter(),
+                        Interface.SVGUrlHeader(12, 12) + Interface.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + Interface.SVGUrlFooter() ];
+const LUPA          = Interface.SVGUrlHeader(12, 12) + Interface.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + Interface.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + Interface.SVGUrlFooter();
+const branchclasses = {
+                       '.view': Interface.SVGUrlHeader(24, 24) + Interface.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4') + Interface.SVGUrlFooter() + ';', 
+                       '.folderwrapped': Interface.SVGUrlHeader(24, 24) + Interface.SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + Interface.SVGRect(3, 3, 14, 14, 3, 105, 'RGB(97,120,82)', 'RGB(97,120,82)', '1') + Interface.SVGUrlFooter() + ';',
+                       '.folderunwrapped': Interface.SVGUrlHeader(24, 24) + Interface.SVGRect(6, 6, 15, 15, 3, '0 15 65', 'RGB(76,95,72)', 'none', '1') + Interface.SVGRect(2, 2, 15, 15, 3, 105, 'RGB(97,120,82)', 'none', '1') + Interface.SVGUrlFooter() + ';',
+                       '.databaseunwrapped': `${Interface.SVGUrlHeader(24, 24)}${Interface.SVGPath('M6 12L18 12', 'rgb(97,120,82)', '4')}${Interface.SVGUrlFooter()};`,
+                       '.databasewrapped': Interface.SVGUrlHeader(24, 24) + Interface.SVGPath('M6 12L18 12M12 6L12 18', 'rgb(97,120,82)', 4) + Interface.SVGUrlFooter() + ';',
+                       '.databasewrappedempty': Interface.SVGUrlHeader(24, 24) +  Interface.SVGPath('M6 12L18 12M12 6L12 18', 'rgb(125,77,94)', 4) + Interface.SVGUrlFooter() + ';',
+};
+
+for (const classname in branchclasses)
+    {
+     Sidebar.style[classname] = {};
+     Sidebar.style[classname]['background-image'] = branchclasses[classname];
+     Sidebar.style[classname]['background-repeat'] = 'no-repeat !important;';
+     Sidebar.style[classname]['background-position'] = 'center;';
+     Sidebar.style[classname]['background-color'] = 'transparent;';
+     Sidebar.style[classname]['padding'] = '0px 10px;';
+    }
+    

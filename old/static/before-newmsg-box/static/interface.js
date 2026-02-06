@@ -10,7 +10,6 @@
 
 import { app } from './application.js';
 import { Application } from './application.js';
-import * as globals from './globals.js';
 
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
@@ -214,7 +213,7 @@ export class Interface
 	     // Parent child
 	     this.parentchild = args[1];
 
-	     // Props { tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, callback } 
+	     // Props { tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, id } 
 	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
 	     if (!this.props.tagName) this.props.tagName = 'DIV';
 		 if (!this.props.control) this.props.control = {};
@@ -251,7 +250,7 @@ export class Interface
 		 if (this.IsNonsticky()) Interface.nonstickychild = this;
 		 
 	     // Child display
-	     if (globals.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
+	     if (Application.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
 	     this.Show();
 	     this.parentchild.elementDOM.appendChild(this.elementDOM);
 
@@ -370,14 +369,14 @@ export class Interface
  // Hide the child with animation this.props.animation
  Hide()
  {
-  if (!globals.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
+  if (!Application.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
   this.SetVisibility(); // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
  }
 
  // Show child with animation
  Show()
  {
-  if (!globals.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
+  if (!Application.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
   requestAnimationFrame(this.SetVisibility.bind(this, true));	// and then set element visible (after it is hidden via line below) via requestAnimationFrame()
   this.SetVisibility();
  }
@@ -707,15 +706,57 @@ export class Interface
 
   return events.length;
  }
+
+ // Static functions section
+ static SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
+ {
+  if (url) return `url("data:image/svg+xml,%3Csvg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg'%3E`;
+  return `<svg viewBox='0 0 ${viewwidth} ${viewheight}' width='${viewwidth}' height='${viewheight}' xmlns='http://www.w3.org/2000/svg' ${extraattribute}>`;
+ }
+
+ static SVGUrlFooter(url = true)
+ {
+  if (url) return `%3C/svg%3E")`;
+  return `</svg>`;
+ }
+
+ static SVGRect(x, y, w, h, strength, dash, color, fill = 'none', rx = '4', url = true, dashoffset, animation)
+ {
+  const disp = Math.round(strength/2);
+  x += disp;
+  y += disp;
+  h -= disp * 2;
+  w -= disp * 2;
+  if (url) return `%3Crect pathLength='99' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} 100' stroke-linejoin='round' /%3E`;
+  return `<rect pathLength='100' stroke-width='${strength}' fill='${fill}' stroke='${color}' x='${x}' y='${y}' width='${w}' height='${h}' rx='${rx}' stroke-dasharray='${dash} ${100 - dash}' stroke-linejoin='round'${dashoffset ? " stroke-dashoffset='" + dashoffset + "'" : ''}>${animation ? ' ' + animation : ''}</rect>`;
+ }
+
+ static SVGPath(path, color, width, url = true)
+ {
+  if (url) return `%3Cpath d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' /%3E`;
+  return `<path d='${path}' stroke='${color}' stroke-width='${width}' stroke-linecap='round' stroke-linejoin='round' />`;
+ }
+
+ static SVGCircle(x, y, r, strength, color, fill = 'none', dash, url = true)
+ {
+  if (url) return `%3Ccircle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} /%3E`;
+  return `<circle cx='${x}' cy='${y}' r='${r}' fill='${fill}' stroke-width='${strength}' stroke='${color}' ${dash ? "stroke-dasharray='" + dash + "'" : ''} />`;
+ }
+
+ static SVGText(x, y, text, color = 'grey', font = '.8em Lato, Helvetica;', url = true)
+ {
+  if (url) return `%3Ctext x='${x}' y='${y}' style='fill: ${color}; font: ${font}' %3E${text}%3C/text%3E`;
+  return `<text x="${x}" y="${y}" style="font: ${font}">${text}</text>`;
+ }
 }
 
 const DOMELEMENTMINWIDTH			= 50;
 const DOMELEMENTMINHEIGHT			= 50;
 const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
-const ICONURLMINIMIZESCREEN 		= globals.SVGUrlHeader() + globals.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + globals.SVGUrlFooter();
-const ICONURLFULLSCREENTURNON 		= globals.SVGUrlHeader() + globals.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
-const ICONURLFULLSCREENTURNOFF		= globals.SVGUrlHeader() + globals.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
-const ICONURLCLOSE              	= globals.SVGUrlHeader() + globals.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + globals.SVGUrlFooter();
+const ICONURLMINIMIZESCREEN 		= Interface.SVGUrlHeader() + Interface.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + Interface.SVGUrlFooter();
+const ICONURLFULLSCREENTURNON 		= Interface.SVGUrlHeader() + Interface.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + Interface.SVGUrlFooter();
+const ICONURLFULLSCREENTURNOFF		= Interface.SVGUrlHeader() + Interface.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + Interface.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + Interface.SVGUrlFooter();
+const ICONURLCLOSE              	= Interface.SVGUrlHeader() + Interface.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + Interface.SVGUrlFooter();
 const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
 const BLINKCHILDACTIVESTATUS		= 200;
 const CHILDCONTROLTEMPLATES = {

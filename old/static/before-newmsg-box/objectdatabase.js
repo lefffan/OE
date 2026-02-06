@@ -2,13 +2,13 @@
 // Todo0 - all DB dialog settings workable
 // let c; c++;      if (c%2) {               const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));                        await sleep(5000);              }
 
-import { FIELDSDIVIDER, lg, loog, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
+import { FIELDSDIVIDER, lg, loog, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, CutString, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
 import { ELEMENTCOLUMNPREFIX, SYSTEMELEMENTNAMES } from './querymaker.js';
-import * as globals from './globals.js';
 
 const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME     = 'Cannot create new database with empty name!\nIn order to remove Object Database please set empty db name and remove all elements, views and rules';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
+const SUPERUSER                 = 'root';
 const LAYOUTCELLPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow'];
 const LAYOUTTABLEPROPS          = ['style', 'hint', 'collapserow', 'collapsecol'];
 const LAYOUTEVENTPROPS          = ['event', 'x', 'y', 'row', 'col'];
@@ -79,14 +79,14 @@ export function CorrectProfileIds(e, excludeoption, lastid)
 // Todo1 - adjust all views layout text areas commenting error jsons as a error ones
 export function AdjustDatabase(dialog, odid, lastelementid, lastviewid)
 {
- dialog.ok.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
+ dialog.SETDATABASE.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
  let dbname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname')?.data; // Get db name
  if (typeof dbname !== 'string') dbname = '';
- dialog.title.data = `Database '${globals.CutString(dbname.split('/').pop())}' configuration (id${odid})`; // Change dialog title 
+ dialog.title.data = `Database '${CutString(dbname.split('/').pop(), 10)}' configuration (id${odid})`; // Change dialog title 
  const [elementnonclonedids, elementclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid);
  const [, viewclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
  CorrectProfileIds(GetDialogElement(dialog, 'padbar/Rule/rules'));
- delete dialog.ok.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
+ delete dialog.SETDATABASE.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
  return [elementnonclonedids, elementclonedids, viewclonedids];
 }
 
@@ -109,7 +109,7 @@ export async function EditDatabase(msg, client, init)
      let e = GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Database/settings/Permissions/od');
      if (CheckUserMatch([client.username], e.data))
         {
-         client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: DISALLOWEDTOCONFIGURATE, title: 'Error' } })); // Send error text to the client side
+         client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: DISALLOWEDTOCONFIGURATE, title: 'Error' } })); // Send error text to the client side
          return;
         }
      for (const name of ['Database', 'Element', 'View', 'Rule'])
@@ -132,14 +132,14 @@ export async function EditDatabase(msg, client, init)
           if (!msg.data.odid) // New OD creation
              {
               lg(INCORRECTDBCONFDBNAME);
-              if (!init) client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: INCORRECTDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
+              if (!init) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: INCORRECTDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
               await transaction.query('ROLLBACK');
               return;
              }
           for (const table of ['head_', 'data_', 'metr_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Otherwise empty db name means OD removing, so drop corresponded tables
           for (const [, value] of controller.clients) value.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', data: { odid: msg.data.odid } })); // and send OD remove msg to all wss clients
           delete controller.ods[msg.data.odid]; // Delete OD from app memory
-          client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
+          client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
           await transaction.query('COMMIT');
           return;
          }
@@ -237,7 +237,7 @@ export async function EditDatabase(msg, client, init)
      {
       await transaction.query('ROLLBACK');
       lg(error);
-      if (!init) client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error' } }));
+      if (!init) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: error.message, title: 'Error' } }));
       return;
      }
  finally
@@ -246,7 +246,7 @@ export async function EditDatabase(msg, client, init)
      }
 
  if (init) return; // Return for initial db creating, otherwise check some restrictions and suck OD structure in memory below
- if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!` } }));
+ if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'DIALOG', data: { content: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!`, title: 'Warning' } }));
  SuckLayoutAndQuery(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
  SendViewsToClients(msg.data.odid); // Refresh OD tree with its vews and folders to all wss clients
 }
@@ -288,7 +288,7 @@ export function SendViewsToClients(odid, clients)
 function CheckUserMatch(usersgroups, list)
 {
  if (!Array.isArray(usersgroups) || !usersgroups.length) return false;
- if (usersgroups[0] === globals.SUPERUSER) return;
+ if (usersgroups[0] === SUPERUSER) return;
 
  for (let line of list.split('\n'))
      {
