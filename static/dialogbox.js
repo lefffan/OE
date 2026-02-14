@@ -62,7 +62,6 @@ const OPTIONSDIVIDER					= '/';
 const FIELDSDIVIDER						= '~';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
-const DIALOGBOXMACROSSTYLE				= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
 const CHECKSYNTAX						= 0b10000; 
 const SETSERVICEDATA					= 0b01000; 
 const SHOWDIALOGDATA					= 0b00100; 
@@ -540,7 +539,7 @@ export class DialogBox extends Interface
   
   e.data[name + flags + style] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
   e.options.push({origin: name + flags + style});
-  this.RefreshDialog(SETSERVICEDATA | SHOWDIALOGDATA); // and refresh dialog with a new profile added
+  this.RefreshDialog(SETSERVICEDATA | RESTOREINITIALORDER | SHOWDIALOGDATA); // and refresh dialog with a new profile added
  }
 
  // Inheritance function that is called on mouse/keyboard events on dialog box
@@ -655,7 +654,6 @@ export class DialogBox extends Interface
 					   if (event.target.classList.contains('itemremove'))								// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
 						   if (e.options.length === 1 && new DialogBox(`Profile cannot be removed, at least one must exist!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Remove profile error')) break;
-						   this.RestoreInitialOrder(e);
 						   delete e.data[GetElementOption(e).origin];									// Removing current profile
 						   this.RefreshDialog(SETSERVICEDATA | SHOWDIALOGDATA);
 						   break;
@@ -758,11 +756,11 @@ export class DialogBox extends Interface
  RefreshDialog(flag)
  {
   if (flag & CHECKSYNTAX) this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
+  if (flag & RESTOREINITIALORDER) this.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
   if (flag & SETSERVICEDATA) this.InitDialogData();																					// Init dialog data for SETSERVICEDATA flag set
   if (flag & SETSERVICEDATA) this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this)); // Set every element service data (id, option array, padbar..)
   if (flag & SETSERVICEDATA) this.DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);						// Create element expression to pass to eval func from original 'expr' element property
   if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																					// Show dialog box creating html from dialog data initial source (this.data)
-  if (flag & RESTOREINITIALORDER) this.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
   if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) this.DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);// Clear element from unnecessary props
  }
 

@@ -7,7 +7,7 @@ import { ELEMENTCOLUMNPREFIX, SYSTEMELEMENTNAMES, PRIMARYKEYSTARTVALUE } from '.
 import * as globals from './globals.js';
 
 const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
-const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
+const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty db name please remove all elements, views and rules first!';
 const EMPTYDBCONFDBNAME         = 'Cannot create new database with empty name!';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
 const LAYOUTCELLPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow'];
@@ -36,20 +36,16 @@ export function GetOptionStringId(option)
 }
 
 // Function checkes OD dialog structure and returns true for correct structure, otherwise throws an error. In case of correct structure and empty db name with element/view/rules profiles number - function returns undefined to remove db
-function CheckDatabaseConfigurationDialogStructure(dialog, action)
+export function CheckDatabaseConfigurationDialogStructure(dialog)
 {
- let elements, views, rules, odname;
+ let elements, views, rules;
  if (!(elements = GetDialogElement(dialog, 'padbar/Element/elements'))) throw new Error(INCORRECTDBCONFDIALOG);
  if (!(views = GetDialogElement(dialog, 'padbar/View/views'))) throw new Error(INCORRECTDBCONFDIALOG);
  if (!(rules = GetDialogElement(dialog, 'padbar/Rule/rules'))) throw new Error(INCORRECTDBCONFDIALOG);
+
+ if (GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true)) return true;
  if (typeof elements.data !== 'object' || typeof views.data !== 'object' || typeof rules.data !== 'object') throw new Error(INCORRECTDBCONFDIALOG);
-
- odname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true);
- if (typeof odname !== 'string') throw new Error(INCORRECTDBCONFDIALOG);
-
- if (!odname && ['create', 'read'].includes(action)) throw new Error(EMPTYDBCONFDBNAME); // Empty od name for new od creating
- if (!odname && action === 'edit' && (Object.keys(elements.data).length > 1 || Object.keys(views.data).length > 1 || Object.keys(rules.data).length > 1)) throw new Error(INCORRECTDBCONFDBNAME); // Empty od name with non empty elements, views or rules
- return odname;
+ if (Object.keys(elements.data).length !== 1 || Object.keys(views.data).length !== 1 || Object.keys(rules.data).length !== 1) throw new Error(INCORRECTDBCONFDBNAME);
 }
 
 export function CorrectProfileIds(e, excludeoption, lastid)
@@ -132,9 +128,16 @@ export async function EditDatabase(msg, client, init)
       await transaction.query('BEGIN');
 
       // OD check is failed. Failed check is a faulsy result that means empty db name. For incorrect db structure exception is throwed and handled below
-      if (!CheckDatabaseConfigurationDialogStructure(msg.data.dialog, msg.data.odid ? 'edit' : 'create')) // Remove OD below for a faulsy result (empty od name)
+      if (!CheckDatabaseConfigurationDialogStructure(msg.data.dialog))
          {
-          for (const table of ['head_', 'data_', 'metr_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Drop all OD related tables
+          if (!msg.data.odid) // New OD creation
+             {
+              lg(EMPTYDBCONFDBNAME);
+              if (!init) client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: EMPTYDBCONFDBNAME, title: 'Error' } })); // Send error text to the client side for empty db name
+              await transaction.query('ROLLBACK');
+              return;
+             }
+          for (const table of ['head_', 'data_', 'metr_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Otherwise empty db name means OD removing, so drop corresponded tables
           for (const [, value] of controller.clients) value.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', data: { odid: msg.data.odid } })); // and send OD remove msg to all wss clients
           delete controller.ods[msg.data.odid]; // Delete OD from app memory
           client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
@@ -341,11 +344,10 @@ export async function ReadAllDatabase()
       let dialog;                                                                                                                // Undefined odid or OD with id <odid> already sucked
       try {
            dialog = await pool.query(...qm.Table(`head_${odid}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make()); // Get OD structure dialog last version from head_id table
-           CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog, 'read');                                         // and check it
+           CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog);                                                 // and check it
           }
-      catch (error)
+      catch
           {
-           lg(error);
            continue;
           }
       SuckLayoutAndQuery(dialog.rows[0].dialog, odid);

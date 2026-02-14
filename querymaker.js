@@ -14,6 +14,7 @@
 //         DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
 //         \d <table> - DESCRIBE TABLE
 //         CREATE TABLE metr(); alter table metr add time TIMESTAMPTZ; SELECT create_hypertable('metr', by_range('time')); SELECT add_dimension('metr', by_range('id'));
+//                                                                     SELECT create_hypertable('metr_1', by_range('datetime'))
 //         set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
 
 
@@ -24,7 +25,7 @@ export const SYSTEMELEMENTNAMES           = { id : 'Object identificator', versi
 const REGEXPCUTOFFCOLUMNTYPE              = new RegExp(`::\\S+`);
 const REGEXPISUSERELEMENTCOLUMN           = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*\\s*->>?\\s*['][^']*[']$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*$`, `i`);
 const REGEXPSEARCHUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
-const PRIMARYKEYSTARTVALUE                = 3;
+export const PRIMARYKEYSTARTVALUE         = 3;
 
 console.log('Executing querymaker.js!!');
 
@@ -52,10 +53,11 @@ export class QueryMaker
   return `${column}->'${prop}'`;
  }
 
- Table(table = '', hypertable)
+ Table(table = '', hypertable, database)
  {
   this.table = table;
   this.hypertable = hypertable;
+  this.database = database;
   delete this.method;
   delete this.index;
   delete this.mode;
@@ -226,12 +228,19 @@ export class QueryMaker
                this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.GetWhereClause()}${this.GetOrderClause()}${this.GetLimitClause()}`;
                break;
           case 'CREATE':
-               // Add index for the column
+               // Create database if this.database does exist
+               if (this.database)
+                  {
+                   this.query = `CREATE DATABASE ${this.database}`;
+                   break;
+                  }
+               // Create hyper table
                if (this.hypertable)
                   {
                    this.query = `SELECT create_hypertable('${this.table}', by_range('${this.hypertable}'))`;
                    break;
                   }
+               // Add index for the column
                if (this.index)
                   {
                    //this.query = `CREATE ${this.fields[field] === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX CONCURRENTLY IF NOT EXISTS ${this.table}_${field}_index ON ${this.table} USING ${this.index} ('${field}')`; // Join 1st field name only
@@ -267,6 +276,12 @@ export class QueryMaker
                   }
                break;
           case 'DROP':
+               // Drop database if this.database does exist
+               if (this.database)
+                  {
+                   this.query = `DROP DATABASE ${this.database}`;
+                   break;
+                  }
                // Drop table in case of no columns defined
                if (!this.fields.length)
                   {

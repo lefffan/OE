@@ -358,7 +358,7 @@ export class Sidebar extends Interface
                inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}</td>`;                                                                   // Folder name
                break;
           case 'database':
-               inner += `<td class="database${branch.wrap === false ? 'un' : ''}wrapped${branch.content.length ? '' : 'empty'}"${attribute}>&nbsp</td>`;        // Database icon
+               inner += `<td class="database${branch.wrap === false && branch.content.length ? 'un' : ''}wrapped${branch.content.length ? '' : 'empty'}"${attribute}>&nbsp</td>`; // Database icon
                inner += `<td class="sidebar_${branch.type}"${attribute} nowrap>${name}</td>`;                                                                   // Database name
                break;
           case 'view':

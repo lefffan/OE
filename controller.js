@@ -1,18 +1,23 @@
-// 2025 year:
-// Todo0 - Macroses
-//         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (arbitrary text that describes macros assgnment and implementation). Undefined macroses are replaced by empty strings.
-//         Macros strategy definition:
-//		            System defined macroses:  ${RANDOM} ${OD} ${OV} ${ODID} ${OVID} ${OID} ${EID} ${EPROP} ${EVENT} ${MODIFIER} ${DATA} ${DATE} ${DATETIME} ${TIME} ${USERNAME} ${USERID} ${LAYOUT..} ${NULL}
-//		            System defined macroses:  Root user event handler data configuration - ${odid: 1, oid: 1, eid: 2: eprop: 'value'}
-//                User defined macroses:    OD Dialog OV args
-//		            User defined macroses:    OD configuration
-//                User defined macroses:    User configuration -  
-//         Macros area apply (per OD and user macros keeping, so OD or User props change pulls macros values recalculation, due to ease events recalculation via that already recaluclated macroses):
-//                View layout/selection ('view call' event)
-//                Rule message/query ('handler process' event)
-//                User customization ('user relogin')
-//                Handler data ('handler process' event)
+// Todo0 - correct warnings in empty db names
+// Todo0 - create elemtns in new DB Users
+// Todo0 - create one view in new DB Users
 
+// Todo0 - Macroses
+//         Macros name (act as a macros profile name), Macros value (text to submit macros name), Macros description (some text to describe macros assignment and implementation). Undefined macroses are replaced by empty strings. User defined empty macros name is correct, but should be avoided due system defined one duplicate
+//         Macros types:
+//		            General:    ${RANDOM} ${DATE} ${DATETIME} ${TIME} ${USERNAME} ${USERID} ${NULL}
+//                View:       ${OD} ${OV} ${ODID} ${OVID} ${OID} ${LAYOUT1} ${LAYOUT2} ${LAYOUT3} ${LAYOUT4}
+//                Event:      ${EVENT} ${EID} ${EPROP} ${MODIFIER} ${DATA}  
+//		            Element:    ${odid: 6, oid: 7, eid: 8: eprop: 'value'}, all macros names in parentheses are interpreted as usual constant strings, except this one - it acts as a JSON to define object element to retreive the data from.
+//                Dialog:     OV args in OD settings
+//		            Database:   macroses in general OD settings
+//                User:       User settings
+//                Handler:    via system call 'SETMACROS' handler defined macroses
+//         Macros apply:
+//                View call event parses view layout and selection fields and uses next type of macroses in priority order:                                                                           dialog, general, view, database, user
+//                Controller incoming commands (events from client side and system calls from handlers) parses rule message and rule query fields and uses next types of macroses in priority order:  dialog, general, view, event, element, database, user
+//                User customization is applied on user relogin:                                                                                                                                      user, general
+//                Handler system call 'SETMACROS':                                                                                                                                                    handler
 // Todo0 - User dialog settings
 //         Main: 
 //               username [eid1] username is unchangable after creation

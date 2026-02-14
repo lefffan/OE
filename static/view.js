@@ -593,6 +593,7 @@ export class View extends Interface
 }
 
 // View
+// Todo0 - Should the view be closed after its OD have been removed?
 // Todo0 - Limit json.row and json.value expressions evaluated as a js code via JS future specification named SHADOW REALMS.
 //         json.row has access to vars (r, c, q, selection) only, where selection is a data array came from backend and r/c are current row/column values that can be use in a selection[r][c]
 //         json.value is interpreted as an expression (with access to vars x, y, table) in case of key word "EXPRESSION " starts the value
