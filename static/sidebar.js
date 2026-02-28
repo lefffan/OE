@@ -124,6 +124,7 @@ export class Sidebar extends Interface
            branch = subbranch;
            branch.new = true;
            branch.name = path[i];
+           if (type === 'database') this.od[odid].oldov = this.od[odid].ov;
            continue;
           }
 

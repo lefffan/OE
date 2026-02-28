@@ -1,9 +1,10 @@
-export const SUPERUSER     = 'root';
-export const BUTTONOK      = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
-export const BUTTONCANCEL  = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
-export const BUTTONAPPLY   = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
-export const MODALBOXPROPS = JSON.stringify({ animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
-export const RANDOMSTRINGCHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const SYSTEMELEMENTNAMES = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', owner: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
+export const SUPERUSER          = 'root';
+export const BUTTONOK           = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
+export const BUTTONCANCEL       = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
+export const BUTTONAPPLY        = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
+export const MODALBOXPROPS      = JSON.stringify({ animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
+export const RANDOMSTRINGCHARS  = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
                       General: {
@@ -83,7 +84,7 @@ export const NEWOBJECTDATABASE = {
                            cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
                           };
 
-const EDITABLE              = 'plaintext-only';
+export const EDITABLE       = 'plaintext-only';
 const NOTEDITABLE           = 'false';
 const CELLMINWIDTH          = 25;
 const CELLMINHEIGHT         = 25;
@@ -231,7 +232,9 @@ for (const customization in CUSTOMIZATIONS)
     }
 
 export const OPTIONSDIVIDER              = '/';
-export const CLIENTEVENTS                = ['INIT', 'DELETE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'ONCHANGE', 'PASTE', 'RELOAD', 'SCHEDULE', 'DOUBLECLICK', 'KEYPRESS', 'KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Key0', 'Key1', 'Key2', 'Key3', 'Key4', 'Key5', 'Key6', 'Key7', 'Key8', 'Key9', 'KeyF1', 'KeyF2', 'KeyF3', 'KeyF4', 'KeyF5', 'KeyF6', 'KeyF7', 'KeyF8', 'KeyF9', 'KeyF10', 'KeyF11', 'KeyF12', 'KeySpace', 'KeyInsert', 'KeyDelete', 'KeyBracketLeft', 'KeyBracketRight'];
+export const KEYBOARDEVENTS              = ['KEYA', 'KEYB', 'KEYC', 'KEYD', 'KEYE', 'KEYF', 'KEYG', 'KEYH', 'KEYI', 'KEYJ', 'KEYK', 'KEYL', 'KEYM', 'KEYN', 'KEYO', 'KEYP', 'KEYQ', 'KEYR', 'KEYS', 'KEYT', 'KEYU', 'KEYV', 'KEYW', 'KEYX', 'KEYY', 'KEYZ', 'KEY0',   'KEY1',   'KEY2',   'KEY3',   'KEY4',   'KEY5',   'KEY6',   'KEY7',   'KEY8',   'KEY9',   'KEYF1', 'KEYF2', 'KEYF3', 'KEYF4', 'KEYF5', 'KEYF6', 'KEYF7', 'KEYF8', 'KEYF9', 'KEYF10', 'KEYF11', 'KEYF12', 'KEYSpace', 'KEYInsert', 'KEYDelete', 'KEYBracketLeft', 'KEYBracketRight', 'KEYPRESS'];
+export const NATIVEKEYBOARDEVENTS        = ['KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'F1',    'F2',    'F3',    'F4',    'F5',    'F6',    'F7',    'F8',    'F9',    'F10',    'F11',    'F12',    'Space',    'Insert',    'Delete',    'BracketLeft',    'BracketRight'];
+export const CLIENTEVENTS                = ['ADDOBJECT', 'DELETEOBJECT', 'ONOBJECTCHANGE', 'ONMACROSCHANGE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE', 'SCHEDULE', 'DOUBLECLICK', ...KEYBOARDEVENTS];
 
 export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
 {

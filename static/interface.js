@@ -668,7 +668,7 @@ export class Interface
 	  {
 	   let childs;
 	   if (!event.source) event.source = this;
-	   if (event.destination === null) // Dispatch event to all childs of a source, other cases - to all source child neighbours
+	   if (event.destination === null) // Dispatch event to all childs of a source, other cases - to all source child neighbours (brothers and sisters)
 		  {
 		   childs = [];
 		   for (const id in event.source.childs) 

@@ -138,6 +138,8 @@ export class Connection extends Interface
 	     case 'KILL':
                this.Logout();
                break;
+          default:
+               //if (globals.CLIENTEVENTS.indexOf(event.type) > -1) this.WebsocketSend(event);
 	    }
  }
 
@@ -204,3 +206,32 @@ export class Connection extends Interface
    |        |                            				     <- SETVIEW[WS:Connection:odid/ovid) |            |                                   |         |                
    +--------+                                                                                        +------------+                                   +---------+                                     
 */
+
+/* View data interaction
+   +--------+                                                                                        +------------+                                   +---------+                                     
+   |        | INIT [WS:View:'{"<eid1>":"${DATA}".."<eidN>":"${DATA}"}'] -> 			           |            |                                   |         |                
+   |        | DELETE [WS:View:'{"<oid1>":"".."<oidN>":""}'] -> 	          		                |            |                                   |         |                
+   |        | CONFIRMEDIT|CONFIRMDIALOG|ONCHANGE [WS:View:'${DATA}'] -> 			                |            |                                   |         |                
+   |        | PASTE [WS:View:'${DATA}'] ->                            			                |            |                                   |         |                
+   |        | KEYPRESS [WS:View:'${DATA}':'${MODIFIER}'] ->                            			 |            |                                   |         |                
+   |        | KeyA|..|KeyZ[WS:View:'${MODIFIER}'] ->                                   			 |            |                                   |         |                
+   |        | Key0|..|Key9[WS:View:'${MODIFIER}'] ->                                   			 |            |                                   |         |                
+   |        | KeyF1|..|KeyF12[WS:View:'${MODIFIER}'] ->                                 			 |            |                                   |         |                
+   |        | KeySpace|KeyInsert|KeyDelete|KeyBracketLeft|KeyBracketRight[WS:View:'${MODIFIER}'] ->  |            |                                   |         |                
+   |        | DBLCLICK[WS:View:'${MODIFIER}'] ->                                     			 |            |                                   |         |                
+   |        | SCHEDULE[WS:View] ->                                     			                |            |                                   |         |                
+   |        | RELOAD[WS:View] ->                                      			                |            |                                   |         |                
+   | Client |                                											 | Controller |                                   | Handler |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   |        |                        		    		                                              |            |                                   |         |                
+   +--------+                                                                                        +------------+                                   +---------+                                     
+*/
+// user permission check, view permission check, non disabled event existing check for the element, selection/layout check, rule check, event existing check

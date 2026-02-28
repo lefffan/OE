@@ -134,7 +134,8 @@ function GetStyleInnerHTML(customizations) //https://dev.to/karataev/set-css-sty
 
 export class Application extends Interface
 {
- static HTMLINNERENCODEMAP		= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode/decode each other
+ static HTMLINNERENCODEMAP		= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode corresponded array elements from 1st one to second
+ static HTMLINNERDECODEMAP		= [['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;'], ['&', '<', '>', '\n', ' ', '"']];
  static TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
  static TAGHTMLCODEMAP		    = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
  static ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
@@ -196,7 +197,7 @@ export class Application extends Interface
   document.addEventListener('contextmenu', (event) => event.preventDefault());
  }
 
- // Override main application child activation styling to exclude any effects for document.body
+ // Override main application child activation styling to exclude any effects for document.body as an 'Application' class DOM element
  StyleActiveChild()
  {
  }

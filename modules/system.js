@@ -33,7 +33,7 @@ const handlerprofile              = {
 const eventtemplate               = {
                                      events: { type: 'select', head: 'Select event type', data: globals.CLIENTEVENTS.join(globals.OPTIONSDIVIDER) },
                                      modifier: { type: 'checkbox', head: 'Select modifier keys~For mouse and keyboard events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', flag: '*' },
-                                     step1: { type: 'select', head: 'Select a handler output data redirection step', data: { 'Step1': handlerprofile } } 
+                                     step1: { type: 'select', head: 'Select a handler output data redirection step', data: { 'Step1': handlerprofile } } // Naming: SCHEDULE<NAME>, MACROS<NAME>. Specific settings - crontab line for SCHEDULE with name to distinguish, macros name for MACROS and FORCE to use next event handler scheme
                                     };
 const eventlistprofiletemplate    = { 10: { type: 'select', head: 'Select event profile', data: { 'New event~+': eventtemplate }, flag: '*' } };
 const EVENTPROFILINGDIALOG        = { title: { type: 'title', data: 'Event profiling' },

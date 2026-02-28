@@ -3,20 +3,14 @@
 // let c; c++;      if (c%2) {               const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));                        await sleep(5000);              }
 
 import { FIELDSDIVIDER, lg, loog, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
-import { ELEMENTCOLUMNPREFIX, SYSTEMELEMENTNAMES, PRIMARYKEYSTARTVALUE } from './querymaker.js';
+import { ELEMENTCOLUMNPREFIX, PRIMARYKEYSTARTVALUE } from './querymaker.js';
 import * as globals from './globals.js';
 
 const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
 const EMPTYDBCONFDBNAME         = 'Cannot create new database with empty name!';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
-const LAYOUTCELLPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow'];
-const LAYOUTTABLEPROPS          = ['style', 'hint', 'collapserow', 'collapsecol'];
-const LAYOUTEVENTPROPS          = ['event', 'x', 'y', 'row', 'col'];
-const LAYOUTTRIMABLEPROPS       = ['row', 'col', 'x', 'y', 'event', 'collapserow', 'collapsecol', 'style', 'hint'];
-const NONEXPRESSIONCHARS        = /[^rcq\+\-\;\&\|\!\*\/0123456789\.\%\>\<\=\(\) ]/;
-
-console.log('Executing objectdatabase.js!!');
+const LAYOUTJSONPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow', 'event'];
 
 export function GetTableNameId(name)
 {
@@ -381,88 +375,67 @@ function SuckLayoutAndQuery(dialog, odid)
      }
 }
  
-// +-----------------------------------------------------+
-// |  [C] row: expression (r, c, q, selection)           | r, c, q vars based expression; empty prop - no any row (empty expression is a faulsy case) 
-// |  [C] col: id|owner|e1|e2..|count(*)|${e1_prop}||    | sql select statement operands (columns); empty prop - any already defined col from jsons above; 
-// |  [C] x,y (r, c, q)                                  | r, c, q vars based expression
-// |  [C] value PLAIN/SELECT/EXPRESSION (x, y, table)    | 
-// |  [CT] hint                                          | 
-// |  [CT] style                                         | Cell style property as a html attribute consists of mixed values of JSON type 'object element' style property and direct style definition here
-// |  [CT] collapserow, collapsecol                      | These props set to any values - collapses whole table rows/columns (for cell) and undefined rows/columns (for table)
-// |  [CT] event                                         | 
-// +-----------------------------------------------------+
-function CheckXYpropsCorrectness(object)
-{
- return typeof object.x === 'string' && typeof object.y === 'string' && object.x && object.y && !NONEXPRESSIONCHARS.test(object.x) && !NONEXPRESSIONCHARS.test(object.y);
-}
-
-function TrimObjectProps(object, props)
-{
- for (const prop of props)
-     if (prop in object) 
-        if (typeof object[prop] === 'string') object[prop] = object[prop].trim(); else delete object[prop];
-}
-
+// +-------------------------------------------------+
+// |  row: boolean expression                        | vars <r>, <c>, <q>, <selection> based expression (boolean result) to match the selection row ; empty property is a faulsy case, so no any row matched
+// |  col: id|owner|e1|e2..|count(*)|${e1_prop}||    | sql select statement operands (columns); empty col - any already defined col from previous jsons are used; 
+// |  x,y: number expression                         | vars <r>, <c>, <q> based expression (number result) to place the cell with x,y props table coordinates
+// |  value: string expression                       | macros form vars <x>, <y>, <table> based expression (string result) to overwrite cell text content; In case of <x>, <y>, <table> vars presetn the property is dinamycly calculated at any table data refresh
+// |  hint: clear text                               | Cell hint text
+// |  style: clear tex                               | Cell html element style attribute value
+// |  collapserow, collapsecol: clear text           | These prop any value does collapse whole table rows/columns (for cell) and undefined rows/columns (for table)
+// |  event: clear text                              | Event ('ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT/PASTE', and all mouse/keyboards ones) to emulate at OV open. The property is a string begining with event name and with event data (for CONFIRMEDIT/PASTE events only) then.
+// |                                                 | The event is applied to the cursor cell. Unsupport event name or non interactive cell - no emulation, but cursor is set to the position specified by <x>, <y> (with x=0, y=0 values for default) coordinates anyway, so JSON '{"event":"", "x":"q-1", "y":"2"}' sets cursor to the last row third column. As it was mentioned below - tell about no data for KEYPRESS
+// +-------------------------------------------------+
+// Todo0 - Limitations for code in all expressions in json string props should be released in a JS future specification named SHADOW REALMS
 function ParseViewLayout(jsons, odid)
 {
  if (typeof jsons !== 'string') return;
- const layout = { expressionrows: {}, undefinedrows: {}, table: { style: '' }, event: {}, columns: [], systemelementnames: SYSTEMELEMENTNAMES }; // columns array has next fromat: { original:, output:, extra:, elementname:, elementprop:, elementprofilename:, elementprofiledescription: }
+ const layout = { dbdata: {}, nondbdata: {}, columns: [] }; // columns array has next fromat: { original:, elementname:, elementprop:, elementprofilename:, elementprofiledescription:, elementprofiletype: }
 
  for (let json of jsons.split('\n'))
      {
-      // First step - convert json to object and trim some of its props
+      // First step - convert json to object, clear it from unnecessary props, trim them all except "value" and check json correctness (valid json doesn't have row/col props at all or has them both)
       try { json = JSON.parse(json); }
       catch { continue; }
-      TrimObjectProps(json, LAYOUTTRIMABLEPROPS);
+      for (const prop in json)
+          if (!(prop in LAYOUTJSONPROPS) || typeof json[prop] !== 'string') delete json[prop];
+           else if (prop !== 'value') json[prop] =  json[prop].trim();
+      if (!('row' in json) && 'col' in json) continue;
+      if (!('col' in json) && 'row' in json) continue;
 
-      // Second step - set cell/table specific 'event' property. Last event reference is always used
-      if (typeof json.event === 'string') for (const prop of LAYOUTEVENTPROPS) if (typeof json[prop] === 'string') layout.event[prop] = json[prop];
-
-      // Third steap - each layout json describes some props specific for table or cell. Since no x/y/row props set - json is table specific, other cases - cell specific. Copy table props first
-      if (!('x' in json) && !('y' in json) && !('row' in json))
-         {
-          for (const prop of LAYOUTTABLEPROPS) if (typeof json[prop] === 'string') layout.table[prop] = json[prop];
-          continue;
-         }
-
-      // Forth step - property list is cell specific (previous step didn't continue). So fisrt check undefined rows (custom data from non db selection). Props x/y should be defined properly in case. Use correct x/y combined property as a key in a layout.undefinedrows object
+      // Second step - since no "row" and "col" props defined the json describes custom data pulling it from not db selection, but from "value" property and placing to the table cell with x/y coordinates. Use correct x/y combined property as a key in a layout.undefinedrows object
       if (!('row' in json))
          {
-          if (!CheckXYpropsCorrectness(json)) continue;
-          const xy = `${json.x}~${json.y}`;
-          if (!(xy in layout.undefinedrows)) layout.undefinedrows[xy] = {};
-          for (const prop of LAYOUTCELLPROPS) if (typeof json[prop] === 'string') layout.undefinedrows[xy][prop] = json[prop];
+          if (!('x' in json)) json.x = '0'; // Property "x" default value
+          if (!('y' in json)) json.y = '0'; // Property "y" default value
+          const xy = `${json.x}~${json.y}`; // Define unique x~y combined propery to store json
+          layout.nondbdata[xy] = Object.assign(layout.nondbdata[xy] || {}, json); // Copy json props to layout.nondbdata[xy]
           continue;
          }
 
-      // Next step - check row property syntax and pasre column list in json.col splited via '|' then
-      //if (NONEXPRESSIONCHARS.test(json.row)) continue; // Row does exist, but incorrect, consisting of illegal expression chars? Continue. The line is commented temporally due to expression arbitrary chars to release custom values check via js code in a json.row (for a example - make red background for all cells with the 'DOWN' value). Limitation for the json.row code should be released in a JS future specification named SHADOW REALMS. Old version check also continues for empty json.row (which is correct), not considering defined columns for correct row syntax: if (!json.row || NONEXPRESSIONCHARS.test(json.row)) continue;
-      const currentcolumns = 'col' in json ? [] : layout.columns;
-      if ('col' in json) for (let original of json.col.split('|'))
-         {
-          if (!(original = original.trim())) continue;
-          let newcolumn;
-          for (const column of layout.columns) if (column.original === original && (newcolumn = column)) break; // Go through all previously defined columns and check match for current output column. Assign newcolumn to the matched column
-          if (newcolumn && currentcolumns.push(newcolumn)) continue;
-
-          layout.columns.push(newcolumn = { original: original }); // Otherwise create new column object
-          currentcolumns.push(newcolumn);
-          [newcolumn.elementname, newcolumn.elementprop] = qm.GetColumnElementAndProp(original); // Function qm.GetColumnElementAndProp returns object element name (or null if original column is not an object element) with its prop (or null if object element has non-JSON type or JSON property unset)
-          if (!newcolumn.elementname) continue; // New column is not an object element (id|date|time|user|eid1|eid2..)? Continue. Otherwise
-
-          const elementprofile = controller.ods[odid].elementprofiles[newcolumn.elementname]; // New column is an object element, so get it profile props such as 'name' for header, 'description' for hint and 'type' for extra columns to query (for json/jsonb element types only)
-          if (elementprofile) [newcolumn.elementprofilename, newcolumn.elementprofiledescription, newcolumn.elementprofiletype] = [elementprofile.name, elementprofile.description, elementprofile.type]; // Unknown profile in OD properties (for system elements probably)? Store element profile name/description/type
-         }
+      // Next step - pasre column list in json.col splited via '|' then
+      const currentcolumns = json.col ? [] : layout.columns;
+      for (let original of json.col.split('|'))
+          {
+           if (!(original = original.trim())) continue; // No action for empty column
+           let newcolumn;
+           for (const column of layout.columns) if (column.original === original && (newcolumn = column)) break; // Go through all previously defined columns and check match for current splited column name (original). Assign newcolumn to the found column
+           if (newcolumn && currentcolumns.push(newcolumn)) continue; // Previously defined column matches current, so fix it in current columns array and continue
+           layout.columns.push(newcolumn = { original: original }); // Otherwise create new column object and store it in a layout
+           currentcolumns.push(newcolumn); // Fix it in current columns array also
+           [newcolumn.elementname, newcolumn.elementprop] = qm.GetColumnElementAndProp(original); // Function qm.GetColumnElementAndProp returns object element name (or null if original column is not an object element) with its prop (or null if object element has non-JSON type or JSON property unset)
+           if (!newcolumn.elementname) continue; // New column is not an object element (id|date|time|user|eid1|eid2..)? Continue
+           const elementprofile = controller.ods[odid].elementprofiles[newcolumn.elementname]; // New column is an object element, so get its profile props such as 'name' for header, 'description' for hint and 'type' (json/jsonb element types causes extra args in SELECT statements, such as style/hint)
+           if (!elementprofile) continue;
+           [newcolumn.elementprofilename, newcolumn.elementprofiledescription, newcolumn.elementprofiletype] = [elementprofile.name, elementprofile.description, elementprofile.type]; // Unknown profile in OD properties (for system elements probably)? Store element profile name/description/type
+          }
 
       // Last step - assign cell props to layout.expressionrows[json.row] for every defined column in previous step (currentcolumns array)
-      for (const cellprop of LAYOUTCELLPROPS) // Go through all cell specific string props
-      if (typeof json[cellprop] === 'string') // and choose string type only
-      for (let i = 0; i < currentcolumns.length; i++) // For undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
+      for (let column of currentcolumns) // For undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
           {
-           const column = currentcolumns[i].original;
-           if (!(json.row in layout.expressionrows)) layout.expressionrows[json.row] = {};
-           if (!(column in layout.expressionrows[json.row])) layout.expressionrows[json.row][column] = {};
-           layout.expressionrows[json.row][column][cellprop] = json[cellprop]; // Set json cell props for every column 
+           column = column.original; // Pull column original name to use it as a key in a layout dbdata
+           if (!(json.row in layout.dbdata)) layout.dbdata[json.row] = {}; // Create json.row key empty object in a layout dbdata (if it doesn't exist)
+           layout.dbdata[json.row][column] = Object.assign(layout.dbdata[json.row][column] || {}, json); // and copy all json props to it for specified column name
           }
      }
 

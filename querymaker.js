@@ -4,6 +4,7 @@
 // Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
 // Todo - problems of deploying - can i use postgre db on commerisal base? 
 // Todo - db readonly replicas?
+// Todo0 - Process no PGSQL running error, in this case no error in concole and client side shows just no any OD in sidebar without any warnings. What if new OD is created? What error will it be?
 // Todo0 - Study psql syntax:
 //         CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
 //         SELECT current_database(); SELECT current_schema(); SELECT current_user;
@@ -19,9 +20,9 @@
 
 
 import { lg } from './main.js';
+import * as globals from './globals.js';
 
 export const ELEMENTCOLUMNPREFIX          = 'eid';
-export const SYSTEMELEMENTNAMES           = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', owner: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
 const REGEXPCUTOFFCOLUMNTYPE              = new RegExp(`::\\S+`);
 const REGEXPISUSERELEMENTCOLUMN           = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*\\s*->>?\\s*['][^']*[']$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*$`, `i`);
 const REGEXPSEARCHUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
@@ -42,7 +43,7 @@ export class QueryMaker
   column = column.trim();
   const match = column.match(REGEXPCUTOFFCOLUMNTYPE);
   if (match) column = column.substring(0, match.index) + column.substring(match.index + match[0].length);
-  if (column in SYSTEMELEMENTNAMES) return [column, null];
+  if (column in globals.SYSTEMELEMENTNAMES) return [column, null];
   if (!REGEXPISUSERELEMENTCOLUMN.test(column)) return [null, null];
   const pos = column.indexOf("'");
   return [column.match(REGEXPSEARCHUSERELEMENTCOLUMNNAME)[0].toLowerCase(), pos === -1 ? null : column.substring(pos + 1, column.length - 1)];

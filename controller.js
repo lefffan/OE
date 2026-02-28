@@ -1,4 +1,3 @@
-// Todo0 - correct warnings in empty db names
 // Todo0 - create elemtns in new DB Users
 // Todo0 - create one view in new DB Users
 
@@ -171,6 +170,8 @@ export class Controller
           case 'GETVIEW':
                this.SendView(client, msg);
                break;
+          default:
+               //console.log(msg);
 	    }
   //this.clients.get(client).lasttimestamp = Date.now();
  }
