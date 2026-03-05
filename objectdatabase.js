@@ -2,7 +2,7 @@
 // Todo0 - all DB dialog settings workable
 // let c; c++;      if (c%2) {               const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));                        await sleep(5000);              }
 
-import { FIELDSDIVIDER, lg, loog, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
+import { FIELDSDIVIDER, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
 import { ELEMENTCOLUMNPREFIX, PRIMARYKEYSTARTVALUE } from './querymaker.js';
 import * as globals from './globals.js';
 
@@ -10,7 +10,6 @@ const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
 const EMPTYDBCONFDBNAME         = 'Cannot create new database with empty name!';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
-const LAYOUTJSONPROPS           = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow', 'event'];
 
 export function GetTableNameId(name)
 {
@@ -228,7 +227,7 @@ export async function EditDatabase(msg, client, init)
  catch (error)
      {
       await transaction.query('ROLLBACK');
-      lg(error);
+      console.log(error);
       if (!init) client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error' } }));
       return;
      }
@@ -339,7 +338,7 @@ export async function ReadAllDatabase()
           }
       catch (error)
           {
-           lg(error);
+           console.log(error);
            continue;
           }
       SuckLayoutAndQuery(dialog.rows[0].dialog, odid);
@@ -376,12 +375,12 @@ function SuckLayoutAndQuery(dialog, odid)
 }
  
 // +-------------------------------------------------+
-// |  row: boolean expression                        | vars <r>, <c>, <q>, <selection> based expression (boolean result) to match the selection row ; empty property is a faulsy case, so no any row matched
+// |  row: boolean expression                        | vars <r>, <c>, <table> based expression (boolean result) to match the selection row ; empty property is a faulsy case, so no any row matched
 // |  col: id|owner|e1|e2..|count(*)|${e1_prop}||    | sql select statement operands (columns); empty col - any already defined col from previous jsons are used; 
-// |  x,y: number expression                         | vars <r>, <c>, <q> based expression (number result) to place the cell with x,y props table coordinates
-// |  value: string expression                       | macros form vars <x>, <y>, <table> based expression (string result) to overwrite cell text content; In case of <x>, <y>, <table> vars presetn the property is dinamycly calculated at any table data refresh
+// |  x,y: number expression                         | vars <r>, <c>, <table> based expression (number result) to place the cell with x,y props table coordinates. Vars <r> and <c> are undefined for virtual cells
+// |  value: string [expression]                     | For virtual cells only - macros form vars <x>, <y>, <table> based expression (string result) to overwrite cell text content which is dinamycly refreshed at any table data refresh
 // |  hint: clear text                               | Cell hint text
-// |  style: clear tex                               | Cell html element style attribute value
+// |  style: clear text                              | Cell html element style attribute value
 // |  collapserow, collapsecol: clear text           | These prop any value does collapse whole table rows/columns (for cell) and undefined rows/columns (for table)
 // |  event: clear text                              | Event ('ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT/PASTE', and all mouse/keyboards ones) to emulate at OV open. The property is a string begining with event name and with event data (for CONFIRMEDIT/PASTE events only) then.
 // |                                                 | The event is applied to the cursor cell. Unsupport event name or non interactive cell - no emulation, but cursor is set to the position specified by <x>, <y> (with x=0, y=0 values for default) coordinates anyway, so JSON '{"event":"", "x":"q-1", "y":"2"}' sets cursor to the last row third column. As it was mentioned below - tell about no data for KEYPRESS
@@ -390,7 +389,7 @@ function SuckLayoutAndQuery(dialog, odid)
 function ParseViewLayout(jsons, odid)
 {
  if (typeof jsons !== 'string') return;
- const layout = { dbdata: {}, nondbdata: {}, columns: [] }; // columns array has next fromat: { original:, elementname:, elementprop:, elementprofilename:, elementprofiledescription:, elementprofiletype: }
+ const layout = { dbdata: {}, nondbdata: {}, columns: [] }; // <columns> array has next fromat: { original:, elementname:, elementprop:, elementprofilename:, elementprofiledescription:, elementprofiletype: }, also 5 props added at client side: event, collapsedrows[], collapsedcols[], collapseundefinedrows, collapseundefinedcols
 
  for (let json of jsons.split('\n'))
      {
@@ -398,7 +397,7 @@ function ParseViewLayout(jsons, odid)
       try { json = JSON.parse(json); }
       catch { continue; }
       for (const prop in json)
-          if (!(prop in LAYOUTJSONPROPS) || typeof json[prop] !== 'string') delete json[prop];
+          if (!globals.LAYOUTJSONPROPS.includes(prop) || typeof json[prop] !== 'string') delete json[prop];
            else if (prop !== 'value') json[prop] =  json[prop].trim();
       if (!('row' in json) && 'col' in json) continue;
       if (!('col' in json) && 'row' in json) continue;
@@ -408,12 +407,14 @@ function ParseViewLayout(jsons, odid)
          {
           if (!('x' in json)) json.x = '0'; // Property "x" default value
           if (!('y' in json)) json.y = '0'; // Property "y" default value
+          if (Object.keys(json).length < 3) continue; // Props count low than 3 means only x/y props defined which is incorrect
           const xy = `${json.x}~${json.y}`; // Define unique x~y combined propery to store json
           layout.nondbdata[xy] = Object.assign(layout.nondbdata[xy] || {}, json); // Copy json props to layout.nondbdata[xy]
           continue;
          }
 
       // Next step - pasre column list in json.col splited via '|' then
+      if (Object.keys(json).length < 3) continue; // Props count low than 3 means only row/col props defined which is incorrect
       const currentcolumns = json.col ? [] : layout.columns;
       for (let original of json.col.split('|'))
           {
@@ -430,7 +431,7 @@ function ParseViewLayout(jsons, odid)
            [newcolumn.elementprofilename, newcolumn.elementprofiledescription, newcolumn.elementprofiletype] = [elementprofile.name, elementprofile.description, elementprofile.type]; // Unknown profile in OD properties (for system elements probably)? Store element profile name/description/type
           }
 
-      // Last step - assign cell props to layout.expressionrows[json.row] for every defined column in previous step (currentcolumns array)
+      // Last step - assign cell props to layout.dbdata[json.row] for every defined column in previous step (currentcolumns array)
       for (let column of currentcolumns) // For undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
           {
            column = column.original; // Pull column original name to use it as a key in a layout dbdata

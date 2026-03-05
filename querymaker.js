@@ -19,7 +19,6 @@
 //         set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
 
 
-import { lg } from './main.js';
 import * as globals from './globals.js';
 
 export const ELEMENTCOLUMNPREFIX          = 'eid';
@@ -34,7 +33,7 @@ export class QueryMaker
 {
  constructor()
  {
-  lg('New Query Maker!');
+  console.log('New Query Maker!');
  }
 
  // Function parsed select operand (column) and returns array of element name (id, version, edi1..) and element property name (in case of json type)
@@ -96,27 +95,27 @@ export class QueryMaker
           case 'VALUE':
                fields = this.Join(',', '').split(',')[0];
                if (!fields || fields === '*') fields = res.fields[0].name;
-               lg(res.rows[0][fields]);
+               console.log(res.rows[0][fields]);
                break;
           case 'ROW':
-               lg(res.rows[0]);
+               console.log(res.rows[0]);
                break;
           case 'COLUMN':
                fields = this.Join(',', '').split(',')[0];
                if (!fields || fields === '*') fields = res.fields[0].name;
-               for (const row of res.rows) lg(row[fields]);
+               for (const row of res.rows) console.log(row[fields]);
                break;
           case 'COLUMNS':
                fields = this.Join(',', '').split(',');
                if (!fields || fields === '*') fields = res.fields;
                for (const row of res.rows)
                    {
-                    for (const field of fields) lg(row[field]);
-                    lg('___');
+                    for (const field of fields) console.log(row[field]);
+                    console.log('___');
                    }
                break;
           default:
-               lg(res.rows);
+               console.log(res.rows);
                break;
          }
  }
@@ -318,7 +317,7 @@ export class QueryMaker
  Make(queryconfig)
  {
   this.BuildQuery();
-  lg(`query: ${this.query}`);
+  console.log(`query: ${this.query}`);
   if (queryconfig) return [{ text: this.query, values: this.args, rowMode: 'array' }];
   return this.args.length ? [this.query, this.args] : [this.query];
  }

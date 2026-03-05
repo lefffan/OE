@@ -1,10 +1,16 @@
 export const SYSTEMELEMENTNAMES = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', owner: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
+export const LAYOUTJSONPROPS    = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow', 'event'];
 export const SUPERUSER          = 'root';
 export const BUTTONOK           = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
 export const BUTTONCANCEL       = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
 export const BUTTONAPPLY        = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
 export const MODALBOXPROPS      = JSON.stringify({ animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
 export const RANDOMSTRINGCHARS  = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const CELLMINWIDTH       = 25;
+export const CELLMINHEIGHT      = 25;
+export const EDITABLE           = 'plaintext-only';
+export const NOTEDITABLE        = 'false';
+export const ANIMATIONS		    = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
                       General: {
@@ -84,13 +90,7 @@ export const NEWOBJECTDATABASE = {
                            cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
                           };
 
-export const EDITABLE       = 'plaintext-only';
-const NOTEDITABLE           = 'false';
-const CELLMINWIDTH          = 25;
-const CELLMINHEIGHT         = 25;
 const DIALOGBOXMACROSSTYLE	= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
-export const ANIMATIONS			= ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
-
 export const CUSTOMIZATIONS =
 {
         "Sidebar": {
@@ -203,8 +203,9 @@ export const CUSTOMIZATIONS =
 		            ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
 		            ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
                     ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
-                    ".interactivecursorcell":      { "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
-                    ".clipboardcell":              { "outline-style": "dashed;" }, 
+                    ".interactivecursorcell":      { "outline": "green solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                    ".celleditmode":               { "box-shadow": "rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset; !important;", "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;" },
+                    ".clipboardcell":              { "outline-style": "dashed;", "outline-offset": "-4px;" }, 
 		            ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
                     ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
 		            [`.ovbox table tbody tr td:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },

@@ -1,13 +1,3 @@
-// Todo1 - Some boxes may gravitate/stick to another one, example OV boxes may stick to sidebar box or to parent box edges
-// Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available) and scale 'cm' icon. Finish child controls (icons pos, dialog interaction)
-// Todo2 - Set cursor at scrollbar priority to the child control (cursor at scrollbar track closes the box, but shouldn't). Set cursor child control priority to default child hanlder and div elements hover (resizing cursor is not shown on OV cells but should)
-// Todo2 - Dragging child with right btn hold moves neighbor childs
-// Todo1 - Control hint at cursor navigating ('close', 'fullscreen'..)
-// Todo0 - While resizing all animation is being applied and slowing GUI? What is it about??
-// Todo0 - Two often right btn click generates two context menus displayed in a parent child. This may appear while click that removes non sticky child are late removing child that is not shown yet, Workaround - removing nonsticky childs function should be placed in setTimeout(0, ) or requestedCallback wrapper
-// Todo2 - Change box minimize icon from low line to upper line
-// Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
-
 import { app } from './application.js';
 import { Application } from './application.js';
 import * as globals from './globals.js';
@@ -333,7 +323,7 @@ export class Interface
 		 	{
 			 document.body.style.cursor = 'auto';
 			 CallControlHandler(app.control, null, 'release');
-			 app.lg(`Control ${app.control.name} is released!`);
+			 //console.log(`Control ${app.control.name} is released!`);
 			 delete app.control;
 			}
 		 if (lower && !this.IsOnTop(current) && this.IsOnTop(lower))								// Lower child is 'top layer' and current is not? Swap it
@@ -353,7 +343,7 @@ export class Interface
   if (app.control?.child === this.childs[id])																								// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';
-	  app.lg(`Control ${app.control.name} is released!`);
+	  //console.log(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
   this.childs[id].Hide();																													// Hide and kill the child
@@ -601,7 +591,7 @@ export class Interface
 	 {
 	  if (ControlEventMatchUserEvent(app.control, event, 'release') !== false)
 		 {
-		  app.lg(`Control ${app.control.name} is released!`);
+		  //console.log(`Control ${app.control.name} is released!`);
 		  SetMouseCursorContolsHover(app.control.child, event, childclientrect);		// Check all controls mouse cursor hover match and modify cursor for mouse moving	
 		  if (ControlAreaMatchMouseCursor(app.control, event, 'release', childclientrect) !== false)
 			 CallControlHandler(app.control, event, 'release');							// Call control handler
@@ -629,7 +619,7 @@ export class Interface
 	   	   ControlAreaMatchMouseCursor(control, event, 'capture', childclientrect) !== false &&	
 		   ControlElementsMatchEventTarget(control, event) !== false)
 		  {																						// Check control event, mouse cursor is in control area and clicked element match of control DOM elements for 'capture' phase. Control is considered captures in case of all cases match
-		   app.lg(`Control ${prop} is captured!`);
+		   //console.log(`Control ${prop} is captured!`);
 		   app.control = control;																// Fix captured control
 		   if ('cursor' in control) document.body.style.cursor = control.cursor;				// Set control cursor document.body.style.setProperty('cursor', control.cursor, 'important');
 		   CallControlHandler(control, event, 'capture');										// Call control handler
@@ -640,7 +630,7 @@ export class Interface
 		   ControlAreaMatchMouseCursor(control, event, 'release', childclientrect) !== false &&
 		   ControlElementsMatchEventTarget(control, event) !== false)							// Check match case for 'release' phase only for non-existing 'capture' phase
 	   	  {
-		   app.lg(`Control ${control.name} is captured and released!`);
+		   //console.log(`Control ${control.name} is captured and released!`);
 		   if (CallControlHandler(control, event, 'release')) return;							// Call control handler. For only these kind of controls (with no 'capture' phase) next control process is continued if no current control handler return event
 		  }
 	  }
@@ -648,11 +638,12 @@ export class Interface
 
  // Event queue is a child interaction event list to be processed. Every event chain has its own id in a queue. Chain consist of some single events inited on child request/response interaction.
  // Event format:
- // { id: <event chain queue id, added automatically if needed>
- //   type: <event type>
- //   source: <inited event source child>
- //   destination: <destination childs array to pass the event to, empty array - broadcast event to all childs of a parent>
- //   data: <event data>
+ // { 
+ //	 id: <event chain queue id, added automatically if needed>
+ //  type: <event type>
+ //  source: <inited event source child>
+ //  destination: <destination childs array to pass the event to, empty array - broadcast event to all childs of a parent>
+ //  data: <event data>
  // }
  // Function processes childs events and return count of event processed.
  // The function is called on next type of events:
@@ -732,3 +723,11 @@ const CHILDCONTROLTEMPLATES = {
 							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
 							   default: { callback: [] }, 
 							  };
+
+// Todo1 - Some boxes may stick to another one, example OV boxes may stick to sidebar box or to parent box edges
+// Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available) and scale 'cm' icon that scale child div. Close control action should be questionable (optionally)
+// Todo1 - Control hint at cursor navigating ('close', 'fullscreen'..)
+// Todo2 - Set cursor at scrollbar priority to the child control (cursor at scrollbar track closes the box, but shouldn't). Set cursor child control priority to default child hanlder and div elements hover (resizing cursor is not shown on OV cells but should)
+// Todo2 - Dragging child with right btn hold moves neighbor childs
+// Todo2 - Change box minimize icon from low line to upper line
+// Todo1 - https://dgrm.net - nice GUI:) some nice features may be used

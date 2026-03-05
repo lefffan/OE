@@ -93,16 +93,6 @@ function WSNewConnection(client, req)
  client.on('close', WSClose);
 }
 
-export function lg(...data)
-{
- console.log(...data);
-}
-
-export function loog(...data)
-{
- for (const object of data) console.dir(object);
-}
-
 export function GenerateRandomString(length)
 {
  let randomstring = '';

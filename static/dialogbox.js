@@ -40,8 +40,8 @@
 // Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
 // Todo0 - Use adjusted dialog data (without service props like id, padarea, options..) at interactive (or for non interactive too?) mode just the pure dialog data to be passed to the controller
 // Todo0 - table btn push should call the controller/callback with element 'table' data?
+// Todo0 - test all dialog features including table cells click that applies table data and send it to the controller
 
-import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
@@ -91,7 +91,7 @@ function SetFlag(e, name, value)
 		 			 readonly = eval(e.test); // Evaluate (test) element modified expression
 					}
   			  catch { 
-		 			 app.lg('Evaluation exception detected on element:', e.test);
+		 			 console.log('Evaluation exception detected on element:', e.test);
 		 			 delete e.expr;
 		 			 delete e.test;
 		 			 for (const element of this.elements) element.affect.delete(e.id);	// In case of error expression e.test - remove this element (<e>) id from all elements 'affect' property, so these elements can't affect to <e> readonly status due to incorrect e.test

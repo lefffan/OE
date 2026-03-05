@@ -5,7 +5,6 @@
 // Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
 // Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
 
-import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
@@ -246,7 +245,7 @@ export class Sidebar extends Interface
      {
       if (!lastactiveviewchildid || newwindow) 
          {
-          viewbox = new View({ odid: odid, ovid: ovid, status: -1 }, this.parentchild);
+          viewbox = new View({ odid: odid, ovid: ovid, status: -1, username: this.username }, this.parentchild);
          }
        else
          {

@@ -5,7 +5,7 @@
 
 import http from 'http';
 import fs from 'fs';
-import { lg, controller } from './main.js';
+import { controller } from './main.js';
 
 const staticdocs = {
     '/application.js': '/static/application.js',

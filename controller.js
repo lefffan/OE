@@ -80,7 +80,7 @@
 //         Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
 //         Node module import/export syntax https://www.w3schools.com/nodejs/nodejs_modules_esm.asp https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Statements/import
 
-import { WSIP, WSPORT, GenerateRandomString, lg, qm, pool } from './main.js';
+import { WSIP, WSPORT, GenerateRandomString, qm, pool } from './main.js';
 import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
 
 const UNKNOWNDBID        = 'Incorrect or nonexistent database id!';
@@ -116,7 +116,7 @@ export class Controller
  {
   try { msg = JSON.parse(msg); }
   catch { return; }
-  lg('Incoming msg:', msg);
+  console.log('Incoming msg:', msg);
   if (!msg || typeof msg !== 'object' || !msg.type) return;
 
   if (!['LOGIN', 'CREATEWEBSOCKET'].includes(msg.type) && !this.clients.get(client).auth)

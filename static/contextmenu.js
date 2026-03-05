@@ -1,6 +1,5 @@
 // Todo0 - handle context key menu creation
 
-import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
 

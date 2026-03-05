@@ -1,6 +1,5 @@
 // Todo0 - how to release next method: up/down arrow keys navigate for last focused selectable element?
 
-import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { GetElementOption } from './dialogbox.js';

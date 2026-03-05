@@ -2,8 +2,9 @@
 // auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
 // auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
 // Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
+// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'. And controller should send only active handler list instead of their wrapeed dialog structure, so dialog of itself should be built on a client side code
+// Todo - Ctrl + Tab switches between childs in a connection child
 
-import { app } from './application.js';
 import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
@@ -138,8 +139,11 @@ export class Connection extends Interface
 	     case 'KILL':
                this.Logout();
                break;
+	     case 'BRINGTOTOP':
+               break;
           default:
                //if (globals.CLIENTEVENTS.indexOf(event.type) > -1) this.WebsocketSend(event);
+               console.log(event.type);
 	    }
  }
 
@@ -158,7 +162,7 @@ export class Connection extends Interface
         }
   catch (err)
         {
-         app.lg(err);
+         console.log(err);
          setTimeout(this.Login.bind(this), 0, this.logintitle = 'No server respond!');
         }
  }
