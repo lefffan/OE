@@ -197,11 +197,12 @@ export class Sidebar extends Interface
                   }
                break;
           case 'CONTEXTMENU':
-               const option = event.data[0].substring(0, 'Logout '.length) === 'Logout ' ? 'LOGOUT' : event.data[0];
-               const optionevents = { 'New Database':    { type: 'CREATEDATABASE', destination: this.parentchild },
-                                      'Configure Database': { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
-                                      'Open in a new window':   this.GetViewEventBuilder(event.data[1], event.data[2], true),
-                                      'LOGOUT':                  { type: 'LOGOUT', destination: this.parentchild },
+               const option = event.data[0].substring(0, 'Logout '.length) === 'Logout ' ? 'Logout' : event.data[0];
+               const optionevents = { 'New Database':            { type: 'CREATEDATABASE', destination: this.parentchild },
+                                      'Configure Database':      { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
+                                      'Open in a new window':    this.GetViewEventBuilder(event.data[1], event.data[2], true),
+                                      'Help':                    { type: 'HELP', destination: this.parentchild },
+                                      'Logout':                  { type: 'LOGOUT', destination: this.parentchild },
                                     }; 
                return optionevents[option];
           case 'SIDEBARSET': // { type: 'SIDEBARSET', data: { odid:, path:, ov: { 1: [path1, path2..], 2: [..] } } }

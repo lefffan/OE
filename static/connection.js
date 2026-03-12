@@ -52,6 +52,9 @@ export class Connection extends Interface
  {
   switch (event.type)
 	    {
+	     case 'HELP':
+               Application.DisplayHelp(this);
+	          break;
 	     case 'LOGOUT':
 	          this.Logout();
 	          break;
@@ -86,9 +89,9 @@ export class Connection extends Interface
 			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
 				   case 'Help':
-					   break;
+					   return { type: 'HELP', destination: this };
                        default:
-                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') this.Logout();
+                            if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') return { type: 'LOGOUT', destination: this };
 				  }
 	          break;
 
@@ -143,7 +146,7 @@ export class Connection extends Interface
                break;
           default:
                //if (globals.CLIENTEVENTS.indexOf(event.type) > -1) this.WebsocketSend(event);
-               console.log(event.type);
+               console.log(event);
 	    }
  }
 

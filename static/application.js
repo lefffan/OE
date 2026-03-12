@@ -1,5 +1,6 @@
 import { Interface } from './interface.js';
 import { Connection } from './connection.js';
+import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import * as globals from './globals.js';
 
@@ -10,6 +11,7 @@ function GetStyleInnerHTML(customizations) //https://dev.to/karataev/set-css-sty
  for (const customization in customizations)
  for (const selectorname in customizations[customization])
      {
+      if (selectorname === '*' && !window.navigator.userAgent.includes('irefox')) continue; // Don't apply selector '*' with scrollbar props for non FireFox browsers. Specified scrolbar props in '*' break scrollbar settings for non FF browsers, so should be applied for fucking FF only
       if (selectorname[0] === ' ') continue; // CSS selectors with leading space are ignored and used as non css customization element
       const selector = customizations[customization][selectorname];
       inner += `${selectorname} {`;
@@ -66,11 +68,17 @@ export class Application extends Interface
   return newstring + Application.EncodeString(string, encodemap);
  }
 
+ static DisplayHelp(parent)
+ {
+  //new DialogBox('Help test', parent, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
+  new DialogBox(globals.HELPDIALOG, parent, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
+ }
+
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
  constructor()
  {
   const style = document.createElement('style');
-  style.innerHTML = GetStyleInnerHTML(Object.assign(globals.CUSTOMIZATIONS, { "*": { "scrollbar-width": "thin;", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);" } }));
+  style.innerHTML = GetStyleInnerHTML(globals.CUSTOMIZATIONS);
 
   document.head.appendChild(style);
   const NICECOLORS = [ 'RGB(243,131,96);', 'RGB(247,166,138);', 'RGB(87,156,210);', 'RGB(50,124,86);', 'RGB(136,74,87);', 'RGB(116,63,73);', 'RGB(174,213,129);', 'RGB(150,197,185);' ];
@@ -106,8 +114,9 @@ export class Application extends Interface
 			   				new Connection(null, this);	// Args: data, parent
 							break;
 					   case 'Help':
-			   				//new DialogBox(globals.CUSTOMIZATIONDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
-			   				//new DialogBox(globals.EVENTPROFILINGDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
+                            Application.DisplayHelp(this);
+			   				new DialogBox(globals.CUSTOMIZATIONDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
+			   				new DialogBox(globals.EVENTPROFILINGDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
 							break;
 					  }
 		  	   break;

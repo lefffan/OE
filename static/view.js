@@ -17,6 +17,7 @@ const TOPSIDE					 = 0b0100;
 const RIGHTSIDE				 = 0b0010; 
 const BOTTOMSIDE	   		 = 0b0001; 
 const CURSOROFFSETS         = { ArrowUp: { y: -1 }, ArrowDown: { y: 1 }, ArrowLeft: { x: -1 }, ArrowRight: { x: 1 } };
+const NULLPROP              = Symbol('NULLPROP');
 
 
 function CheckXYpropsCorrectness(object)
@@ -77,11 +78,13 @@ export class View extends Interface
   this.gridcontainer = null;
   this.cursor = null;
   this.contentEditable = null;
+  this.clipboardcell = [];
  }
 
  // Function makes OV table cell text content editable with 'data' as a initial text content if exist
  MakeCellContentEditable(cell, data, force)
  {
+  this.HighlightClipboardAreas();
   if (this.contentEditable && !force) return; // No multiple cells with content editable feature turned on allowed.
   const target = this.GetGridCoordinatesElement(cell.x, cell.y); // Get x,y coordinates table cell target
   if (!target) return;
@@ -98,83 +101,173 @@ export class View extends Interface
  }
 
  // Function makes OV table cell text content editable with 'data' as a initial text content if exist
+ HighlightClipboardAreas(highlight)
+ {
+  for (const target of this.clipboardcell) if (target) target.classList[highlight ? 'add' : 'remove']('clipboardcell');
+  if (!highlight) this.clipboardcell = [];
+ }
+
+ // Function makes OV table cell text content editable with 'data' as a initial text content if exist
  CancelCellEditableContent(cell)
  {
   if (!this.contentEditable) return;
   const target = this.GetGridCoordinatesElement(cell.x, cell.y); // Get x,y coordinates table cell target
   if (!target) return;
-  target.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> var
+  target.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> attribute
   target.classList.remove('celleditmode');
   target.innerHTML = Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
   this.contentEditable = null; // Turn off content editable feature to allow other cells to have this feature turned on
  }
 
- ConfirmCellEditableContent(addnewobject)
+ // Function analyzes clicked/pressed cell and generate corresponded event to be passed to the controller
+ ConfirmCellEditableContent(event, clickedcell)
  {
+  let innerHTML;
   if (!this.contentEditable) return;
-  const cell = this.contentEditable;
-  const target = this.GetGridCoordinatesElement(cell.x, cell.y); // Get x,y coordinates table cell target
-  if (!target) return;
-  target.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> var
-  target.classList.remove('celleditmode');
-  cell.value = Application.AdjustString(target.innerHTML, Application.HTMLINNERDECODEMAP); // Apply cell inner encoding back all special chars
-  target.innerHTML = Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
+  const editablecell = this.contentEditable;
+  const editabletarget = this.GetGridCoordinatesElement(editablecell.x, editablecell.y);
+  const keyboardapply = event.key === 'Enter' && event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1 === 8 ? true : false;
+  if (editablecell === clickedcell && !keyboardapply) return; // User clicked/pressed event is on editable cell, and event is not CTRL+ENTER? Do nothing
+
   this.contentEditable = null; // Turn off content editable feature to allow other cells to have this feature turned on
+  if (editabletarget)
+     {
+      editabletarget.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> var
+      editabletarget.classList.remove('celleditmode'); // Remove 'edit mode' class
+      editablecell.value = Application.AdjustString(editabletarget.innerHTML, Application.HTMLINNERDECODEMAP); // Apply cell inner encoding back all special chars
+      editabletarget.innerHTML = innerHTML = Application.AdjustString(editablecell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
+     }
 
-  if (cell.oid === NEWVIRTUALROWID && !addnewobject) return; // Shouldn't add new object for NEWVIRTUALROWID object with no <addnewobject> var set, so do nothing and return
-  if (!addnewobject) return { type: 'CONFIRMEDIT', data: cell.value }; // Apply cell text content via CONFIRMEDIT client event to the controller
+  if (editablecell.oid === NEWVIRTUALROWID) // User clicked/pressed event is out of editable cell in case of editable cell is element of 'virtual add object'? No event case
+     {
+      for (let xy in this.objecttable[NEWVIRTUALROWID][editablecell.ename][NULLPROP])
+          {
+           xy = xy.split('~');
+           const [x, y] = [+xy[0], +xy[1]];
+           const cell = this.valuetable[y][x];
+           if (!cell || cell === editablecell) continue;
+           const target = this.GetGridCoordinatesElement(x, y);
+           cell.value = editablecell.value;
+           if (target && innerHTML !== undefined) target.innerHTML = innerHTML;
+          }
+      if (editablecell !== clickedcell) return;
+     }
+  return editablecell?.oid === NEWVIRTUALROWID ? { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() } : { type: 'CONFIRMEDIT', destination: this.parentchild, data: cell.value }; // Apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller, otherwise - apply cell text content via CONFIRMEDIT client event to the controller
+ }
 
+ // Function returns 'new object' cells text content 
+ GetNewObjectElementData()
+ {
   const data = {};
-  if (this.objecttable[NEWVIRTUALROWID]) for (const e in this.objecttable[NEWVIRTUALROWID]) data[e] = this.objecttable[NEWVIRTUALROWID][e][0].value;
-  return { type: 'INIT', data: data }; // Apply all NEWVIRTUALROWID object elements text content via INIT client event to the controller
-}
+  if (this.objecttable[NEWVIRTUALROWID])
+     for (const e in this.objecttable[NEWVIRTUALROWID])
+         if (!(e in globals.SYSTEMELEMENTNAMES) && NULLPROP in this.objecttable[NEWVIRTUALROWID][e])
+            {
+             const firstkey = Object.keys(this.objecttable[NEWVIRTUALROWID][e][NULLPROP])[0];
+             data[e] = this.objecttable[NEWVIRTUALROWID][e][NULLPROP][firstkey].value;
+            }
+  return data;
+ }
+
+ GetCellMetaData(cell)
+ {
+  return { odid: this.odid, ovid: this.ovid, oid: cell.oid, eid: cell.ename, prop: cell.eprop };
+ }
 
  DispatchMouseKeyboardEvent(event)
  {
-  if (!this.interactive) return;
   let eventpos;
+  if (!this.interactive) return;
   if (event.type !== 'dblclick' && (eventpos = globals.NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
-  const [x, y] = event.type === 'dblclick' ? this.GetElementGridCoordinates(event.target) : [this.cursor.x, this.cursor.y];
-  const cell = this.valuetable?.[y]?.[x];
-  if (!cell?.interactive) return;
-  const addon = { odid: this.odid, ovid: this.ovid, oid: cell.oid, eid: cell.ename, prop: cell.eprop };
+  const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x]; // Old version: const [x, y] = event.type === 'dblclick' ? this.GetElementGridCoordinates(event.target) : [this.cursor.x, this.cursor.y];  const cell = this.valuetable?.[y]?.[x];
+  if (!cell?.interactive || cell.oid === NEWVIRTUALROWID) return;
   const modifier = String(event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1);
-  if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: { modifier: modifier } }, addon);
-  const events = [Object.assign({ type: globals.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: { modifier: modifier } }, addon)];
-  if (event.key && event.key.length === 1) events.push(Object.assign({ type: 'KEYPRESS', destination: this.parentchild, data: { key: event.key, modifier: modifier } }, addon));
+  if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: { modifier: modifier } }, this.GetCellMetaData(cell));
+  const events = [Object.assign({ type: globals.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: { modifier: modifier } }, this.GetCellMetaData(cell))];
+  if (event.key && event.key.length === 1) events.push(Object.assign({ type: 'KEYPRESS', destination: this.parentchild, data: { key: event.key, modifier: modifier } }, this.GetCellMetaData(cell)));
   return events;
+ }
+
+ ForEachCell(areas, handleUndfined, accumulator, callback, ...args)
+ {
+  for (let area of areas) if (area = this.OrderArea(area))
+  for (let y = area.y1; y <= area.y2; y++) if (handleUndfined || this.valuetable[y])
+  for (let x = area.x1; x <= area.x2; x++) if (handleUndfined || this.valuetable[y][x]) accumulator = callback(area, x, y, accumulator, ...args);
+  return accumulator;
+ }
+
+ async CopyToClipboard(areas, plaintext)
+ {
+  this.HighlightClipboardAreas();
+  const text = this.ForEachCell(areas, true, '', (area, x, y, accumulator, plaintext) => { const target = this.GetGridCoordinatesElement(x, y);
+                                                                                           if (target && this.clipboardcell.push(target)) accumulator += plaintext ? target.innerText : target.innerHTML;
+                                                                                           return x < area.x2 ? accumulator + ' ' : y < area.y2 ? accumulator + '\n' : accumulator; }, plaintext);
+  try {
+       await navigator.clipboard.writeText(text); // Todo0 - should oringinal text be copied to the clipboard?
+       this.HighlightClipboardAreas(true);
+      } 
+  catch (err)
+      {
+       console.error('Copy to clipboard error: ', err);
+      }
+ }
+
+ async GetFromClipboard(cell)
+ {
+  try {
+       const text = await navigator.clipboard.readText();
+       return this.EventManager(Object.assign({ type: 'PASTE', destination: this.parentchild, data: text }, this.GetCellMetaData(cell)));
+      }
+  catch (err)
+      {
+       console.error('Get from clipboard error: ', err);
+      }
  }
 
  Handler(event)
  {
-  let cell;
+  let cell, confirmevent;
 
   switch (event.type)
          {
+          case 'CONTEXTMENU':
+               switch (event.data[0].substring(0, 6))
+                      {
+                       case 'Add ob':
+                            return { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() };
+                       case 'Delete':
+                            return { type: 'DELETEOBJECT', destination: this.parentchild, data: event.data[1] };
+                       case 'Copy':
+		                      this.CopyToClipboard(event.data[1], true); // Copy areas cell (1st arg) innerText/innerHTML (2nd arg) to clipboard
+                            return;
+                       case 'Paste':
+                            this.GetFromClipboard(event.data[1]);
+                            return;
+                       case 'Help':
+                            return { type: 'HELP', destination: this.parentchild };
+                       case 'Logout':
+                            return { type: 'LOGOUT', destination: this.parentchild };
+                      }
+               return;
           case 'KILL':
                return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, status: undefined } };
           case 'mousedown':
                const [x, y] = this.GetElementGridCoordinates(event.target); // Get event target grid x/y coordinates
                cell = this.valuetable[y]?.[x];
-               if (!cell) this.ConfirmCellEditableContent();
-               if (event.button === 0 || (cell && this.contentEditable === cell)) return;
-               if (event.button !== 2 || event.buttons !== 2) return;
-               this.ConfirmCellEditableContent();
-               let clickedarea = [{ x1: x, y1: y, x2: x, y2: y }];
-               for (const area of this.cursor.areas) if (this.GetArea1SidesToExpandArea2(clickedarea[0], area) && (clickedarea = this.cursor.areas)) break;
-               const objectids = [];
-               for (const area of clickedarea)
-               for (let y = area.y1; y <= area.y2; y++) if (this.valuetable[y])
-               for (let x = area.x1; x <= area.x2; x++)
-                   {
-                    cell = this.valuetable[y][x];
-                    if (cell.oid >= 0) objectids.push(cell.oid);
-                   }
-               const deleteoption = objectids.length < 2 ? 'Delete object' : `Delete ${objectids.length} objects`;
-               new ContextMenu([this.interactive ? ['Add object'] : 'Add object', !this.interactive || !objectids.length ? deleteoption : [deleteoption, objectids], '', ['Help'], ['Logout ' + globals.CutString(this.data.username)]], this, event);
-               if (x !== undefined) this.MoveCursor({ x: x - this.cursor.x, y: y - this.cursor.y }, false, true);
-               // Ended here - handle logout and help events on connection child only one way
-               return;
+               confirmevent = this.contentEditable ? this.ConfirmCellEditableContent(event, cell) : undefined;
+               if (event.button !== 2 || event.buttons !== 2) return confirmevent;
+               const areas = this.ItemInAreas(this.cursor.areas, x, y) ? this.cursor.areas : [{ x1: x, y1: y, x2: x, y2: y }];
+               const objectids = this.ForEachCell(areas, false, {}, (area, x, y, accumulator) => { const cell = this.valuetable[y][x]; if (cell.oid >= globals.PRIMARYKEYSTARTVALUE) accumulator[cell.oid] = ''; return accumulator; });
+               const deleteoption = Object.keys(objectids).length < 2 ? 'Delete object' : `Delete ${Object.keys(objectids).length} objects`;
+               new ContextMenu([ this.interactive ? ['Add object'] : 'Add object',
+                                 !this.interactive || !Object.keys(objectids).length ? deleteoption : [deleteoption, objectids],
+                                 x === undefined ? 'Copy' : ['Copy', areas],
+                                 cell?.interactive && cell.oid >= globals.PRIMARYKEYSTARTVALUE ? ['Paste', cell] : 'Paste',
+                                 '',
+                                 ['Help'],
+                                 ['Logout ' + globals.CutString(this.data.username)]], this, event);
+               if (x !== undefined && areas !== this.cursor.areas) this.MoveCursor({ x: x - this.cursor.x, y: y - this.cursor.y }, false, true);
+               return confirmevent;
           case 'dblclick':
                return this.DispatchMouseKeyboardEvent(event);
           case 'keydown':
@@ -182,11 +275,16 @@ export class View extends Interface
                       {
                        case 'Escape':
                             if (this.contentEditable) this.CancelCellEditableContent(this.valuetable[this.cursor.y][this.cursor.x]); // Handle esc key down for editable cell
-                            return;
+                            this.HighlightClipboardAreas();
+                            break;
+                       case 'Insert':
+                            if (event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1 === 8) this.CopyToClipboard(this.cursor.areas); // Copy cursor areas (1st arg) innerText/innerHTML (2nd arg) to clipboard for CTRL+INSERT hold. Todo0 - should i use CTRL+C combination to do the same and should i return back INSERT key to the event list that was removed due 'copy-to-clipboard' event?
+                            break;
                        default:
-                            if (this.contentEditable) break; // Handle all other key down cases strictly for no currently content editable cell
-                            cell = this.DispatchMouseKeyboardEvent(event); // Retreive keyboard generated event, for 'eventable' keys only
-                            if (cell) return cell; // and return it to dispatch it to the controller
+                            confirmevent = this.contentEditable ? this.ConfirmCellEditableContent(event, this.valuetable[this.cursor.y]?.[this.cursor.x]) : undefined;
+                            if (!confirmevent && this.contentEditable) return;
+                            confirmevent = confirmevent || this.DispatchMouseKeyboardEvent(event); // Retreive keyboard generated event, for 'eventable' keys only
+                            if (confirmevent) return confirmevent; // and return it to dispatch it to the controller if true
                             if (event.getModifierState('ScrollLock') || !this.gridcontainer) break; // Handle cursor moving keys then, for no scroll-lock key on and existing grid
                             const page = Math.ceil((this.gridcontainer.clientHeight * this.valuetableHeight) / (this.mtop + this.gridcontainer.scrollHeight + this.mbottom)); // Calculate page height in cells
                             Object.assign(CURSOROFFSETS, { Home: { y: -this.valuetableHeight }, End: { y: this.valuetableHeight }, PageUp: { y: -page }, PageDown: { y: page } }); // and store offsets for that kind of keys
@@ -222,7 +320,7 @@ export class View extends Interface
                               Object.assign(cell, { style: '' }, layout.dbdata[prop][column.original] || {});
                               cell.style = style + cell.style;
                              }
-                         [cell.oid, cell.ename, cell.eprop, cell.lastversion] = [o, column.elementname, column.elementprop, row?.[layout.columnlastversionindex]];
+                         [cell.oid, cell.ename, cell.eprop, cell.epropkey, cell.lastversion] = [o, column.elementname, column.elementprop, column.elementprop === null ? NULLPROP : column.elementprop, row?.[layout.columnlastversionindex] || o === NEWVIRTUALROWID];
                          if (typeof cell.value !== 'string')
                             {
                              let value = row?.[c];
@@ -231,12 +329,7 @@ export class View extends Interface
                               else if (typeof value === 'number') cell.value = value + '';
                                else cell.value = typeof value === 'string' ? value : '';
                             }
-                         cell.interactive = this.interactive && cell.oid !== undefined && cell.oid !== TITLEVIRTUALROWID && cell.ename && !globals.SYSTEMELEMENTNAMES[cell.ename] ? true : false;
-                         // Todo0 - context menu on cells
-                         // Todo0 - All client events should be documented and console.log() at connection handler() to confirm that they are dispatched to the controller
-                         // Todo0 - Help from old php sources
-                         // Todo0 - Paste client event
-                         // Todo0 - Copy to buffer
+                         cell.interactive = this.interactive && cell.lastversion && cell.oid !== undefined && cell.oid !== TITLEVIRTUALROWID && cell.ename && !globals.SYSTEMELEMENTNAMES[cell.ename] && (cell.oid !== NEWVIRTUALROWID || cell.eprop === null) ? true : false;
                          if (!this.ApplyCell(cell, table, r, c)) continue;
                          // Define cell some props (class, style and hint) below
                          cell.class = ['titlecell', 'newobjectcell', 'interactivecell', 'noninteractivecell'].at(r < 0 ? r + 2 : cell.interactive ? 2 : 3); 
@@ -258,7 +351,7 @@ export class View extends Interface
                     this.ApplyCell(cell, table);
                    }
                this.EvalVirtualCells(table); // Todo0 - add virtual cell values refresh at any OV data refresh
-
+               
                // Step 4 - hanlde result table zero height or display OV table
                return this.DisplayView(null, this.valuetable.length ? null : this.cellsoutofrange ? OUTOFRANGESELECTION : EMPTYSELECTION); // Todo0 - check all columns on first row props - what is it?
          }
@@ -267,11 +360,10 @@ export class View extends Interface
  // Functions evaluates all virtual cells values
  EvalVirtualCells(table)
  {
-  for (const xy in this.layout.virtualcells)
+  for (let xy in this.layout.virtualcells)
       {
-       const pos = xy.indexOf('~');
-       const x = +(xy.substring(0, pos));
-       const y = +(xy.substring(pos + 1));
+       xy = xy.split('~');
+       const [x, y] = [+xy[0], +xy[1]];
        cell = this.valuetable[y][x];
        try { cell.hint = cell.originalhint; cell.value = new Function('x', 'y', 'table', 'return `' + cell.originalvalue + '`')(x, y, table); }
        catch { cell.hint = `The cell value "${cell.originalvalue}" expression evaluation threw an exception!`; cell.value = ''; }
@@ -304,19 +396,12 @@ export class View extends Interface
       if (x >= this.valuetableWidth) this.valuetableWidth = x + 1; // Increase value table width if needed
       if (!this.valuetable[y]) this.valuetable[y] = []; // Create new table row number 'y' if needed
       this.layout.definedcols[x] = true; // Fix column number 'x' as existed
-      if (this.objecttable[cell.oid]?.[cell.ename]) delete this.objecttable[cell.oid][cell.ename][`${x}~${y}`]; // Delete corresponded object id (cell.oid) element id (cell.ename) placed in x,y html table coordinates
       if (!this.valuetable[y][x]) this.cellscount++; // Count new cells
       this.valuetable[y][x] = cell; // Set <cell> to value table
-      if (r === undefined) // Virtual cells (in case of undefined <r>) are detected
-         {
-          cell.originalvalue = cell.originalvalue; // Store original value to eval it at all next table data refresh 
-          cell.originalhint = cell.originalhint; // Store original hint to be able to restore it in case of a exception
-          this.layout.virtualcells[`${x}~${y}`] = true; // Store x,y coordinates in <virtualcells> object with <x> with <y> via '~' as an uniq key
-          return true;
-         }
-      if (!this.objecttable[cell.oid]) this.objecttable[cell.oid] = {}; // 
-      if (!this.objecttable[cell.oid][cell.ename]) this.objecttable[cell.oid][cell.ename] = [];
-      this.objecttable[cell.oid][cell.ename][`${x}~${y}`] = cell; // Bind <cell> with its uniq x,y coordinates to object id element id (one object element may be placed in multiple table cells due to some layout configurations)
+      if (r !== undefined) return true; // Non virtual cells (in case of nonundefined <r>) are detected, so handle virtual cell below
+      cell.originalvalue = cell.originalvalue; // Store original value to eval it at all next table data refresh 
+      cell.originalhint = cell.originalhint; // Store original hint to be able to restore it in case of a exception
+      this.layout.virtualcells[`${x}~${y}`] = true; // Store x,y coordinates in <virtualcells> object with <x> with <y> via '~' as an uniq key
       return true;
      }
  }
@@ -343,16 +428,27 @@ export class View extends Interface
   for (let y = 0; y < this.valuetableHeight; y++)
       {
        if (this.layout.collapsedrows[y] && (dispy = dispy + 1)) continue; // Collapse row 'y' with increasing <y> displacement
-       if (!this.valuetable[y] && 'collapseundefinedrows' in this.layout && (dispy = dispy + 1)) {console.log('hui');continue; }// Collapse row 'y' also with increasing <y> displacement if the row is undefined
+       if (!this.valuetable[y] && 'collapseundefinedrows' in this.layout && (dispy = dispy + 1)) continue; // Collapse row 'y' also with increasing <y> displacement if the row is undefined
        if (!this.valuetable[y]) continue; // Skip undefined row
        newtable[y - dispy] = this.valuetable[y]; // Add existing table row to a new table shifted row <y - dsipy>
        dispx = 0; // Process current row all columns for 'collapsing' below
        for (let x = 0; x < this.valuetableWidth - dispx; x++) // if (this.collapsedcols[x + dispx] && this.valuetable[y].splice(x--, 1)) dispx++;
+        if (this.layout.collapsedcols[x + dispx]) // Collapse the column 'x' for row 'y'
 	        {
-	         if (!this.layout.collapsedcols[x + dispx]) continue; // Continue for non-collapsed (previously defined) columns
-            this.valuetable[y].splice(x, 1); // or collapse the column otherwise splicing all elements to the left
+            this.valuetable[y].splice(x, 1); // splicing all elements to the left
             x--; // decreasing current column number <x>
             dispx++; // and increasing <dispx>
+           }
+         else // Cell is not collapsed, so adjust its x,y and bind it to object table
+	        {
+            const cell = this.valuetable[y][x];
+            cell.x = x;
+            cell.y = y - dispy;
+            if (cell?.oid === undefined || cell.ename === null) continue;
+            if (!this.objecttable[cell.oid]) this.objecttable[cell.oid] = {};
+            if (!this.objecttable[cell.oid][cell.ename]) this.objecttable[cell.oid][cell.ename] = {};
+            if (!this.objecttable[cell.oid][cell.ename][cell.epropkey]) this.objecttable[cell.oid][cell.ename][cell.epropkey] = {};
+            this.objecttable[cell.oid][cell.ename][cell.epropkey][`${cell.x}~${cell.y}`] = cell; // Bind <cell> with its uniq x,y coordinates to object id element id (one object element may be placed in multiple table cells due to some layout configurations)
            }
       }
   this.valuetable = newtable;
@@ -506,13 +602,15 @@ export class View extends Interface
   this.mtop = mtop;
   this.mbottom = mbottom;
 
-  // Todo0 - are global table attributes style/hint needed? 
-  // const style = `${this.layout.table.style} grid-template-columns: repeat(${this.itemArea.x2 - this.itemArea.x1 + 1}, min-content); grid-template-rows: repeat(${this.itemArea.y2 - this.itemArea.y1 + 1}, min-content); margin: ${mtop}px ${mright}px ${mbottom}px ${mleft}px;`;
-  const style = ` grid-template-columns: repeat(${this.itemArea.x2 - this.itemArea.x1 + 1}, min-content); grid-template-rows: repeat(${this.itemArea.y2 - this.itemArea.y1 + 1}, min-content); margin: ${mtop}px ${mright}px ${mbottom}px ${mleft}px;`;
-  // const title = this.layout.table.hint ? ` title="${this.layout.table.hint}"` : ``;
-  const title = ``;
-  let inner = '';
-  for (let y = this.itemArea.y1; y <= this.itemArea.y2; y++)
+  let inner = this.ForEachCell([this.itemArea], true, '', (area, x, y, accumulator) => { const id = `x${x}y${y}`;
+                                                                                         const cell = this.valuetable[y]?.[x];
+                                                                                         const addclass = (this.cursor?.x === x && this.cursor?.y === y) ? `${cell?.interactive ? ' interactivecursorcell' : ' noninteractivecursorcell'}` : `${this.ItemInAreas(this.cursor?.areas, x, y) ? ' selectedcell' : ''}`;
+                                                                                         if (!cell) return accumulator + `<div class="undefinedcell defaultcell${addclass}" id="${id}"></div>`;
+                                                                                         const title = cell.hint ? ` title="${cell.hint}"` : ``;
+                                                                                         const style = cell.style ? ` style="${cell.style}"` : ``;
+                                                                                         return accumulator + `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS)}</div>`;
+                                                                                       });
+  /*for (let y = this.itemArea.y1; y <= this.itemArea.y2; y++)
   for (let x = this.itemArea.x1; x <= this.itemArea.x2; x++)
       {
        const id = `x${x}y${y}`;
@@ -520,10 +618,11 @@ export class View extends Interface
        const addclass = (this.cursor?.x === x && this.cursor?.y === y) ? `${cell?.interactive ? ' interactivecursorcell' : ' noninteractivecursorcell'}` : `${this.ItemInAreas(this.cursor?.areas, x, y) ? ' selectedcell' : ''}`;
        if (!cell && (inner = inner + `<div class="undefinedcell defaultcell${addclass}" id="${id}"></div>`)) continue;
        const title = cell.hint ? ` title="${cell.hint}"` : ``;
-       inner += `<div class="${cell.class} defaultcell${addclass}" id="${id}" style="${cell.style}"${title}>${Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS)}</div>`;
-      }
-
-  this.scrollingcontainer.innerHTML = `<div class="gridcontainer" style="${style}"${title}>${inner}</div>`;
+       const style = cell.style ? ` style="${cell.style}"` : ``;
+       inner += `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS)}</div>`;
+      }*/
+  const style = `grid-template-columns: repeat(${this.itemArea.x2 - this.itemArea.x1 + 1}, min-content); grid-template-rows: repeat(${this.itemArea.y2 - this.itemArea.y1 + 1}, min-content); margin: ${mtop}px ${mright}px ${mbottom}px ${mleft}px;`;
+  this.scrollingcontainer.innerHTML = `<div class="gridcontainer" style="${style}">${inner}</div>`;
   this.gridcontainer = this.scrollingcontainer.querySelector('.gridcontainer');
   this.props.control.mouseareaselect.elements = [[this.gridcontainer]];
   
@@ -581,14 +680,18 @@ export class View extends Interface
  static MouseAreaSelectControl(userevent, control, phase)
  {
   const [x, y] = control.child.GetElementGridCoordinates(userevent.target); // Get event target grid x/y coordinates
+  const cell = control.child.valuetable?.[y]?.[x];
+  let confirmevent;
+
   if (phase === 'capture')
      {
-      if (control.child.contentEditable)
-         if (control.child.contentEditable === control.child.valuetable?.[y]?.[x]) return;
-          else control.child.ConfirmCellEditableContent();  // Selection phase 'capture' with any editable cell, but out of it - confirm editable content
-      if (x !== undefined) control.child.MoveCursor({ x: x - control.child.cursor.x, y: y - control.child.cursor.y }, null, !userevent.ctrlKey) && undefined; // Selection phase 'capture' with no any editable cell - grid mouse 1st click - just set cursor to x,y position
+      if (control.child.contentEditable && (confirmevent = control.child.ConfirmCellEditableContent(userevent, cell))) control.child.EventManager(confirmevent);
+      if (x !== undefined) control.child.MoveCursor({ x: x - control.child.cursor.x, y: y - control.child.cursor.y }, null, !userevent.ctrlKey); // Selection phase 'capture' with no any editable cell - grid mouse 1st click - just set cursor to x,y position
      }
-  if (x !== undefined && phase === 'process' && !control.child.contentEditable) control.child.MoveCursor({ x: x - control.child.cursor.areas.at(-1).x2, y: y - control.child.cursor.areas.at(-1).y2 }, true); // Selection phase 'process' with no any editable cell - grid mouse move - modify selection area to x,y position
+  if (phase === 'process')
+     {
+      if (x !== undefined && !control.child.contentEditable) control.child.MoveCursor({ x: x - control.child.cursor.areas.at(-1).x2, y: y - control.child.cursor.areas.at(-1).y2 }, true); // Selection phase 'process' with no any editable cell - grid mouse move - modify selection area to x,y position
+     }
  }
 
  GetElementGridCoordinates(element)
@@ -596,7 +699,7 @@ export class View extends Interface
   while (element && !element.id && element !== this.elementDOM) element = element.parentNode;
   if (!element?.id) return [];
   const pos = element.id.indexOf('y');
-  return [ element.id.substring(1, pos), element.id.substring(pos + 1) ];
+  return [ element.id.substring(1, pos), element.id.substring(pos + 1), element ];
  }
 
  GetGridCoordinatesElement(x, y)
@@ -607,7 +710,14 @@ export class View extends Interface
  HighlightTableCells(cursor, highlight)
  {
   if (!cursor) return;
-  let cell;
+  this.ForEachCell(cursor.areas, true, null, (area, x, y, accumulator, cursor, highlight) => { const target = this.GetGridCoordinatesElement(x, y);
+                                                                                               if (!target) return;
+                                                                                               if (cursor.x !== x || cursor.y !== y) return target.classList[highlight ? 'add' : 'remove']('selectedcell'); // Current cell x,y doesn't equal cursor x,y
+                                                                                               target.classList.remove('selectedcell'); // Current cell x,y equals cursor x,y
+                                                                                               highlight ? target.classList.add(this.valuetable[y]?.[x]?.interactive ? 'interactivecursorcell' : 'noninteractivecursorcell') : target.classList.remove('noninteractivecursorcell', 'interactivecursorcell');
+                                                                                             }, cursor, highlight);
+
+  /*let cell;
   for (let area of cursor.areas)
       {
        area = this.OrderArea(area);
@@ -623,7 +733,7 @@ export class View extends Interface
               {
                highlight ? cell.classList.add('selectedcell') : cell.classList.remove('selectedcell');
               }
-      }
+      }*/
  }
 
  // Order area coordinates putting x1 before x2, so y1
@@ -722,7 +832,12 @@ export class View extends Interface
 }
 
 // View
+// Todo0 - All client events should be documented and console.log() at connection handler() to confirm that they are dispatched to the controller
+// Todo0 - Paste client event
+// Todo0 - Copy to buffer
+// Todo0 - adjuststring, encodestring and htmlregexp remove to globals.js
 // Todo0 - Should the view be closed after its OD have been removed?
+// Todo0 - Emulate user client events binded on context menu. Events are defined in OV proflie settings
 // Todo0 - Limit json.row and json.value expressions evaluated as a js code via JS future specification named SHADOW REALMS.
 //         json.row has access to vars (r, c, q, selection) only, where selection is a data array came from backend and r/c are current row/column values that can be use in a selection[r][c]
 //         json.value is interpreted as an expression (with access to vars x, y, table) in case of key word "EXPRESSION " starts the value
