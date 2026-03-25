@@ -93,6 +93,43 @@ export function CorrectProfileIds(e, excludeoption, lastid)
 // Specified ms value to sleep by function
 export const freeze = ms => new Promise(resolve => setTimeout(resolve, ms)); // await freeze(0);
 
+// Function compares all elements data of profile1 with appropriate element data of profile2 and returns faulsy for any no-match case
+export function DialogProfileCompare(profile1, profile2)
+{
+ if (!profile1 || !profile2 || typeof profile1 !== 'object' || typeof profile2 !== 'object' || Object.keys(profile1).length !== Object.keys(profile2).length) return;
+
+ for (const name in profile1)
+     {
+      const e1 = profile1[name];
+      const e2 = profile2?.[name];
+      if (!e1 || !e2) return;
+      if (e1.type !== 'select' || !e1.data || typeof e1.data !== 'object')
+      if (e1.data === e2.data) continue; else return;
+      if (e2.type !== 'select' || !e2.data || typeof e2.data !== 'object' || Object.keys(e1.data).length !== Object.keys(e2.data).length) return;
+      for (const option in e1.data)
+          if (!DialogProfileCompare(e1.data[option], globals.GetOptionInSelectElement(e2, option.split('~')[0]))) return;
+     }
+
+ return true;
+}
+
+// Function checks incoming elements (user names, group names or OD identificators) array to match the <list> and return true for any match. Superuser no check shoud be implemented before this function call
+// Logocal AND is applied for all negative lines (with '!' as a first char), so item 'admin' doesn't match the list '!root\n!admin' (all except root and admin), but matches the list '!root\n!support'.
+// Also empty list doesn't match any item, item 'admin' matches the list 'admin\n!admin' and list '!' matches any item.
+export function CheckItemsToMatchTheList(items, list)
+{
+ let match;
+ if (!Array.isArray(items) || !items.length || typeof list !== 'string') throw new Error('Incorrect items/list format!');
+ list = list.split('\n');
+
+ for (let line of list) if (line = line.trim())
+     if (line[0] === '!') match = true;
+      else if (items.includes(line)) return true;
+
+ for (let line of list) if ((line = line.trim()) && line[0] === '!' && items.includes(line.substring(1))) return;
+ return match;
+}
+
 // Function creates regexp to match tag names list 'tags'
 export function HTMLTagsRegexp(tags)
 {

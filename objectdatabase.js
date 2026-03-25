@@ -32,7 +32,7 @@ export async function EditDatabase(msg, client, init)
  if (msg.data.odid)
     {
      let e = globals.GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Database/settings/Permissions/od');
-     if (CheckUserMatch([client.username], e.data))
+     if (globals.CheckItemsToMatchTheList([client.username], e.data))
         {
          client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: DISALLOWEDTOCONFIGURATE, title: 'Error' } })); // Send error text to the client side
          return;
@@ -40,7 +40,7 @@ export async function EditDatabase(msg, client, init)
      for (const name of ['Database', 'Element', 'View', 'Rule'])
          {
           e = globals.GetDialogElement(controller.ods[msg.data.odid].dialog, `padbar/Database/settings/Permissions/${name}`);
-          if (CheckUserMatch([client.username], e.data) && !DialogProfileCompare(globals.GetOptionInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name), globals.GetOptionInSelectElement(msg.data.dialog.padbar, name)))
+          if (globals.CheckItemsToMatchTheList([client.username], e.data) && !globals.DialogProfileCompare(globals.GetOptionInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name), globals.GetOptionInSelectElement(msg.data.dialog.padbar, name)))
              {
               restrictedsections.push(name);
               msg.data.dialog.padbar.data[globals.GetOptionNameInSelectElement(msg.data.dialog.padbar, name)] = controller.ods[msg.data.odid].dialog.padbar.data[globals.GetOptionNameInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name)];
@@ -207,43 +207,6 @@ export function SendViewsToClients(odid, clients)
 
       value.socket.send(JSON.stringify(msg)); // Todo2 - should pause (via setTimeout(0, )) be between two socket msg sendings keep non blocking main thread?
      }
-}
-
-// Function checks users/groups in <usersgroups> array (with username as a 1st element, and group names as other elements) agains input <list> and return match result or undefined for super user
-function CheckUserMatch(usersgroups, list)
-{
- if (!Array.isArray(usersgroups) || !usersgroups.length) return false;
- if (usersgroups[0] === globals.SUPERUSER) return;
-
- for (let line of list.split('\n'))
-     {
-      if (!(line = line.trim())) continue;
-      if (((line[0] === '!' && !usersgroups.includes(line.substring(1))) || (line[0] !== '!' && usersgroups.includes(line)))) return true;
-     }
- return false;
-}
-
-// Function compares all elements data of profile1 with appropriate element data of profile2 and returns compare result
-function DialogProfileCompare(profile1, profile2)
-{
- for (const name in profile1)
-     {
-      const e1 = profile1[name];
-      const e2 = profile2?.[name];
-      if (!e1 || !e2) return;
-      if (e1.type === 'select' && e1.data && typeof e1.data === 'object')
-         {
-          if (e2.type !== 'select' || !e2.data || typeof e2.data !== 'object' || Object.keys(e1.data).length !== Object.keys(e2.data).length) return;
-          for (const option in e1.data)
-              {
-               const pos = option.indexOf('~');
-               if (!DialogProfileCompare(e1.data[option], globals.GetOptionInSelectElement(e2, pos === -1 ? option : option.substring(0, pos)))) return;
-              }
-          continue;
-         }
-      if (e1.data !== e2.data) return;
-     }
- return true;
 }
 
 // Function is called at controller creation (constructor)

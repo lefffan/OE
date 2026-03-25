@@ -23,6 +23,8 @@ const STATICDOCS         = {
                             '/view.js': '/static/view.js',
                             '/globals.js': '/globals.js',
                            };
+const HTTPIP             = '127.0.0.1';
+const HTTPPORT           = '8003';
 const WSIP               = '127.0.0.1';
 const WSPORT             = '8002';
 
@@ -30,10 +32,10 @@ export class Controller
 {
  constructor()
  {
-  http.createServer(this.HTTPNewConnection.bind(this)).listen(8001); // Todo0 - set secure server via https instead of http
   this.clientauthcodes = {};
   this.clients = new Map();
   this.ods = {};
+  http.createServer(this.HTTPNewConnection.bind(this)).listen(HTTPPORT, HTTPIP); // Todo0 - set secure server via https instead of http
   ReadAllDatabase();
   new WebSocketServer({ port: WSPORT }).on('connection', this.WSNewConnection.bind(this));
  }
@@ -72,10 +74,10 @@ export class Controller
   client.on('close', code => console.log(`${this.clients.delete(client) ? 'Client' : 'Undefined client'} socket was closed with code ${code}!`));
  }
 
+  // Todo0 - do Settimeout to remove expired auth codes
  AddClientAuthCode(string, data)
  {
   this.clientauthcodes[string] = data;
-  // Todo0 - do Settimeout to remove expired auth codes
   return string;
  }
 
@@ -95,7 +97,7 @@ export class Controller
 
   if (!['LOGIN', 'CREATEWEBSOCKET'].includes(msg.type) && !this.clients.get(client).auth)
      {
-      client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS })); // Todo0 - process event 'Server has closed connection due to timeout' here
+      client.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS })); // Todo0 - process event 'Server has closed connection due to timeout' here, see const var TIMEOUTACCESS
       client.terminate();
       return;
      }
