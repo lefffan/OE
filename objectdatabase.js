@@ -1,96 +1,20 @@
-// Todo2 - change '*', '!' to const var and others
-// Todo0 - all DB dialog settings workable
-// let c; c++;      if (c%2) {               const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));                        await sleep(5000);              }
-
-import { FIELDSDIVIDER, qm, pool, controller, CompareOptionInSelectElement, GetDialogElement, GetOptionInSelectElement, GetOptionNameInSelectElement } from './main.js';
-import { ELEMENTCOLUMNPREFIX, PRIMARYKEYSTARTVALUE } from './querymaker.js';
+import { DBNAME, qm, pool, controller } from './main.js';
 import * as globals from './globals.js';
 
-const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
-const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
-const EMPTYDBCONFDBNAME         = 'Cannot create new database with empty name!';
 const DISALLOWEDTOCONFIGURATE   = 'You are not allowed to configurate this Object Database!';
-
-export function GetTableNameId(name)
-{
- let pos = name.indexOf('_');
- if (pos === -1) return;
- name = name.substring(pos + 1);
- return isNaN(+name) ? undefined : name;
-}
-
-export function GetOptionStringId(option)
-{
- [option] = option.split(FIELDSDIVIDER, 1); // Get option name without flags/style
- let id = option.lastIndexOf('id');         // Serach id string in non-cloned option names
- if (id === -1) return;                     // Return undefined for no 'id' string present
- id = option.slice(id + 2, -1);             // Clip num after 'id' string and convert it to number
- return isNaN(+id) ? '' : id;               // and return string containing 
-}
-
-// Function checkes OD dialog structure and returns true for correct structure, otherwise throws an error. In case of correct structure and empty db name with element/view/rules profiles number - function returns undefined to remove db
-function CheckDatabaseConfigurationDialogStructure(dialog, action)
-{
- let elements, views, rules, odname;
- if (!(elements = GetDialogElement(dialog, 'padbar/Element/elements'))) throw new Error(INCORRECTDBCONFDIALOG);
- if (!(views = GetDialogElement(dialog, 'padbar/View/views'))) throw new Error(INCORRECTDBCONFDIALOG);
- if (!(rules = GetDialogElement(dialog, 'padbar/Rule/rules'))) throw new Error(INCORRECTDBCONFDIALOG);
- if (typeof elements.data !== 'object' || typeof views.data !== 'object' || typeof rules.data !== 'object') throw new Error(INCORRECTDBCONFDIALOG);
-
- odname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true);
- if (typeof odname !== 'string') throw new Error(INCORRECTDBCONFDIALOG);
-
- if (!odname && ['create', 'read'].includes(action)) throw new Error(EMPTYDBCONFDBNAME); // Empty od name for new od creating
- if (!odname && action === 'edit' && (Object.keys(elements.data).length > 1 || Object.keys(views.data).length > 1 || Object.keys(rules.data).length > 1)) throw new Error(INCORRECTDBCONFDBNAME); // Empty od name with non empty elements, views or rules
- return odname;
-}
-
-export function CorrectProfileIds(e, excludeoption, lastid)
-{
- const nonclonedids = [];
- const clonedids = [];
- for (const option of Object.keys(e.data))
-     {
-      let [name, flag, ...style] = option.split(FIELDSDIVIDER);                         // Split option to its name and flag via FIELDSDIVIDER char '~'
-      flag = `${FIELDSDIVIDER}${flag || ''}`;                                           // Convert flag to string with divider added
-      style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : '';            // Join back style string
-      if (!flag.includes('*'))                                                          // Option is old (noncloned)?
-         {
-          const tempoption = e.data[option];                                            // Leave default options order (creation time) via property recreation
-          delete e.data[option];
-          e.data[option] = tempoption;
-          if (excludeoption && excludeoption !== name)
-             nonclonedids.push(+GetOptionStringId(option));                             // Add profile id to <nonclonedids> except <excludeoption> (template)
-          continue;
-         }
-      if (lastid !== undefined) name += ` (id${++lastid})`;                             // Add ' (id<num>)' to option name
-      if (lastid !== undefined) clonedids.push(lastid);                                 // Add profile id to <clonedids>
-      flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';   // Remove clonable/removable/cloned flags and add clonable/removable ones only
-      e.data[name + flag + style] = e.data[option];                                     // and rename it in element selectable data
-      delete e.data[option];
-      if ('type' in e.data[name + flag + style])
-         e.data[name + flag + style].type.expr = '/^/';                                 // Make readonly element column type
-     }
- return [nonclonedids, clonedids];
-}
 
 // Todo1 - adjust all views layout text areas commenting error jsons as a error ones
 export function AdjustDatabase(dialog, odid, lastelementid, lastviewid)
 {
  dialog.ok.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
- let dbname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true); // Get db name
+ let dbname = globals.GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true); // Get db name
  if (typeof dbname !== 'string') dbname = '';
  dialog.title.data = `Database '${globals.CutString(dbname.split('/').pop())}' configuration (id${odid})`; // Change dialog title 
- const [elementnonclonedids, elementclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid);
- const [, viewclonedids] = CorrectProfileIds(GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
- CorrectProfileIds(GetDialogElement(dialog, 'padbar/Rule/rules'));
+ const [elementnonclonedids, elementclonedids] = globals.CorrectProfileIds(globals.GetDialogElement(dialog, 'padbar/Element/elements'), 'New element template', lastelementid);
+ const [, viewclonedids] = globals.CorrectProfileIds(globals.GetDialogElement(dialog, 'padbar/View/views'), 'New view template', lastviewid);
+ globals.CorrectProfileIds(globals.GetDialogElement(dialog, 'padbar/Rule/rules'));
  delete dialog.ok.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
  return [elementnonclonedids, elementclonedids, viewclonedids];
-}
-
-export function CalcMacrosValue(name, value, collect = [])
-{
- collect.push(name);
 }
 
 // Function creates new or edit existing OD received in msg and send a dialog msg to client socket in case of a error. Var <init> indicates the initial OD 'Users' creating by the main script
@@ -99,12 +23,15 @@ export async function EditDatabase(msg, client, init)
  if (!client && !init) return; // No valid web socket client in controller clients map? Return
  let lastelementid = 0, lastviewid = 0, oldids = [];
  const transaction = await pool.connect();
+ if (!transaction) throw new Error(globals.TRANSACTIONERROR);
  const restrictedsections = [];
+
+ if (msg.data.odid && !controller.ods?.[msg.data.odid]?.dialog) return; // Specified OD in <msg.data.odid> doesn't exist in controller memory? Return
  
- // Check user restriction to edit database first, for existing OD only. Todo0 - add group list to current user and release config OD restrinction at GETDATABASE
+ // Check user restriction to edit database first, for existing OD only. Todo0 - add group list to current user check and release config OD restrinction at GETDATABASE
  if (msg.data.odid)
     {
-     let e = GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Database/settings/Permissions/od');
+     let e = globals.GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Database/settings/Permissions/od');
      if (CheckUserMatch([client.username], e.data))
         {
          client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: DISALLOWEDTOCONFIGURATE, title: 'Error' } })); // Send error text to the client side
@@ -112,11 +39,11 @@ export async function EditDatabase(msg, client, init)
         }
      for (const name of ['Database', 'Element', 'View', 'Rule'])
          {
-          e = GetDialogElement(controller.ods[msg.data.odid].dialog, `padbar/Database/settings/Permissions/${name}`);
-          if (CheckUserMatch([client.username], e.data) && !DialogProfileCompare(GetOptionInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name), GetOptionInSelectElement(msg.data.dialog.padbar, name)))
+          e = globals.GetDialogElement(controller.ods[msg.data.odid].dialog, `padbar/Database/settings/Permissions/${name}`);
+          if (CheckUserMatch([client.username], e.data) && !DialogProfileCompare(globals.GetOptionInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name), globals.GetOptionInSelectElement(msg.data.dialog.padbar, name)))
              {
               restrictedsections.push(name);
-              msg.data.dialog.padbar.data[GetOptionNameInSelectElement(msg.data.dialog.padbar, name)] = controller.ods[msg.data.odid].dialog.padbar.data[GetOptionNameInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name)];
+              msg.data.dialog.padbar.data[globals.GetOptionNameInSelectElement(msg.data.dialog.padbar, name)] = controller.ods[msg.data.odid].dialog.padbar.data[globals.GetOptionNameInSelectElement(controller.ods[msg.data.odid].dialog.padbar, name)];
              }
          }
     }
@@ -125,7 +52,7 @@ export async function EditDatabase(msg, client, init)
       await transaction.query('BEGIN');
 
       // OD check is failed. Failed check is a faulsy result that means empty db name. For incorrect db structure exception is throwed and handled below
-      if (!CheckDatabaseConfigurationDialogStructure(msg.data.dialog, msg.data.odid ? 'edit' : 'create')) // Remove OD below for a faulsy result (empty od name)
+      if (!globals.CheckDatabaseConfigurationDialogStructure(msg.data.dialog, msg.data.odid ? 'edit' : 'create')) // Remove OD below for a faulsy result (empty od name)
          {
           for (const table of ['head_', 'data_', 'metr_']) await transaction.query(...qm.Table(`${table}${msg.data.odid}`).Method('DROP').Make()); // Drop all OD related tables
           for (const [, value] of controller.clients) value.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', data: { odid: msg.data.odid } })); // and send OD remove msg to all wss clients
@@ -142,7 +69,7 @@ export async function EditDatabase(msg, client, init)
           msg.data.odid = 0;
           for (const row of tablelist.rows) // Calculate current OD max index
               {
-               const id = GetTableNameId(row.tablename);
+               const id = globals.GetTableNameId(row.tablename);
                if (id && +id > msg.data.odid) msg.data.odid = +id;
               }
           msg.data.odid++; // and increment it
@@ -160,7 +87,7 @@ export async function EditDatabase(msg, client, init)
                                                                                           lastversion: { value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
                                                                                           mask: 'TEXT',
                                                                                           ownerid: 'INTEGER',
-                                                                                          owner: 'VARCHAR(125)',
+                                                                                          owner: `VARCHAR(${globals.USERNAMEMAXCHAR})`,
                                                                                           datetime: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
                                                                                           date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
                                                                                           time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
@@ -175,18 +102,23 @@ export async function EditDatabase(msg, client, init)
                                                                                         }).Make());
           await transaction.query(...qm.Table('metr_' + msg.data.odid, 'datetime').Method('CREATE').Make());
           await transaction.query(...qm.Table('metr_' + msg.data.odid, 'id').Method('WRITE').Make());
+          // Create custom user data table <rand_N> in a addition to <data_N>/<metr_N> to insert any non application data
+          await transaction.query(...qm.Table('rand_' + msg.data.odid).Method('CREATE').Make());
+          // Create readonly and read/write user roles for data, metr and rand tables
+          await transaction.query(...qm.Table(`data_${msg.data.odid},metr_${msg.data.odid},rand_${msg.data.odid}`, null, DBNAME).Method('CREATE').Role(`rouserodid${msg.data.odid}`, 'SELECT').Make());
+          await transaction.query(...qm.Table(`data_${msg.data.odid},metr_${msg.data.odid},rand_${msg.data.odid}`, null, DBNAME).Method('CREATE').Role(`rwuserodid${msg.data.odid}`, 'SELECT, INSERT, UPDATE, DELETE').Make());
          }
        else // OD check is passed, so process existing OD change
          {
           const lastids = await transaction.query(...qm.Table(`head_${msg.data.odid}`).Method('SELECT').Fields(['lastelementid', 'lastviewid']).Order('id').Limit(1).Make()); // Calculate max (last) element/view ids of current OD configuration to set new element/view ids properly for the new OD instance came from client. For creating OD last element/view ids are zero
           [lastelementid, lastviewid] = [lastids?.rows?.[0]?.lastelementid, lastids?.rows?.[0]?.lastviewid];
-          const e = GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Element/elements'); // Calculate OD existing elements id (into oldids array) to have opportunity compare them to new OD version, so delete OD new version unexisting ones
+          const e = globals.GetDialogElement(controller.ods[msg.data.odid].dialog, 'padbar/Element/elements'); // Calculate OD existing elements id (into oldids array) to have opportunity compare them to new OD version, so delete OD new version unexisting ones
           if (e?.data && typeof e.data === 'object')
              for (const option in e.data)
-                 if (!CompareOptionInSelectElement('New element template', option)) oldids.push(+GetOptionStringId(option));
+                 if (!globals.CompareOptionInSelectElement('New element template', option)) oldids.push(+globals.GetOptionNameId(option));
          }
       const [elementnonclonedids, elementclonedids, viewclonedids] = AdjustDatabase(msg.data.dialog, msg.data.odid, lastelementid, lastviewid); // Adjust database dialog structure and write it to 'head_<odid>' table below
-      await transaction.query(...qm.Table(`head_${msg.data.odid}`).Method('WRITE').Fields({ userid: init ? PRIMARYKEYSTARTVALUE : client.userid,
+      await transaction.query(...qm.Table(`head_${msg.data.odid}`).Method('WRITE').Fields({ userid: init ? globals.PRIMARYKEYSTARTVALUE : client.userid,
                                                                                      dialog: {value: JSON.stringify(msg.data.dialog), escape: true},
                                                                                      lastelementid: elementclonedids.length ? elementclonedids.at(-1) : lastelementid,
                                                                                      lastviewid: viewclonedids.length ? viewclonedids.at(-1) : lastviewid }).Make());
@@ -196,31 +128,33 @@ export async function EditDatabase(msg, client, init)
       for (const id of oldids)
           {
            if (elementnonclonedids.includes(id)) continue;
-           await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNPREFIX}${id}`).Make());
-           await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('DROP').Fields(`${ELEMENTCOLUMNPREFIX}${id}`).Make());
+           await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make());
+           await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('DROP').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make());
           }
 
       // Go through all OD elements and create a new column for data/metr tables associated with a new elements got from cloned ids. Create/drop column indexes also
-      const e = GetDialogElement(msg.data.dialog, 'padbar/Element/elements');
+      const e = globals.GetDialogElement(msg.data.dialog, 'padbar/Element/elements');
+
       if (e) for (const option in e.data)
          {
-          const [name] = option.split(FIELDSDIVIDER, 1); // Split option to its name via FIELDSDIVIDER char '~'
+          const [name] = option.split(globals.FIELDSDIVIDER, 1); // Split option to its name via FIELDSDIVIDER char '~'
           if (name === 'New element template') continue;
-          const id = +GetOptionStringId(name);
-          const index = GetDialogElement(msg.data.dialog, `padbar/Element/elements/${option}/index`, true);
-          if (elementclonedids.indexOf(id) === -1) // Old element
+          const id = +globals.GetOptionNameId(name);
+          const index = globals.GetDialogElement(msg.data.dialog, `padbar/Element/elements/${option}/index`, true);
+          if (!init && elementclonedids.indexOf(id) === -1) // Old element
              {
-              if (index === GetDialogElement(controller.ods[msg.data.odid].dialog, `padbar/Element/elements/${option}/index`, true)) continue;
+              if (index === globals.GetDialogElement(controller.ods[msg.data.odid].dialog, `padbar/Element/elements/${option}/index`, true)) continue;
               if (index === 'None')
-                 await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Index().Fields(`${ELEMENTCOLUMNPREFIX}${id}`).Make()); // Drop index
+                 await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('DROP').Index().Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make()); // Drop index
                else
-                 await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${ELEMENTCOLUMNPREFIX}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
+                 await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
               continue;
              }
-          // New element
-          await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Fields({ [`${ELEMENTCOLUMNPREFIX}${id}`]: e.data[option].type.data }).Make()); // Create new elements from cloned ids
-          await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('CREATE').Fields({ [`${ELEMENTCOLUMNPREFIX}${id}`]: 'VARCHAR(125)' }).Make()); // Create new elements from cloned ids
-          if (index !== 'None') await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${ELEMENTCOLUMNPREFIX}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
+          // New element for data table
+          await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: e.data[option].type.data }).Make()); // Create new elements from cloned ids
+          // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
+          await transaction.query(...qm.Table(`metr_${msg.data.odid}`).Method('CREATE').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: `VARCHAR(${globals.USERNAMEMAXCHAR})` }).Make()); // Create new elements from cloned ids
+          if (index !== 'None') await transaction.query(...qm.Table(`data_${msg.data.odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
          }
       await transaction.query('COMMIT');
      }
@@ -233,12 +167,12 @@ export async function EditDatabase(msg, client, init)
      }
  finally
      {
-      transaction.release();
+      if (!transaction) transaction.release();
      }
 
  if (init) return; // Return for initial db creating, otherwise check some restrictions and suck OD structure in memory below
  if (restrictedsections.length) client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: `Configuration section${restrictedsections.length > 1 ? 's' : ''} '${restrictedsections.join('/')}' ${restrictedsections.length > 1 ? 'are' : 'is'} not modified due to user restrictions!` } }));
- SuckLayoutAndQuery(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
+ SuckInODProps(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
  SendViewsToClients(msg.data.odid); // Refresh OD tree with its vews and folders to all wss clients
 }
 
@@ -254,17 +188,17 @@ export function SendViewsToClients(odid, clients)
  for (const [, value] of clients) // Also go through all clients for selected OD above
      {
       if (!value.auth) continue;
-      e = GetDialogElement(controller.ods[id].dialog, 'padbar/Database/settings/General/dbname');
+      e = globals.GetDialogElement(controller.ods[id].dialog, 'padbar/Database/settings/General/dbname');
       if (!e) throw new Error(INCORRECTDBCONFDIALOG);
       const msg = { type: 'SIDEBARSET', data: { odid: id, path: e.data, ov: {} } }; // Create message for OD 'id' with its path (e.data) and views defined below
-      e = GetDialogElement(controller.ods[id].dialog, 'padbar/View/views');
+      e = globals.GetDialogElement(controller.ods[id].dialog, 'padbar/View/views');
       if (!e) throw new Error(INCORRECTDBCONFDIALOG);
 
       for (const option in e.data) // Go through all view profiles
           {
-           if (CompareOptionInSelectElement('New view template', option)) continue; // except view template
-           const ovid = GetOptionStringId(option); // Get view id from option name
-           const aliases = GetDialogElement(controller.ods[id].dialog, `padbar/View/views/${option}/settings/General/name`); // and all view aliases
+           if (globals.CompareOptionInSelectElement('New view template', option)) continue; // except view template
+           const ovid = globals.GetOptionNameId(option); // Get view id from option name
+           const aliases = globals.GetDialogElement(controller.ods[id].dialog, `padbar/View/views/${option}/settings/General/name`); // and all view aliases
            if (!aliases || typeof aliases.data !== 'string' || typeof ovid !== 'string') throw new Error(INCORRECTDBCONFDIALOG); // Throw an error for incorrect view profile
            msg.data.ov[ovid] = []; // Create aliases array first
            for (let alias of aliases.data.split('\n')) // and split aliases data to one by line alias to add it to message 'ov' array
@@ -303,7 +237,7 @@ function DialogProfileCompare(profile1, profile2)
           for (const option in e1.data)
               {
                const pos = option.indexOf('~');
-               if (!DialogProfileCompare(e1.data[option], GetOptionInSelectElement(e2, pos === -1 ? option : option.substring(0, pos)))) return;
+               if (!DialogProfileCompare(e1.data[option], globals.GetOptionInSelectElement(e2, pos === -1 ? option : option.substring(0, pos)))) return;
               }
           continue;
          }
@@ -325,52 +259,56 @@ export async function ReadAllDatabase()
       return;
      }
 
- for (const table of showtables.rows) tables.push(table.tablename);                                                              // Fill tables array to my DB sql tables
+ for (const table of showtables.rows) tables.push(table.tablename);                                                                     // Fill tables array to my DB sql tables
+ console.log(`Database ${DBNAME} table list:`, tables);
+
  for (const table of tables)
      {
-      const odid = GetTableNameId(table);
-      if (!tables.includes(`head_${odid}`) || !tables.includes(`data_${odid}`) || !tables.includes(`metr_${odid}`)) continue;    // OD is correct with all three tables exist
-      if (!odid || odid in controller.ods) continue;        
-      let dialog;                                                                                                                // Undefined odid or OD with id <odid> already sucked
+      const odid = globals.GetTableNameId(table);                                                                                               // Get table idm table name format: <head|data|metr>_id
+      if (!odid || !tables.includes(`head_${odid}`) || !tables.includes(`data_${odid}`) || !tables.includes(`metr_${odid}`))
+         {
+          console.log('Undefined id in table name or necessary tables absent! All three tables for any OD should be in next format: <head|data|metr>_id');
+          continue;
+         }
+      if (odid in controller.ods) continue;                                                                                             // OD with id <odid> already sucked in
+
       try {
-           dialog = await pool.query(...qm.Table(`head_${odid}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make()); // Get OD structure dialog last version from head_id table
-           CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog, 'read');                                         // and check it
+           const dialog = await pool.query(...qm.Table(`head_${odid}`).Method('SELECT').Fields('dialog').Order('id').Limit(1).Make());  // Get OD structure dialog last version from head_id table
+           globals.CheckDatabaseConfigurationDialogStructure(dialog?.rows?.[0]?.dialog, 'read');                                                // and check it
+           SuckInODProps(dialog.rows[0].dialog, odid);
           }
       catch (error)
           {
            console.log(error);
-           continue;
           }
-      SuckLayoutAndQuery(dialog.rows[0].dialog, odid);
      }
 }
 
-function SuckLayoutAndQuery(dialog, odid)
+function SuckInODProps(dialog, odid)
 {
- controller.ods[odid] = { dialog: dialog, query: {}, layout: {}, interactive: {}, elementprofiles: {} };
+ controller.ods[odid] = { dialog: dialog, query: {}, layout: {}, elementprofiles: {} };
 
- const elements = GetDialogElement(dialog, 'padbar/Element/elements', true) || {};
+ const elements = globals.GetDialogElement(dialog, 'padbar/Element/elements', true) || {};
  for (const option of Object.keys(elements))
      {
-      const eid = GetOptionStringId(option);
+      const eid = globals.GetOptionNameId(option);
       if (!eid) continue;
-      controller.ods[odid].elementprofiles[ELEMENTCOLUMNPREFIX + eid] = {
-                                            type: GetDialogElement(dialog, `padbar/Element/elements/${option}/type`, true).trim().toLowerCase(),
-                                            name: GetDialogElement(dialog, `padbar/Element/elements/${option}/name`, true),
-                                            description: GetDialogElement(dialog, `padbar/Element/elements/${option}/description`, true),
+      controller.ods[odid].elementprofiles[globals.ELEMENTCOLUMNPREFIX + eid] = {
+                                            type: globals.GetDialogElement(dialog, `padbar/Element/elements/${option}/type`, true).trim().toLowerCase(),
+                                            name: globals.GetDialogElement(dialog, `padbar/Element/elements/${option}/name`, true),
+                                            description: globals.GetDialogElement(dialog, `padbar/Element/elements/${option}/description`, true),
                                            };
      }
 
- const views = GetDialogElement(dialog, 'padbar/View/views', true) || {};
+ const views = globals.GetDialogElement(dialog, 'padbar/View/views', true) || {};
  for (const option of Object.keys(views))
      {
-      const ovid = GetOptionStringId(option);
+      const ovid = globals.GetOptionNameId(option);
       if (!ovid) continue;
-      const layout = ParseViewLayout(GetDialogElement(dialog, `padbar/View/views/${option}/settings/Layout/layout`, true), odid);
-      const query = ParseViewQuery(dialog, layout, option, odid);
+      const layout = ParseViewLayout(globals.GetDialogElement(dialog, `padbar/View/views/${option}/settings/Selection/layout`, true), odid);
+      const query = ParseViewQuery(globals.GetDialogElement(dialog, `padbar/View/views/${option}/settings/Selection/query`, true), layout);
       controller.ods[odid].query[ovid] = query;
       controller.ods[odid].layout[ovid] = layout;
-      controller.ods[odid].interactive[ovid] = IsViewInteractive(dialog, option);
      }
 }
  
@@ -405,10 +343,8 @@ function ParseViewLayout(jsons, odid)
       // Second step - since no "row" and "col" props defined the json describes custom data pulling it from not db selection, but from "value" property and placing to the table cell with x/y coordinates. Use correct x/y combined property as a key in a layout.undefinedrows object
       if (!('row' in json))
          {
-          if (!('x' in json)) json.x = '0'; // Property "x" default value
-          if (!('y' in json)) json.y = '0'; // Property "y" default value
-          if (Object.keys(json).length < 3) continue; // Props count low than 3 means only x/y props defined which is incorrect
-          const xy = `${json.x}~${json.y}`; // Define unique x~y combined propery to store json
+          if (!Object.keys(json).length) continue; // No any props at all? Continue
+          const xy = `${json.x || ''}~${json.y || ''}`; // Define unique x~y combined propery to store json
           layout.nondbdata[xy] = Object.assign(layout.nondbdata[xy] || {}, json); // Copy json props to layout.nondbdata[xy]
           continue;
          }
@@ -443,55 +379,12 @@ function ParseViewLayout(jsons, odid)
  return layout;
 }
 
-function GetColumnIndex(columns, search)
+function ParseViewQuery(query, layout)
 {
- for (let i = 0; i < columns.length; i++) if (columns[i].original === search) return i;
-}
-
-// {"row":"", "col":"id|eid1|eid2||", "x":"0", "y":"0"}
-// {"row":"", "col":"id|eid1|datetime::varchar(11)|", "x":"0", "y":"0"}
-// if (['Actual data', 'Historical data'].includes(from) && !groupby && layout.cols.indexOf('id') === -1) query += query ? ',id' : 'id';
-// if (['Actual data', 'Historical data'].includes(from) && !groupby && layout.cols.indexOf('lastversion') === -1) query += query ? ',lastversion' : 'lastversion';
-function ParseViewQuery(dialog, layout, viewprofile, odid)
-{
- // Initializate SELECT statement result query
- let select = [];
+ const select = [];
  for (const column of layout.columns) select.push(column.original);
- if (!select.length) return; // No any element (so SELECT operand) described in element layout, so return undefined query. Undfined query sets msg.data.error to something like 'error layout..' which is sent to the user for appropriate OV call 
-
- if (IsViewInteractive(dialog, viewprofile)) [layout.columnidindex, layout.columnlastversionindex] = [ GetColumnIndex(layout.columns, 'id') ?? select.push('id') - 1, GetColumnIndex(layout.columns, 'lastversion') ?? select.push('lastversion') - 1]; // Operator returns left operand if it's not nill or undefined, and returns right operand otherwise
- for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnstyleindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'style')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'style')) - 1;
- for (const column of layout.columns) if (['json', 'jsonb'].includes(column.elementprofiletype)) column.columnhintindex = GetColumnIndex(layout.columns, qm.ExtractJSONPropField(column.elementname, 'hint')) ?? select.push(qm.ExtractJSONPropField(column.elementname, 'hint')) - 1;
- select = `SELECT ${select.join(',')}`; 
-
- // Initializate FROM statement result query
- let from = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true).trim();
- if (from === 'Time series data') from = ` FROM metr_${odid}`; else from = from === 'None' ? '' : ` FROM data_${odid}`;
-
- // Initializate WHERE statement result query
- let where = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/where`, true).trim();
- if (IsViewActual(dialog, viewprofile)) where = where ? `WHERE (${where.substring('WHERE '.length)}) AND lastversion = TRUE` : `WHERE lastversion = TRUE`;
-
- // Initializate GROUPBY statement result query
- const groupby = IsViewInteractive(dialog, viewprofile) ? '' : GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/groupby`, true).trim(); // Old version: groupby = ['Interactive actual data', 'Interactive historical data'].includes(from) ? '' : groupby.trim();
-
- // Initializate LIMIT statement result query
- const limit = GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/limit`, true).trim();
-
- return `${select} ${from} ${where} ${groupby} ${limit}`;
+ return globals.MacrosReplace(query.trim(), { COLUMNS: select.join(',') })
 }
 
-function IsViewInteractive(dialog, viewprofile)
-{
- return ['Interactive actual data', 'Interactive historical data'].includes(GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true));
-}
-
-function IsViewActual(dialog, viewprofile)
-{
- return ['Interactive actual data', 'Actual data'].includes(GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true));
-}
-
-function IsViewObjectable(dialog, viewprofile)
-{
- return ['Interactive actual data', 'Actual data', 'Interactive historical data', 'Historical data'].includes(GetDialogElement(dialog, `padbar/View/views/${viewprofile}/settings/Selection/from`, true));
-}
+// Todo2 - change '*', '!' to const var and others
+// Todo0 - all DB dialog settings workable

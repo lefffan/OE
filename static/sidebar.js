@@ -1,11 +1,3 @@
-// Todo0 - OV description as a hint on taskbar OV navigation
-// Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
-// Todo0 - Global func to return background svg for up/down arrows with user defined color
-// Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
-// Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
-// Todo1 - Make universal 'flag' function to manage flags in one place and implement it to sidebar
-
-import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 import { View } from './view.js';
@@ -201,7 +193,7 @@ export class Sidebar extends Interface
                const optionevents = { 'New Database':            { type: 'CREATEDATABASE', destination: this.parentchild },
                                       'Configure Database':      { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
                                       'Open in a new window':    this.GetViewEventBuilder(event.data[1], event.data[2], true),
-                                      'Help':                    { type: 'HELP', destination: this.parentchild },
+                                      'Help':                    { type: 'HELP', source: this.parentchild, destination: this.parentchild.parentchild },
                                       'Logout':                  { type: 'LOGOUT', destination: this.parentchild },
                                     }; 
                return optionevents[option];
@@ -395,3 +387,10 @@ const ARROW         = [ globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 1
                         globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + globals.SVGUrlFooter(),
                         globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + globals.SVGUrlFooter() ];
 const LUPA          =   globals.SVGUrlHeader(12, 12) + globals.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + globals.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + globals.SVGUrlFooter();
+
+// Todo0 - OV description as a hint on taskbar OV navigation
+// Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
+// Todo0 - Create new sidebar control to set sidebar-child ontop or non-ontop
+// Todo0 - Global func to return background svg for up/down arrows with user defined color
+// Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
+// Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching

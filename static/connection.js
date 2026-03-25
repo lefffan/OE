@@ -1,11 +1,3 @@
-// Todo0: 
-// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
-// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
-// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
-// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'. And controller should send only active handler list instead of their wrapeed dialog structure, so dialog of itself should be built on a client side code
-// Todo - Ctrl + Tab switches between childs in a connection child
-
-import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
@@ -52,9 +44,6 @@ export class Connection extends Interface
  {
   switch (event.type)
 	    {
-	     case 'HELP':
-               Application.DisplayHelp(this);
-	          break;
 	     case 'LOGOUT':
 	          this.Logout();
 	          break;
@@ -89,7 +78,7 @@ export class Connection extends Interface
 			switch (event.data[0])	// Switch context item name (event data zero index)
 				  {
 				   case 'Help':
-					   return { type: 'HELP', destination: this };
+					   return { type: 'HELP', source: this, destination: this.parentchild };
                        default:
                             if (event.data[0].substring(0, 'Logout '.length) === 'Logout ') return { type: 'LOGOUT', destination: this };
 				  }
@@ -127,7 +116,7 @@ export class Connection extends Interface
                this.WebsocketSend(event);
                break;
 	     case 'CONFIGUREDATABASE':
-               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Application.MODALBROTHERKILLSME, callback: { cmd: 'SETDATABASE', odid: event.data.odid } }));
+               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { cmd: 'SETDATABASE', odid: event.data.odid } }));
                break;
 
 	     case 'GETVIEW':
@@ -145,8 +134,7 @@ export class Connection extends Interface
 	     case 'BRINGTOTOP':
                break;
           default:
-               //if (globals.CLIENTEVENTS.indexOf(event.type) > -1) this.WebsocketSend(event);
-               console.log(event);
+               if (globals.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
 	    }
  }
 
@@ -173,12 +161,21 @@ export class Connection extends Interface
  // Send msg via WS
  WebsocketSend(msg)
  {
-  for (const prop in msg) if (prop !== 'type' && prop !== 'data') delete msg[prop]; // Delete all props except type/data
+  delete msg.source;
+  delete msg.destination;
+  console.log(`WS sending '${msg.type}' msg`);
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
   try { this.socket.send(JSON.stringify(msg)); }
-  catch {}
+  catch { console.log(`Websocket error sending message "${msg}"`); }
  }
 }
+
+// Todo0: 
+// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
+// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
+// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
+// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'. And controller should send only active handler list instead of their wrapeed dialog structure, so dialog of itself should be built on a client side code
+// Todo - Ctrl + Tab switches between childs in a connection child
 
 // Client-server message interaction format: MESSAGENAME[PROTOCOL:SOURCE:MESSAGEDATA,..]
 
@@ -241,4 +238,3 @@ export class Connection extends Interface
    |        |                        		    		                                              |            |                                   |         |                
    +--------+                                                                                        +------------+                                   +---------+                                     
 */
-// user permission check, view permission check, non disabled event existing check for the element, selection/layout check, rule check, event existing check

@@ -1,4 +1,3 @@
-import { Application } from './application.js';
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 import * as globals from './globals.js';
@@ -19,11 +18,6 @@ const BOTTOMSIDE	   		 = 0b0001;
 const CURSOROFFSETS         = { ArrowUp: { y: -1 }, ArrowDown: { y: 1 }, ArrowLeft: { x: -1 }, ArrowRight: { x: 1 } };
 const NULLPROP              = Symbol('NULLPROP');
 
-
-function CheckXYpropsCorrectness(object)
-{
- return typeof object.x === 'string' && typeof object.y === 'string' && object.x && object.y && !NONEXPRESSIONCHARS.test(object.x) && !NONEXPRESSIONCHARS.test(object.y);
-}
 
 export class View extends Interface
 {
@@ -65,7 +59,6 @@ export class View extends Interface
   this.rowHeights = [];
   this.valuetable = [];
   this.objecttable = {};
-  this.interactive = event.data.interactive;
   if (this.layout = event.data.layout)
      {
       this.layout.collapsedrows = {};
@@ -85,13 +78,13 @@ export class View extends Interface
  MakeCellContentEditable(cell, data, force)
  {
   this.HighlightClipboardAreas();
-  if (this.contentEditable && !force) return; // No multiple cells with content editable feature turned on allowed.
+  if (this.contentEditable && !force) return; // No multiple cells with content editable feature turned on allowed, but <force> allows the feature at grid container redrae case when new cell html element should be editable
   const target = this.GetGridCoordinatesElement(cell.x, cell.y); // Get x,y coordinates table cell target
   if (!target) return;
   target.focus(); // and focus
   try { target.contentEditable = globals.EDITABLE; } // Set DOM element contentEditable property to 'plaintext' or 'true'
   catch { target.contentEditable = 'true'; } // Fucking FF doesn't support 'plaintext' contentEditable type on 2020 year
-  target.innerHTML = Application.AdjustString(typeof data === 'string' ? data : cell.value, Application.HTMLINNERENCODEMAP); // Adjust the content substituting cell value or <data> if exist
+  target.innerHTML = globals.AdjustString(typeof data === 'string' ? data : cell.value, globals.HTMLINNERENCODEMAP); // Adjust the content substituting cell value or <data> if exist
   this.range.selectNodeContents(target); // Set cursor at the end of the content
   this.range.collapse(false);
   this.selection.removeAllRanges();
@@ -115,7 +108,7 @@ export class View extends Interface
   if (!target) return;
   target.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> attribute
   target.classList.remove('celleditmode');
-  target.innerHTML = Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
+  target.innerHTML = globals.AdjustString(cell.value, globals.HTMLINNERENCODEMAP, globals.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
   this.contentEditable = null; // Turn off content editable feature to allow other cells to have this feature turned on
  }
 
@@ -134,8 +127,8 @@ export class View extends Interface
      {
       editabletarget.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> var
       editabletarget.classList.remove('celleditmode'); // Remove 'edit mode' class
-      editablecell.value = Application.AdjustString(editabletarget.innerHTML, Application.HTMLINNERDECODEMAP); // Apply cell inner encoding back all special chars
-      editabletarget.innerHTML = innerHTML = Application.AdjustString(editablecell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
+      editablecell.value = globals.AdjustString(editabletarget.innerHTML, globals.HTMLINNERDECODEMAP); // Apply cell inner encoding back all special chars
+      editabletarget.innerHTML = innerHTML = globals.AdjustString(editablecell.value, globals.HTMLINNERENCODEMAP, globals.ELEMENTINNERALLOWEDTAGS); // Roll back cell text content
      }
 
   if (editablecell.oid === NEWVIRTUALROWID) // User clicked/pressed event is out of editable cell in case of editable cell is element of 'virtual add object'? No event case
@@ -152,7 +145,8 @@ export class View extends Interface
           }
       if (editablecell !== clickedcell) return;
      }
-  return editablecell?.oid === NEWVIRTUALROWID ? { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() } : { type: 'CONFIRMEDIT', destination: this.parentchild, data: cell.value }; // Apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller, otherwise - apply cell text content via CONFIRMEDIT client event to the controller
+  // Apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller, otherwise - apply cell text content via CONFIRMEDIT client event to the controller
+  return editablecell.oid === NEWVIRTUALROWID ? { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() } : { type: 'CONFIRMEDIT', destination: this.parentchild, data: cell.value };
  }
 
  // Function returns 'new object' cells text content 
@@ -177,10 +171,9 @@ export class View extends Interface
  DispatchMouseKeyboardEvent(event)
  {
   let eventpos;
-  if (!this.interactive) return;
   if (event.type !== 'dblclick' && (eventpos = globals.NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
   const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x]; // Old version: const [x, y] = event.type === 'dblclick' ? this.GetElementGridCoordinates(event.target) : [this.cursor.x, this.cursor.y];  const cell = this.valuetable?.[y]?.[x];
-  if (!cell?.interactive || cell.oid === NEWVIRTUALROWID) return;
+  if (!cell?.interactive) return;
   const modifier = String(event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1);
   if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: { modifier: modifier } }, this.GetCellMetaData(cell));
   const events = [Object.assign({ type: globals.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: { modifier: modifier } }, this.GetCellMetaData(cell))];
@@ -226,7 +219,7 @@ export class View extends Interface
 
  Handler(event)
  {
-  let cell, confirmevent;
+  let cell, confirmevent, x, y;
 
   switch (event.type)
          {
@@ -244,7 +237,7 @@ export class View extends Interface
                             this.GetFromClipboard(event.data[1]);
                             return;
                        case 'Help':
-                            return { type: 'HELP', destination: this.parentchild };
+                            return { type: 'HELP', source: this.parentchild, destination: this.parentchild.parentchild };
                        case 'Logout':
                             return { type: 'LOGOUT', destination: this.parentchild };
                       }
@@ -252,25 +245,43 @@ export class View extends Interface
           case 'KILL':
                return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, status: undefined } };
           case 'mousedown':
-               const [x, y] = this.GetElementGridCoordinates(event.target); // Get event target grid x/y coordinates
-               cell = this.valuetable[y]?.[x];
-               confirmevent = this.contentEditable ? this.ConfirmCellEditableContent(event, cell) : undefined;
-               if (event.button !== 2 || event.buttons !== 2) return confirmevent;
-               const areas = this.ItemInAreas(this.cursor.areas, x, y) ? this.cursor.areas : [{ x1: x, y1: y, x2: x, y2: y }];
-               const objectids = this.ForEachCell(areas, false, {}, (area, x, y, accumulator) => { const cell = this.valuetable[y][x]; if (cell.oid >= globals.PRIMARYKEYSTARTVALUE) accumulator[cell.oid] = ''; return accumulator; });
-               const deleteoption = Object.keys(objectids).length < 2 ? 'Delete object' : `Delete ${Object.keys(objectids).length} objects`;
-               new ContextMenu([ this.interactive ? ['Add object'] : 'Add object',
-                                 !this.interactive || !Object.keys(objectids).length ? deleteoption : [deleteoption, objectids],
-                                 x === undefined ? 'Copy' : ['Copy', areas],
-                                 cell?.interactive && cell.oid >= globals.PRIMARYKEYSTARTVALUE ? ['Paste', cell] : 'Paste',
-                                 '',
-                                 ['Help'],
-                                 ['Logout ' + globals.CutString(this.data.username)]], this, event);
-               if (x !== undefined && areas !== this.cursor.areas) this.MoveCursor({ x: x - this.cursor.x, y: y - this.cursor.y }, false, true);
-               return confirmevent;
+               if (event.button === 0 && event.buttons !== 1) break; // Any left with non-left button is hold? Break;
+               if (event.button === 1 && event.buttons !== 4) break; // Any middle with non-middle button is hold? Break;
+               if (event.button === 2 && event.buttons !== 2) break; // Any right with non-right button is hold? Break;
+               [x, y] = this.GetElementGridCoordinates(event.target); // Get event target grid x/y coordinates
+               cell = this.valuetable[y]?.[x]; // and corresponded cell
+               confirmevent = this.ConfirmCellEditableContent(event, cell); // if cell editable content should be confirmed - return corresponded event or undefined
+               switch (event.button)
+                      {
+                       case 0: // left mouse button
+                       case 1: // middle mouse button
+                            if (x !== undefined) this.MoveCursor({ x: x - this.cursor.x, y: y - this.cursor.y }, false, true);
+                            break;
+                       case 2: // right mouse button
+                            const contextmenuitems = [];
+                            if (this.cursor)
+                               {
+                                const areas = this.ItemInAreas(this.cursor.areas, x, y) ? this.cursor.areas : [{ x1: x, y1: y, x2: x, y2: y }];
+                                const objectids = this.ForEachCell(areas, false, {}, (area, x, y, accumulator) => { const cell = this.valuetable[y][x]; if (cell?.interactive) accumulator[cell.oid] = ''; return accumulator; });
+                                const length = Object.keys(objectids).length;
+                                contextmenuitems.push(this.objecttable[NEWVIRTUALROWID] ? ['Add object'] : 'Add object');
+                                contextmenuitems.push([ 'Delete object', [`Delete object`, objectids], [`Delete ${length} objects`, objectids] ][length < 2 ? length : 2]);
+                                contextmenuitems.push(x === undefined ? 'Copy' : ['Copy', areas]);
+                                contextmenuitems.push(cell?.interactive ? ['Paste', cell] : 'Paste');
+                                if (x !== undefined && areas !== this.cursor.areas) this.MoveCursor({ x: x - this.cursor.x, y: y - this.cursor.y }, false, true);
+                               }
+                            contextmenuitems.push(['Help']);
+                            contextmenuitems.push(['Logout ' + globals.CutString(this.data.username)]);
+                            new ContextMenu(contextmenuitems, this, event);
+                            break;
+                       default: // Other buttons - do nothing
+                            return;
+                      }
+               return confirmevent; // Dispatch confirm event
           case 'dblclick':
                return this.DispatchMouseKeyboardEvent(event);
           case 'keydown':
+               if (!this.cursor) return;
                switch (event.code)
                       {
                        case 'Escape':
@@ -296,65 +307,95 @@ export class View extends Interface
                // Step 1 - init OV params and handle some errors, such as incoming event 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in event)
                this.InitView(event);
                if (event.data.error) return this.DisplayView(event.data.error);
-               if (!event.data.selection) return this.DisplayView(UNDEFINEDSELECTION);
-               const layout = event.data.layout;
+               if (!event.data.selections) return this.DisplayView(UNDEFINEDSELECTION);
 
                // Step 2 - handle db selection rows with two virtual rows ('title' and 'new') before
-               let table = event.data.selection;
-               for (let r = TITLEVIRTUALROWID; r < table.length; r++)
-                   {
-                    if (this.cellscount >= MAXVIEWCELLS) break;
-                    const row = event.data.selection[r]; // Fix selection row, for TITLEVIRTUALROWID (id=-2) and NEWVIRTUALROWID (id=-1) row is undefined
-                    const o = r < 0 ? r : row[layout.columnidindex]; // Assign object id to TITLEVIRTUALROWID (-2), NEWVIRTUALROWID (-1) or row[id]
-                    for (let c in layout.columns)
-                        {
-                         const column = layout.columns[c = +c]; // Fix layout column  
-                         cell = { style: '' };
-                         for (const prop in layout.dbdata)
-                             {
-                              let evalresult;
-                              try { evalresult = new Function('r', 'c', 'table', 'return ' + (layout.dbdata[prop][column.original]?.row || ''))(r, c, table); }
-                              catch {}
-                              if (!evalresult) continue;
-                              const style = cell.style;
-                              Object.assign(cell, { style: '' }, layout.dbdata[prop][column.original] || {});
-                              cell.style = style + cell.style;
-                             }
-                         [cell.oid, cell.ename, cell.eprop, cell.epropkey, cell.lastversion] = [o, column.elementname, column.elementprop, column.elementprop === null ? NULLPROP : column.elementprop, row?.[layout.columnlastversionindex] || o === NEWVIRTUALROWID];
-                         if (typeof cell.value !== 'string')
-                            {
-                             let value = row?.[c];
-                             if (r === TITLEVIRTUALROWID && cell.ename) value = globals.SYSTEMELEMENTNAMES[cell.ename] ? cell.ename : column.elementprofilename;
-                             if (value && typeof value === 'object') cell.value = JSON.stringify(value); // Bring cell.value to appropriate value depending on its type. Todo0 - fix in help: use columns with data type explicitly set via :: with alias via ' as ', cause "eid1::json->'valu'" becomes "eid1"
-                              else if (typeof value === 'number') cell.value = value + '';
-                               else cell.value = typeof value === 'string' ? value : '';
-                            }
-                         cell.interactive = this.interactive && cell.lastversion && cell.oid !== undefined && cell.oid !== TITLEVIRTUALROWID && cell.ename && !globals.SYSTEMELEMENTNAMES[cell.ename] && (cell.oid !== NEWVIRTUALROWID || cell.eprop === null) ? true : false;
-                         if (!this.ApplyCell(cell, table, r, c)) continue;
-                         // Define cell some props (class, style and hint) below
-                         cell.class = ['titlecell', 'newobjectcell', 'interactivecell', 'noninteractivecell'].at(r < 0 ? r + 2 : cell.interactive ? 2 : 3); 
-                         if (r === TITLEVIRTUALROWID && cell.ename) cell.hint = globals.SYSTEMELEMENTNAMES[cell.ename] ? globals.SYSTEMELEMENTNAMES[cell.ename] : column.elementprofiledescription;
-                         if (row?.[column.columnstyleindex]) cell.style += row[column.columnstyleindex];
-                         if (row?.[column.columnhintindex]) cell.hint = row[column.columnhintindex];
-                         cell.style = Application.AdjustString(cell.style, Application.TAGATTRIBUTEENCODEMAP, null, true);
-                         cell.hint = Application.AdjustString(cell.hint, Application.TAGATTRIBUTEENCODEMAP, null, true);
-                        }
-                   }
+               let r = TITLEVIRTUALROWID;
+               for (let i = 0; i < event.data.fields.length; i++) r = this.ParseSelection(event.data.layout, event.data.selections[i], event.data.fields[i], i ? 0 : TITLEVIRTUALROWID, r, this.ParseField(event.data.layout, event.data.fields[i]));
 
-               // Step 3 - set cell for udnefined rows (virtual) which have row/col undefined, so cell tex content needs to be retreived from the cell.value only
-               table = this.valuetable;
-               for (const xy in layout.nondbdata)
+               // Step 3 - set cell for udnefined rows (virtual) which have row/col properties undefined, so cell text content is retreived from cell.value only
+               for (const xy in this.layout.nondbdata)
                    {
                     if (this.cellscount >= MAXVIEWCELLS) break;
-                    cell = layout.nondbdata[xy];
-                    cell.class = 'virtualcell';
-                    this.ApplyCell(cell, table);
+                    this.ApplyCell(Object.assign({}, this.layout.nondbdata[xy], { class: 'virtualcell' }), null, null, null, r);
                    }
-               this.EvalVirtualCells(table); // Todo0 - add virtual cell values refresh at any OV data refresh
+               this.EvalVirtualCells(this.valuetable); // Todo0 - add virtual cell values refresh at any OV data refresh
                
                // Step 4 - hanlde result table zero height or display OV table
                return this.DisplayView(null, this.valuetable.length ? null : this.cellsoutofrange ? OUTOFRANGESELECTION : EMPTYSELECTION); // Todo0 - check all columns on first row props - what is it?
          }
+ }
+
+ // Parse SELECT fields from the controller
+ ParseField(layout, field)
+ {
+  const index = {};  // Create index object to store current query system elements position in a array of SELECT statement fields
+  for (let c = 0; c < field.length; c++)  // Go through all fields { original:, elementname:, elementprop:, layoutcolumn: <see below>, styleindex:, hintindex: }
+      {
+       if (field[c].elementname in globals.SYSTEMELEMENTNAMES) index[field[c].elementname] = c; // Current field is system element name? Store it in <index>
+       for (const column of layout.columns) // Go through all layout described columns to search current query column match { original:, elementname:, elementprop:, elementprofilename:, elementprofiledescription:, elementprofiletype: }
+           {
+            if (column.original !== field[c].original) continue;
+            field[c].layoutcolumn = column;
+            break;
+           }
+       if (!field[c].layoutcolumn || !field[c].elementname || globals.SYSTEMELEMENTNAMES[field[c].elementname]) continue; // Current field has no layout entry or is not element or system element? Continue
+       for (let cc = 0; cc < field.length; cc++) // Go through all fields once again to search current element name style/hint props
+           {
+            if (field[cc].elementname === field[c].elementname && ['style', 'hint'].includes(field[cc].elementprop)) field[c][field[cc].elementprop + 'index'] = cc; // and store them in <field[c][styleindex/hintindex]>
+            break;
+           }
+      }
+  return index;
+ }
+
+ // Parse selection from the controller, any OV data from may come with multpiple selections
+ ParseSelection(layout, selection, field, start, r, index)
+ {
+  for (let i = start; i < selection.length; i++, r++) // Go through all selection rows starting from <start>, negative <start> is made once and defines two virtual object with negative ids: -2 (TITLEVIRTUALROWID) and -1 (NEWVIRTUALROWID)
+      {
+       if (this.cellscount >= MAXVIEWCELLS) break; // Total cell count exceeds <MAXVIEWCELLS>? Fuck break
+       const row = selection[i];                                     // Fix current row in a selection, for TITLEVIRTUALROWID (id=-2) and NEWVIRTUALROWID (id=-1) row is undefined
+       let column;
+       for (let c = 0; c < field.length; c++) if (column = field[c].layoutcolumn) // Go through all fields with <c> as a field position. For layout described only, non described fields data is not displayed in OV
+           {
+            const cell = { style: '' };
+            for (const prop in layout.dbdata) // Go through all <layout.dbdata> props to eval 'row' string expressions
+                {
+                 const newcell = layout.dbdata[prop][column.original];
+                 try { 
+                      if (newcell?.row && new Function('selection', 'i', 'c', 'r', `return ${newcell.row}`)(selection, i, c, r)) // Eval 'row' property string on true/false result
+                         Object.assign(cell, newcell, { style: cell.style + newcell.style ? newcell.style : '' }); // true result evaluation collect new cell props to <cell>
+                     }
+                 catch {}
+                }
+            if (column.elementname && (cell.ename = column.elementname) && !globals.SYSTEMELEMENTNAMES[column.elementname]) // Check non system elements (eid1, eid2..)
+               {
+                if (row) for (const prop in globals.SYSTEMELEMENTNAMES) if (row[index[prop]]) cell[prop] = row[index[prop]]; // Store object meta data for non system elements (eid1, eid2..)
+                cell.id = cell.id && !isNaN(cell.id) && Number(cell.id) >= globals.PRIMARYKEYSTARTVALUE ? Number(cell.id) : undefined; // Adjust 'id' system element to real object id or undefined
+                [cell.oid, cell.eprop, cell.epropkey, cell.interactive] = [i < 0 ? i : cell.id, column.elementprop, column.elementprop ?? NULLPROP, cell.lastversion && cell.id !== undefined];
+               }
+            // Todo0 - fix in help: columns with data type set explicitly via '::' should be used with alias notation via ' as ', cause "eid1::json->'valu'" is truncated to "eid1"
+            // Todo0 - how db non string values are appeared in back-prased-to object serialized db data - such as numbers, JSON, datetime. Check it
+            if (typeof cell.value !== 'string')
+               {
+                let value = row?.[c];
+                if (i === TITLEVIRTUALROWID && cell.ename) value = globals.SYSTEMELEMENTNAMES[cell.ename] ? cell.ename : column.elementprofilename;
+                if (value && typeof value === 'object') cell.value = JSON.stringify(value); // Bring cell.value to string type
+                 else if (typeof value === 'number') cell.value = value + '';
+                 else cell.value = typeof value === 'string' ? value : '';
+               }
+            if (!this.ApplyCell(cell, selection, i, c, r)) continue;
+            // Define cell some props (class, style and hint) below
+            cell.class = ['titlecell', 'newobjectcell', 'interactivecell', 'noninteractivecell'].at(r < 0 ? r + 2 : cell.interactive ? 2 : 3); 
+            if (r === TITLEVIRTUALROWID && cell.ename) cell.hint = globals.SYSTEMELEMENTNAMES[cell.ename] ? globals.SYSTEMELEMENTNAMES[cell.ename] : column.elementprofiledescription;
+            if (row?.[field[c].styleindex]) cell.style += row[column.styleindex];
+            if (row?.[field[c].hintindex]) cell.hint = row[column.hintindex];
+            cell.style = globals.AdjustString(cell.style, globals.TAGATTRIBUTEENCODEMAP, null, true);
+            cell.hint = globals.AdjustString(cell.hint, globals.TAGATTRIBUTEENCODEMAP, null, true);
+           }
+      }
+  return r;
  }
 
  // Functions evaluates all virtual cells values
@@ -365,31 +406,37 @@ export class View extends Interface
        xy = xy.split('~');
        const [x, y] = [+xy[0], +xy[1]];
        cell = this.valuetable[y][x];
-       try { cell.hint = cell.originalhint; cell.value = new Function('x', 'y', 'table', 'return `' + cell.originalvalue + '`')(x, y, table); }
+       try { cell.hint = cell.originalhint; cell.value = new Function('table', 'x', 'y', 'return `' + cell.originalvalue + '`')(table, x, y); }
        catch { cell.hint = `The cell value "${cell.originalvalue}" expression evaluation threw an exception!`; cell.value = ''; }
       }
  }
 
  // Function binds incoming cell to value table 'array' and object table 'object'
  // valuetable[y][x] = objecttable[o][e][..] = { row:, col:, x:, y:, value:, hint:, style:, collapserow:, collapsecol:, o:, e:, prop: }
- ApplyCell(cell, table, r, c)
+ ApplyCell(cell, selection, i, c, r)
  {
   let x, y;
+  if ((!('x' in cell) || !('y' in cell)) && !selection) // Virtual cell with undefined x or y - suck in global style/hint/collapserow/collapsecol props to <this.layout>
+     {
+      for (const prop in ['style', 'hint', 'collapserow', 'collapsecol']) if (prop in cell) this.layout[prop] = cell[prop];
+      return;
+     }
+
   try { 
-       x = new Function('r', 'c', 'table', 'return ' + (cell.x || ''))(r, c, table);
-       y = new Function('r', 'c', 'table', 'return ' + (cell.y || ''))(r, c, table);
+       x = new Function('selection', 'i', 'c', 'r', `return ${cell.x}`)(selection, i, c, r);
+       y = new Function('selection', 'i', 'c', 'r', `return ${cell.y}`)(selection, i, c, r);
       }
   catch {}
   
-  if (typeof x === 'number' && typeof y === 'number' && !isNaN(x) && !isNaN(y))
+  if (typeof x === 'number' && typeof y === 'number' && !isNaN(x) && !isNaN(y)) // For x/y types 'number' and not NaN
      {
       cell.x = x = Math.round(x); // Fix it to nearest integer
       cell.y = y = Math.round(y);
       if ((x < 0 || y < 0 || x >= MAXVIEWTABLEWIDTH || y >= MAXVIEWTABLEHEIGHT) && (this.cellsoutofrange++)) return; // Check x,y out of range and increase <cellsoutofrange> in case. Return faulsy result then
-      if ('collapserow' in cell) r === undefined ? this.layout.collapseundefinedrows = true : this.layout.collapsedrows[y] = true; // Fix row number to collapse
-      if ('collapsecol' in cell) r === undefined ? this.layout.collapseundefinedcols = true : this.layout.collapsedcols[x] = true; // Fix column number to collapse
-      if ('event' in cell) this.layout.event = { event: cell.event, x: x, y: y };
-      delete cell.collapserow;
+      if ('collapserow' in cell) this.layout.collapsedrows[y] = true; // Fix row number to collapse
+      if ('collapsecol' in cell) this.layout.collapsedcols[x] = true; // Fix column number to collapse
+      if ('event' in cell) this.layout.event = { event: cell.event, x: x, y: y }; // Store last defined event name and x,y coordinates in a <layout.event>
+      delete cell.collapserow; // Delete cell unnecessary props
       delete cell.collapsecol;
       delete cell.event;
       if (!('value' in cell)) return; // Cells is non "data" cell (just for collapse/event props to define only, see above)
@@ -398,9 +445,9 @@ export class View extends Interface
       this.layout.definedcols[x] = true; // Fix column number 'x' as existed
       if (!this.valuetable[y][x]) this.cellscount++; // Count new cells
       this.valuetable[y][x] = cell; // Set <cell> to value table
-      if (r !== undefined) return true; // Non virtual cells (in case of nonundefined <r>) are detected, so handle virtual cell below
-      cell.originalvalue = cell.originalvalue; // Store original value to eval it at all next table data refresh 
-      cell.originalhint = cell.originalhint; // Store original hint to be able to restore it in case of a exception
+      if (selection !== undefined) return true; // Non virtual cells are detected, so handle virtual cell (undefined <selection>, <i>, <c>) below
+      cell.originalvalue = cell.value; // Store original value to eval it at all next table data refresh 
+      cell.originalhint = cell.hint; // Store original hint to be able to restore it in case of a exception
       this.layout.virtualcells[`${x}~${y}`] = true; // Store x,y coordinates in <virtualcells> object with <x> with <y> via '~' as an uniq key
       return true;
      }
@@ -422,13 +469,13 @@ export class View extends Interface
   let dispx, dispy = 0;
   let newtable = [];
   this.valuetableHeight = this.valuetable.length;
-  for (let x = 0; x < this.valuetableWidth; x++) if (!this.layout.collapsedcols[x] && !this.layout.definedcols[x] && 'collapseundefinedcols' in this.layout) this.layout.collapsedcols[x] = true; // Collapse column 'x' if it's not already collapsed and undefined (prop 'collapseundefinedcols' is in this.layout)
+  for (let x = 0; x < this.valuetableWidth; x++) if (!this.layout.collapsedcols[x] && !this.layout.definedcols[x] && 'collapsecol' in this.layout) this.layout.collapsedcols[x] = true; // Collapse column 'x' if it's not already collapsed and cell is undefined and 'collapsecol' is in this.layout
 
   // Step 3 - collapse main table
   for (let y = 0; y < this.valuetableHeight; y++)
       {
        if (this.layout.collapsedrows[y] && (dispy = dispy + 1)) continue; // Collapse row 'y' with increasing <y> displacement
-       if (!this.valuetable[y] && 'collapseundefinedrows' in this.layout && (dispy = dispy + 1)) continue; // Collapse row 'y' also with increasing <y> displacement if the row is undefined
+       if (!this.valuetable[y] && 'collapserow' in this.layout && (dispy = dispy + 1)) continue; // Collapse row 'y' also with increasing <y> displacement if the row is undefined
        if (!this.valuetable[y]) continue; // Skip undefined row
        newtable[y - dispy] = this.valuetable[y]; // Add existing table row to a new table shifted row <y - dsipy>
        dispx = 0; // Process current row all columns for 'collapsing' below
@@ -442,9 +489,10 @@ export class View extends Interface
          else // Cell is not collapsed, so adjust its x,y and bind it to object table
 	        {
             const cell = this.valuetable[y][x];
+            if (!cell) continue;
             cell.x = x;
             cell.y = y - dispy;
-            if (cell?.oid === undefined || cell.ename === null) continue;
+            if (cell.oid === undefined || !cell.ename) continue;
             if (!this.objecttable[cell.oid]) this.objecttable[cell.oid] = {};
             if (!this.objecttable[cell.oid][cell.ename]) this.objecttable[cell.oid][cell.ename] = {};
             if (!this.objecttable[cell.oid][cell.ename][cell.epropkey]) this.objecttable[cell.oid][cell.ename][cell.epropkey] = {};
@@ -462,7 +510,7 @@ export class View extends Interface
   if (!this.valuetableWidth || !this.valuetableHeight) return this.DisplayView(null, COLLAPSEDSELECTION); 
 
   // Step 4 - Assign table specific vars and set cursor to initial position
-  this.elementDOM.innerHTML = `<div class="scrollingcontainer"></div>`;
+  this.elementDOM.innerHTML = `<div class="scrollingcontainer"${this.layout.style ? ' style="' + this.layout.style + '"' : ''}${this.layout.hint ? ' title="' + this.layout.hint + '"' : ''}></div>`;
   this.scrollingcontainer = this.elementDOM.querySelector('.scrollingcontainer');
   const x = Math.min(this.valuetableWidth - 1, this.layout.event.x);
   const y = Math.min(this.valuetableHeight - 1, this.layout.event.y);
@@ -608,19 +656,8 @@ export class View extends Interface
                                                                                          if (!cell) return accumulator + `<div class="undefinedcell defaultcell${addclass}" id="${id}"></div>`;
                                                                                          const title = cell.hint ? ` title="${cell.hint}"` : ``;
                                                                                          const style = cell.style ? ` style="${cell.style}"` : ``;
-                                                                                         return accumulator + `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS)}</div>`;
+                                                                                         return accumulator + `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${globals.AdjustString(cell.value, globals.HTMLINNERENCODEMAP, globals.ELEMENTINNERALLOWEDTAGS)}</div>`;
                                                                                        });
-  /*for (let y = this.itemArea.y1; y <= this.itemArea.y2; y++)
-  for (let x = this.itemArea.x1; x <= this.itemArea.x2; x++)
-      {
-       const id = `x${x}y${y}`;
-       const cell = this.valuetable[y]?.[x];
-       const addclass = (this.cursor?.x === x && this.cursor?.y === y) ? `${cell?.interactive ? ' interactivecursorcell' : ' noninteractivecursorcell'}` : `${this.ItemInAreas(this.cursor?.areas, x, y) ? ' selectedcell' : ''}`;
-       if (!cell && (inner = inner + `<div class="undefinedcell defaultcell${addclass}" id="${id}"></div>`)) continue;
-       const title = cell.hint ? ` title="${cell.hint}"` : ``;
-       const style = cell.style ? ` style="${cell.style}"` : ``;
-       inner += `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${Application.AdjustString(cell.value, Application.HTMLINNERENCODEMAP, Application.ELEMENTINNERALLOWEDTAGS)}</div>`;
-      }*/
   const style = `grid-template-columns: repeat(${this.itemArea.x2 - this.itemArea.x1 + 1}, min-content); grid-template-rows: repeat(${this.itemArea.y2 - this.itemArea.y1 + 1}, min-content); margin: ${mtop}px ${mright}px ${mbottom}px ${mleft}px;`;
   this.scrollingcontainer.innerHTML = `<div class="gridcontainer" style="${style}">${inner}</div>`;
   this.gridcontainer = this.scrollingcontainer.querySelector('.gridcontainer');
@@ -716,24 +753,6 @@ export class View extends Interface
                                                                                                target.classList.remove('selectedcell'); // Current cell x,y equals cursor x,y
                                                                                                highlight ? target.classList.add(this.valuetable[y]?.[x]?.interactive ? 'interactivecursorcell' : 'noninteractivecursorcell') : target.classList.remove('noninteractivecursorcell', 'interactivecursorcell');
                                                                                              }, cursor, highlight);
-
-  /*let cell;
-  for (let area of cursor.areas)
-      {
-       area = this.OrderArea(area);
-       for (let y = area.y1; y <= area.y2; y++)
-       for (let x = area.x1; x <= area.x2; x++)
-           if (cell = this.GetGridCoordinatesElement(x, y))
-           if (cursor.x === x && cursor.y === y) // Is it cursor within area?
-              {
-               cell.classList.remove('selectedcell');
-               highlight ? cell.classList.add(this.valuetable[y]?.[x]?.interactive ? 'interactivecursorcell' : 'noninteractivecursorcell') : cell.classList.remove('noninteractivecursorcell', 'interactivecursorcell');
-              }
-            else
-              {
-               highlight ? cell.classList.add('selectedcell') : cell.classList.remove('selectedcell');
-              }
-      }*/
  }
 
  // Order area coordinates putting x1 before x2, so y1
@@ -791,7 +810,7 @@ export class View extends Interface
       this.CutItemCoordinates(newcursor, newcursor.areas.at(-1));
 
       const cell = this.valuetable?.[newcursor.y]?.[newcursor.x];
-      if (cell?.interactive && cell.oid === NEWVIRTUALROWID) this.MakeCellContentEditable(cell);
+      if (cell?.oid === NEWVIRTUALROWID && cell.ename && !globals.SYSTEMELEMENTNAMES[cell.ename]) this.MakeCellContentEditable(cell);
 
       if (newcursor.x === this.cursor.x && newcursor.y === this.cursor.y && newcursor.areas.length === this.cursor.areas.length)
       if (newcursor.areas.at(-1).x1 === this.cursor.areas.at(-1).x1 && newcursor.areas.at(-1).y1 === this.cursor.areas.at(-1).y1)
@@ -832,24 +851,16 @@ export class View extends Interface
 }
 
 // View
-// Todo0 - All client events should be documented and console.log() at connection handler() to confirm that they are dispatched to the controller
-// Todo0 - Paste client event
-// Todo0 - Copy to buffer
-// Todo0 - adjuststring, encodestring and htmlregexp remove to globals.js
-// Todo0 - Should the view be closed after its OD have been removed?
+// Todo0 - Should the view be closed after its OD have been removed? No, but status 'removed' is displayed
+// Todo2 - Text area color customization, example - query text - SELECT statement is blue color highlighted
 // Todo0 - Emulate user client events binded on context menu. Events are defined in OV proflie settings
 // Todo0 - Limit json.row and json.value expressions evaluated as a js code via JS future specification named SHADOW REALMS.
-//         json.row has access to vars (r, c, q, selection) only, where selection is a data array came from backend and r/c are current row/column values that can be use in a selection[r][c]
-//         json.value is interpreted as an expression (with access to vars x, y, table) in case of key word "EXPRESSION " starts the value
 // Todo0 - whole table selection (Ctrl a), per object selection (what key combination?), enter[+shift] moves cursor down[up] (in case of selection moves among selected cells), home/end [with ctrl/alt] moves cusor to start/end of a line [table/page] and shift selects cursor track. Ctrl with up[down] jumps to next[previous] object
-// Todo0 - in context menu description: quantity of valid layout jsons, query string, out of range cells number, cells count max exceed, Od and OV description from OV structure, what else?
-//         application version, tel number and other contacts (something like 'please contact us support@tabels.app') in a extra tab on help context menu. Help contex menu is the for all modes (connection/view/sidebar)
-//         No description menu! all its info put in help context menu!
-//         add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality
-//         helpdesk/jira/CRM example in Help context menu
-// Todo0 - all view changes comes to client side with odid/ovid with object id and its element id.
+// Todo0 - in context menu description: OV opened and OV refreshed seconds ago, quantity of valid/incorrect/total layout jsons, out of range cells number, max cells, current cell number, OD/OV description, table width/height, total objects, selected objects, current x,y, areas count, timing OV load, see old php version also
+// Todo0 - in context menu help: application version, tel number and other contacts (something like 'please contact us support@tabels.app'), add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality. Also helpdesk/jira/CRM example in Help context menu
+// Todo0 - all view changes comes to client side with odid/ovid with object id and its element id/prop.
 //         Controller passes all changed data to all clients that has this view opened, so that clients apply all changes right now (not forgetting to check oid presense, cause of possible random or non-actual selection).
-//         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar
+//         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar against the sent view
 // Todo0 - regexp search should be implemented to all types of view including tree and map. Should js range be used instead of span highlighting in regexp search? Not only regexp search but search on mask with only one asterisk as a special char or just plain text
 // Todo0 - Voting view example
 //		     layout: {"oid":"3", "eid":"element id number for every voting", "y":"0", "x":"0", "value":"Голосовать"}
@@ -864,8 +875,10 @@ export class View extends Interface
 // Todo0 - Emodzi symbols as an element text causes db sql error. Should it be fixed?
 // Todo0 - Setka via css https://dbmast.ru/fon-v-vide-diagonalnoj-setki-na-css
 //         View area specific style with background, border radius and so on
-// Todo2 - scale ovbox content via child management icon +-
 // Todo1 - keep input view parameters in a view history navigating, so open last viewed OV with input parameters used before. Access history of opened views via context menu or hot keys?
+// Todo2 - scale OV content (table/tree/map) via child management icon +-
+// Todo0 - OV icon in a sidebar depend on template, so displaay table/tree/map little icons inside rounded square icon
+// Todo0 - for error view status is not loaded 100%
 
 // Tree view
 // Todo0 - Tree selection: SELECT <layout elements> FROM <actual data> WHERE <clause1 /n clause2>, other exoressions are unavailable. Clause2 points to the second point of the tree. No second point (clause2) - until the end of the tree. Point to point tree may be multipath.
@@ -879,42 +892,27 @@ export class View extends Interface
 // Todo1 - nested level input (nodes depth) to display may be defined. For example, nested level 2 diaplys main switch with its direct downlink nodes and no more deeper levels of nodes
 
 // Table view
-// Todo - Tags within table item!!
-//        all table cells have their allowed html tags including pseudo tags that allows to insert graphics. Add <img> tag to allowed ones to have opportunity use image links instead downloaded images
-//        to allow html table within table cells add <tr>, <td>, <tbody> and <table> tags to allowed ones
-//        Every user defined element (eid1, eid2..) has its external data like streams (cameras, streams), files (documents, audio, video, image) and TSDB (data is set via system call SET<TSDBID>])
-//		      App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props, streams, files, TSDB
-//		      Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
-// 		   - value is user defined cell value (starting with SELECT is an sql query, or a FUNCTION that works at client side calculating cell range sum, for example, like in excel)
-// 		   - cell text has three custom tags (audio, img, video and chart to draw graph from tsdb)
+// Todo - all table cells have their allowed html tags - <div>, <table>, <stream> or/and <tsdb> to draw graph from tsdb
+//        Every user defined element (eid1, eid2..) has its external data - files (documents, audio, video, image)
+//		    App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props.. files
+//		    Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
+//        GALLERY command shows all object element files for default, otherwise - foto/audio/video. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
+//		    Make external source data settings via these kinds of systme calls UPLOAD, DOWNLOAD, UNLOAD for files, another cmd for TSDB (duration, unit of measurement) and another cmd for streams (timeshift, source, qulity)
 // Todo - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
-// Todo - table cells selection should fade cell background color, not just fade it. Also selected area rectangle should be highlighted via bold line
+// Todo - table cells selection should fade cell background color, not just shadow it. Also selected area rectangle should be highlighted via bold line
 // Todo - Don't call eval function in case of constants x,y values also, check it on million cycles
-// Todo - only this type of view allows new object creation. Release object creation via dialog to input all elements values
+// Todo - only 'table' type of view allows new object creation. Release object creation via dialog to input all elements values
 // Todo - Export OV data to xls(via csv) or txt file
 // Todo - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
 // Todo - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
-// Todo - GALLERY command shows all foto for default, otherwise - specified foto. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
-// 		  GALLERY displays all external data including streams, images, audio, video, TSDB
-//		  Make external source data settings via these kinds of systme calls UPLOAD, DOWNLOAD, UNLOAD for files, another cmd for TSDB (duration, unit of measurement) and another cmd for streams (timeshift, source, qulity)
-//		  All these external data may be embedded via custom tags to table cell <td>
 // Todo - macroses like in joe
 // Todo - Context menu Graph
 //        Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
-// Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event
+// Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event or PASTE to specific object element
 //        One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
-//        multi cell selecting - copy (excel table), delete (removes all selected objects) with new user event 'DELETE' for every removing object
-// Todo - Downloading big files don't show progress indicator. Check it. Bleat browser file download should display progress indicator anyway!
-//        But uploading should display - fetch progress for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
-// Todo - Autonavigate command for OV, for a example single mouse cell click edit the text in. Mouse single click emulate command (NONE|DBLCLICK|KEYPRESS) or create a new user event 'CLICK'? Usefull for chats.
-//        Event CLICK shouldn't be used as a regular event with passing to the controller due to overload, it should be used as an alias to other events, for a example DBLCLICK
-// Todo - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711
-// Todo - View examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
-//										arp table history for one ip/mac
-//                                      release also FSB request about our system ips perimetr, so every ip should have next types: client, service (web site, mail), system (ups, switch ip), net number, broadcast, free (if net number and broadcast are set correctly we can calc free nets)
-//                                      every ip - comment, name from billing, name from mrtg, type, arp history[for FSB and buhgalters], ping) vendor, iz_zokii (ЗОКИИ - это значимый объект критической информационной инфраструктуры)
+// Todo - Fetch progress indicator for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
+// Todo - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711. Apply white list (allowed chars) and black list (disallowed chars)
 // Todo2 - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo1 - Always develop table functional to some needful excel functions!
 // Todo0 - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
 // 	   - Chart as a start OV event to display graphic instead of a table
-// Todo0 - sql request in 'Element Layout' section in 'value' prop should select among its view object selection, but not from all objects! (see models piechart among switches with one or zero active clients)

@@ -25,55 +25,6 @@ function GetStyleInnerHTML(customizations) //https://dev.to/karataev/set-css-sty
 
 export class Application extends Interface
 {
- static HTMLINNERENCODEMAP		= [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode corresponded array elements from 1st one to second
- static HTMLINNERDECODEMAP		= [['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;'], ['&', '<', '>', '\n', ' ', '"']];
- static TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
- static TAGHTMLCODEMAP		    = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
- static ELEMENTINNERALLOWEDTAGS	= ['span', 'pre', 'br'];
- static MODALBROTHERKILLSME		= 0b10;
-
- // Function creates regexp to match tag names list 'tags'
- static HTMLTagsRegexp(tags)
- {
-  let regexp = '';
-  if (Array.isArray(tags)) for (const tag of tags) regexp += `<${tag} .*?>|<${tag} *>|<\/${tag} *>|`;
-  return new RegExp(regexp.substring(0, regexp.length - 1), 'g');
- }
-
- // Function replaces every char in array encodemap[0] to corresponded chars in encodemap[1] array
- static EncodeString(string, encodemap)
- {
-  if (typeof string !== 'string') return '';
-  if (!Array.isArray(encodemap) || !Array.isArray(encodemap[0]) || !Array.isArray(encodemap[1])) return string;
-
-  for (let i = 0; i < encodemap[0].length; i ++)
-      string = string.replace(new RegExp(encodemap[0][i], 'g'), encodemap[1][i]);
-
-  return string;
- }
-
- // Function encodes string based on <encodemap> array (see EncodeString function above) excluding html tags in <excludehtmltags> array
- static AdjustString(string, encodemap, excludehtmltags, trim)
- {
-  if (typeof string !== 'string') return '';
-  if (trim) string = string.trim();
-
-  let result, newstring = '';
-  if (Array.isArray(excludehtmltags)) while (result = Application.HTMLTagsRegexp(excludehtmltags).exec(string))
-     {
-      newstring += Application.EncodeString(string.substr(0, result.index), encodemap) + result[0];  // Convert special chars till the result.index and concatenate with the matched <tag> of itself
-      string = string.substr(result.index + result[0].length);                           // Generate string after allowed <tag> for the next search
-     }
-
-  return newstring + Application.EncodeString(string, encodemap);
- }
-
- static DisplayHelp(parent)
- {
-  //new DialogBox('Help test', parent, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
-  new DialogBox(globals.HELPDIALOG, parent, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
- }
-
  // Creating application! Init global css style object and event counter, then add all mouse/keyboard event listeners and init event counter
  constructor()
  {
@@ -107,6 +58,9 @@ export class Application extends Interface
 	      case 'mouseup':
 		  	   new ContextMenu([['New connection'], ['Help']], this, event);
 			   break;
+	      case 'HELP':
+		  	   new DialogBox(globals.HELPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
+			   break;
 	      case 'CONTEXTMENU':
 			   switch (event.data[0])	// Switch context item name (event data zero index)
 			   		  {
@@ -114,10 +68,9 @@ export class Application extends Interface
 			   				new Connection(null, this);	// Args: data, parent
 							break;
 					   case 'Help':
-                            Application.DisplayHelp(this);
-			   				new DialogBox(globals.CUSTOMIZATIONDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
-			   				new DialogBox(globals.EVENTPROFILINGDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
-							break;
+			   				//new DialogBox(globals.CUSTOMIZATIONDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
+			   				//new DialogBox(globals.EVENTPROFILINGDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
+                            return { type: 'HELP', destination: this };
 					  }
 		  	   break;
 	     }
@@ -134,7 +87,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo0 - Parse all files from old app version in php
 // Todo0 - app deploy (docker, zabbix-like) 
 // Todo0 - Main goal is automize app configuration and fit that configuration to some template than can be easily set by the user
-// Todo - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
+// Todo0 - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
 // Todo0 - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses and ask Rozbah what we do need for FSB and others
 // 
 // Presentation:
@@ -153,35 +106,47 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo - cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
 // Todo - to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!
 
-// Links:
-// https://node-postgres.com/apis/client
-// https://github.com/brianc/node-postgres/wiki/FAQ#14-how-do-i-install-pg-on-windows
-// Fix my project link https://github.com/lefffan/OE/blob/main/static/constant.js
-// https://yoksel.github.io/url-encoder/
-// https://postgrespro.ru/docs/postgresql/14/sql-commands
-// https://postgrespro.ru/docs/postgresql/14/datatype-datetime  https://postgrespro.ru/docs/postgrespro/9.5/functions-datetime
-// https://docs.timescale.com/use-timescale/latest/write-data/
-// https://eax.me/timescaledb/
-// https://eax.me/postgresql-triggers/
-// https://eax.me/timescaledb-caggs-implementation/
-// https://eax.me/tag/postgresql/page/2/
-// https://eax.me/postgresql-window-functions/
-// https://www.postgresql.org/docs/current/rules-materializedviews.html
-// https://docs.timescale.com/getting-started/latest/queries/
-// https://docs-timescale-com.translate.goog/getting-started/latest/queries/?_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=ru&_x_tr_pto=rq&_x_tr_hist=true
-// https://docs.timescale.com/api/latest/hyperfunctions/histogram/
-// https://github.com/timescale/timescaledb/blob/main/tsl/README.md
-// https://docs.timescale.com/self-hosted/latest/install/installation-windows/
-// https://www.timescale.com
-// https://postgrespro.ru/docs/postgresql/14/sql-createtableas
-// https://postgrespro.ru/windows https://stackoverflow.com/questions/64439597/ways-to-speed-up-update-postgres-to-handle-high-load-update-on-large-table-is-i
-// https://www.crunchydata.com/blog/tuning-your-postgres-database-for-high-write-loads
-// https://serverfault.com/questions/117708/managing-high-load-of-a-postgresql-database
-// https://node-postgres.com/features/types
-// https://ru.stackoverflow.com/questions/1087780/javascriptcanvas-Построить-график-функции
-// https://ru.stackoverflow.com/questions/1431512/Построить-график-используя-json-данные-js
-// https://htmlacademy.ru/blog/js/canvas-chart
-// SVG animation: https://habr.com/ru/articles/450924/ https://habr.com/ru/articles/667116/ https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animateTransform https://developer.mozilla.org/ru/docs/Web/SVG/Reference/Element/animate
+// Todo - Links and study:
+//  https://node-postgres.com/apis/client
+//  https://github.com/brianc/node-postgres/wiki/FAQ#14-how-do-i-install-pg-on-windows
+//  Fix my project link https://github.com/lefffan/OE/blob/main/static/constant.js
+//  https://yoksel.github.io/url-encoder/
+//  https://postgrespro.ru/docs/postgresql/14/sql-commands
+//  https://postgrespro.ru/docs/postgresql/14/datatype-datetime  https://postgrespro.ru/docs/postgrespro/9.5/functions-datetime
+//  https://docs.timescale.com/use-timescale/latest/write-data/
+//  https://eax.me/timescaledb/
+//  https://eax.me/postgresql-triggers/
+//  https://eax.me/timescaledb-caggs-implementation/
+//  https://eax.me/tag/postgresql/page/2/
+//  https://eax.me/postgresql-window-functions/
+//  https://www.postgresql.org/docs/current/rules-materializedviews.html
+//  https://docs.timescale.com/getting-started/latest/queries/
+//  https://docs-timescale-com.translate.goog/getting-started/latest/queries/?_x_tr_sl=en&_x_tr_tl=ru&_x_tr_hl=ru&_x_tr_pto=rq&_x_tr_hist=true
+//  https://docs.timescale.com/api/latest/hyperfunctions/histogram/
+//  https://github.com/timescale/timescaledb/blob/main/tsl/README.md
+//  https://docs.timescale.com/self-hosted/latest/install/installation-windows/
+//  https://www.timescale.com
+//  https://postgrespro.ru/docs/postgresql/14/sql-createtableas
+//  https://postgrespro.ru/windows https://stackoverflow.com/questions/64439597/ways-to-speed-up-update-postgres-to-handle-high-load-update-on-large-table-is-i
+//  https://www.crunchydata.com/blog/tuning-your-postgres-database-for-high-write-loads
+//  https://serverfault.com/questions/117708/managing-high-load-of-a-postgresql-database
+//  https://node-postgres.com/features/types
+//  https://ru.stackoverflow.com/questions/1087780/javascriptcanvas-Построить-график-функции
+//  https://ru.stackoverflow.com/questions/1431512/Построить-график-используя-json-данные-js
+//  https://htmlacademy.ru/blog/js/canvas-chart
+//  SVG animation: https://habr.com/ru/articles/450924/ https://habr.com/ru/articles/667116/ https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animateTransform https://developer.mozilla.org/ru/docs/Web/SVG/Reference/Element/animate
+//  Secure wss https://www.npmjs.com/package/ws#external-https-server
+//  Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
+//  socket rate limit: https://javascript.info/websocket#rate-limiting
+//  How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
+//  Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
+//  Node module import/export syntax https://www.w3schools.com/nodejs/nodejs_modules_esm.asp https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Statements/import
+//  NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
+//  NodeJS multithread https://tproger.ru/translations/guide-to-threads-in-node-js
+//  Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
+//  scrypt from openssl (passwords hashing)
+//  auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
+
 
 // Megacom appliance information systems:
 // Todo - discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
@@ -215,7 +180,8 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //		  INS hint, style + snmpgroup, for hardware element only (non-port element)
 // Todo - Create corp chat with source code pass, image pass and some popular messanges features to make comfortable user dialogs. Apply emodzi pass also and see new features of mattermost (or other corp chat) new version
 // Todo - Create corp addrbook, stuff list with foto, tel, dolzhnost. Tabel. Stuff vacations (otpusk). Grafik raboty
-// Todo - Setki.xls (ip, name from TABELS, name from BILLING, mac for buhgalters and FSB, comment), tech uchet, Wiki
+// Todo - Setki.xls (ip, name from TABELS, name from BILLING, mac for buhgalters and FSB, comment), every ip - comment, name from billing, name from mrtg, type, arp history[for FSB and buhgalters], ping) vendor, iz_zokii (ЗОКИИ - это значимый объект критической информационной инфраструктуры)
+// Todo - tech uchet, Wiki
 // Todo - Union some request apps (like Helpdesk or CRM) where one zayavka for helpdesk, podkluchenie, otkl, expluataciya.
 //	      Develop helpdesk - how does object selection should calculate expired orders/requests? Versions date difference is more than three days?
 //		  Ask Slava for HD analitycs
@@ -223,6 +189,10 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //		  Order/requests reassignment to one person/department(otdel)
 //		  Client order/requests history
 //		  Automatic preload client data (switch, port, ip, geo addr, contacts) at order/request creation
+// Todo - Alse some view examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
+//										          arp table history for one ip/mac
+//                                                FSB request about our system ips perimetr, so every ip should have next types: client, service (web site, mail), system (ups, switch ip), net number, broadcast, free (if net number and broadcast are set correctly we can calc free nets)
+//                                                BTV asked to parse all wifi-sms clients, or all Sberbank (or all clients) активные подключения
 // Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
 // Todo - Paraga mail functional  
 // Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata

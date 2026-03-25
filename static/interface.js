@@ -1,5 +1,4 @@
 import { app } from './application.js';
-import { Application } from './application.js';
 import * as globals from './globals.js';
 
 // Function calculates pixels number the element is scrolled from the left
@@ -135,6 +134,8 @@ function SetMouseCursorContolsHover(child, event, childclientrect)
 
 export class Interface
 {
+ static MODALBROTHERKILLSME	= 0b10;
+ 
  RefreshControlIcons()
  {
   let disp, elements = new Map();
@@ -197,80 +198,80 @@ export class Interface
 
  // (data, parentchild, props)
  constructor(...args)
-	    {
-	     // Data
-	     this.data = args[0];
+ {
+  // Data
+  this.data = args[0];
 
-	     // Parent child
-	     this.parentchild = args[1];
+  // Parent child
+  this.parentchild = args[1];
 
-	     // Props { tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, callback } 
-	     this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
-	     if (!this.props.tagName) this.props.tagName = 'DIV';
-		 if (!this.props.control) this.props.control = {};
-		 if (!this.props.attributes) this.props.attributes = {};
-	     this.props.attributes['data-child'] = '';															// Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
-		 if (!['right', 'bottom', 'top'].includes(this.props.controlicondirection))
-			this.props.controlicondirection = 'left';														// Set icon offset direction in case of overlapped areas
-		 if (this.props.controliconmargin !== 'number') this.props.controliconmargin = 4;					// and icon margin
+  // Props { tagName: 'DIV|BODY', overlay: 'ALWAYSONTOP|MODAL|NONSTICKY', animation: '', position: 'CASCADE|CENTER|RANDOM', control:{}, controlicondirection: 'left|right|top|bottom', controliconmargin: 1, attributes, callback } 
+  this.props = (args[2] && typeof args[2] === 'object') ? args[2] : {};
+  if (!this.props.tagName) this.props.tagName = 'DIV';
+  if (!this.props.control) this.props.control = {};
+  if (!this.props.attributes) this.props.attributes = {};
+  this.props.attributes['data-child'] = '';														// Set default data child attribute, for non-root child (with no parent) this attribute will be changed after insertion
+  if (!['right', 'bottom', 'top'].includes(this.props.controlicondirection))
+  this.props.controlicondirection = 'left';														// Set icon offset direction in case of overlapped areas
+  if (this.props.controliconmargin !== 'number') this.props.controliconmargin = 4;				// and icon margin
 
-	     // DOM element attributes
-		 this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body;	// Set DOM element to document.body in case of no parent child defined
-	     for (const name in this.props.attributes) this.elementDOM.setAttribute(name, this.props.attributes[name]);
-		 this.AdjustInterfaceControls();
-		 this.RefreshControlIcons();
+  // DOM element attributes
+  this.elementDOM = this.parentchild ? document.createElement(this.props.tagName) : document.body; // Set DOM element to document.body in case of no parent child defined
+  for (const name in this.props.attributes) this.elementDOM.setAttribute(name, this.props.attributes[name]);
+  this.AdjustInterfaceControls();
+  this.RefreshControlIcons();
 
-	     // Other child settings
-	     this.childs = {0: this};																			// list of child objects sorted by id
-	     this.zindexes = [0];																				// list of child ids sorted by z-index
-	     this.aindexes = [0];																				// list of child ids sorted by active state (last active is at the end of array)
-	     this.activeid = 0;																					// Active child id - 0 is current object used as a parent for its child, 1 - first child and etc..
-	     this.maxchildid = 0;																				// Child max id ever been inserted
+  // Other child settings
+  this.childs = {0: this};																		// list of child objects sorted by id
+  this.zindexes = [0];																			// list of child ids sorted by z-index
+  this.aindexes = [0];																			// list of child ids sorted by active state (last active is at the end of array)
+  this.activeid = 0;																			// Active child id - 0 is current object used as a parent for its child, 1 - first child and etc..
+  this.maxchildid = 0;																			// Child max id ever been inserted
 
-	     // Stop constructor for root child (app) that has no parent. Root element is always document.body
-	     if (!this.parentchild) return;
+  // Stop constructor for root child (app) that has no parent. Root element is always document.body
+  if (!this.parentchild) return;
 
-		 // Check this child if its brothers have MODAL feature and doesn't accept it into the family
-		 if (this.props.flag & Application.MODALBROTHERKILLSME) for (const id in this.parentchild.childs) if (this.parentchild.childs[id].IsModal()) return;
+  // Check this child if its brothers have MODAL feature and doesn't accept it into the family
+  if (this.props.flag & Interface.MODALBROTHERKILLSME) for (const id in this.parentchild.childs) if (this.parentchild.childs[id].IsModal()) return;
 		 
-	     // Set scc filter for all childs with overlay 'MODAL' mode
-	     if (this.IsModal()) for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
+  // Set scc filter for all childs with overlay 'MODAL' mode
+  if (this.IsModal()) for (const id in this.parentchild.childs) if (+id) this.parentchild.childs[id].elementDOM.classList.add('modalfilter');
 
-		 // New nonsticky child creation automatically kills previous nonsticky one
-		 if (this.IsNonsticky()) Interface.nonstickychild?.EventManager({ type: 'KILL', destination: Interface.nonstickychild });
-		 if (this.IsNonsticky()) Interface.nonstickychild = this;
+  // New nonsticky child creation automatically kills previous nonsticky one
+  if (this.IsNonsticky()) Interface.nonstickychild?.EventManager({ type: 'KILL', destination: Interface.nonstickychild });
+  if (this.IsNonsticky()) Interface.nonstickychild = this;
 		 
-	     // Child display
-	     if (globals.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
-	     this.Show();
-	     this.parentchild.elementDOM.appendChild(this.elementDOM);
+  // Child display
+  if (globals.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
+  this.Show();
+  this.parentchild.elementDOM.appendChild(this.elementDOM);
 
-	     // Insert this child to parent child list
-	     this.parentchild.maxchildid++;
-	     this.id = this.parentchild.maxchildid;
-	     this.ChangeZIndex(0, this.parentchild.zindexes.length);
-	     this.elementDOM.setAttribute('data-child', this.props.attributes['data-child'] = this.parentchild.props.attributes['data-child'] + '_' + this.id);
-	     this.parentchild.childs[this.id] = this;
-	     this.parentchild.zindexes.push(this.id);
-		 this.parentchild.aindexes.push(this.id);
-		 this.parentchild.ChangeActive(this.id);
+  // Insert this child to parent child list
+  this.parentchild.maxchildid++;
+  this.id = this.parentchild.maxchildid;
+  this.ChangeZIndex(0, this.parentchild.zindexes.length);
+  this.elementDOM.setAttribute('data-child', this.props.attributes['data-child'] = this.parentchild.props.attributes['data-child'] + '_' + this.id);
+  this.parentchild.childs[this.id] = this;
+  this.parentchild.zindexes.push(this.id);
+  this.parentchild.aindexes.push(this.id);
+  this.parentchild.ChangeActive(this.id);
 
-		 // Position the child
-		 switch (this.props.position)
-				{
-				 case 'CASCADE':
-					  [this.elementDOM.style.left, this.elementDOM.style.top] = [DOMELEMENTCASCADEPOSITIONS[(this.parentchild.zindexes.length - 1) % DOMELEMENTCASCADEPOSITIONS.length][0],
-																			     DOMELEMENTCASCADEPOSITIONS[(this.parentchild.zindexes.length - 1) % DOMELEMENTCASCADEPOSITIONS.length][1]];
-					  break;
-				 case 'RANDOM':
-					  [this.elementDOM.style.left, this.elementDOM.style.top] = [`${Math.round(Math.random()*100)}%`, `${Math.round(Math.random()*100)}%`];
-					  break;
-				 case 'CENTER':
-					  setTimeout(() => [this.elementDOM.style.left, this.elementDOM.style.top] = [`${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientWidth - this.elementDOM.offsetWidth)*100/(2 * this.parentchild.elementDOM.clientWidth))}%`,
-																								  `${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientHeight - this.elementDOM.offsetHeight)*100/(2 * this.parentchild.elementDOM.clientHeight))}%`], 0);
-					  break;
-				}
-	    }
+  // Position the child
+  switch (this.props.position)
+		 {
+		  case 'CASCADE':
+		 	   [this.elementDOM.style.left, this.elementDOM.style.top] = [DOMELEMENTCASCADEPOSITIONS[(this.parentchild.zindexes.length - 1) % DOMELEMENTCASCADEPOSITIONS.length][0],
+																		  DOMELEMENTCASCADEPOSITIONS[(this.parentchild.zindexes.length - 1) % DOMELEMENTCASCADEPOSITIONS.length][1]];
+			   break;
+		  case 'RANDOM':
+			   [this.elementDOM.style.left, this.elementDOM.style.top] = [`${Math.round(Math.random()*100)}%`, `${Math.round(Math.random()*100)}%`];
+			   break;
+		  case 'CENTER':
+			   setTimeout(() => [this.elementDOM.style.left, this.elementDOM.style.top] = [`${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientWidth - this.elementDOM.offsetWidth)*100/(2 * this.parentchild.elementDOM.clientWidth))}%`,
+																						   `${Math.trunc(Math.max(0, this.parentchild.elementDOM.clientHeight - this.elementDOM.offsetHeight)*100/(2 * this.parentchild.elementDOM.clientHeight))}%`], 0);
+			   break;
+		 }
+ }
  
  // Set child width/height
  AdjustElementDOMSize(width = DOMELEMENTMINWIDTH, height = DOMELEMENTMINHEIGHT)
@@ -700,29 +701,29 @@ export class Interface
  }
 }
 
-const DOMELEMENTMINWIDTH			= 50;
-const DOMELEMENTMINHEIGHT			= 50;
-const DOMELEMENTCASCADEPOSITIONS	= [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
-const ICONURLMINIMIZESCREEN 		= globals.SVGUrlHeader() + globals.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + globals.SVGUrlFooter();
-const ICONURLFULLSCREENTURNON 		= globals.SVGUrlHeader() + globals.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
-const ICONURLFULLSCREENTURNOFF		= globals.SVGUrlHeader() + globals.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
-const ICONURLCLOSE              	= globals.SVGUrlHeader() + globals.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + globals.SVGUrlFooter();
-const ACTIVECHILDSHADOW				= '4px 4px 5px #111';
-const BLINKCHILDACTIVESTATUS		= 200;
-const CHILDCONTROLTEMPLATES = {
-							   text: { area: {x1: 0, y1: 0, x2: 0, y2: 0} }, 
-							   minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 
-							   fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
-							   fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
-							   closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
-							   closeesc: { releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
-							   resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
-							   resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
-							   resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
-							   push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
-							   drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
-							   default: { callback: [] }, 
-							  };
+const DOMELEMENTMINWIDTH		 = 50;
+const DOMELEMENTMINHEIGHT		 = 50;
+const DOMELEMENTCASCADEPOSITIONS = [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
+const ICONURLMINIMIZESCREEN 	 = globals.SVGUrlHeader() + globals.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + globals.SVGUrlFooter();
+const ICONURLFULLSCREENTURNON 	 = globals.SVGUrlHeader() + globals.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
+const ICONURLFULLSCREENTURNOFF	 = globals.SVGUrlHeader() + globals.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
+const ICONURLCLOSE               = globals.SVGUrlHeader() + globals.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + globals.SVGUrlFooter();
+const ACTIVECHILDSHADOW			 = '4px 4px 5px #111';
+const BLINKCHILDACTIVESTATUS	 = 200;
+const CHILDCONTROLTEMPLATES		 = {
+							   		text: { area: {x1: 0, y1: 0, x2: 0, y2: 0} }, 
+							   		minimizescreen: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLMINIMIZESCREEN, callback: [Interface.MinimizeScreenControl] }, 
+							   		fullscreenicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13}, cursor: 'pointer', icon: ICONURLFULLSCREENTURNON, callback: [Interface.FullScreenControl] }, 
+							   		fullscreendblclick: { releaseevent: 'dblclick', callback: [Interface.FullScreenControl] }, 
+							   		closeicon: { captureevent: 'mousedown', releaseevent: 'mouseup', area: {x1: -14, y1: 2, x2: -3, y2: 13},  cursor: 'pointer', icon: ICONURLCLOSE, callback: [Interface.CloseControl] }, 
+							   		closeesc: { releaseevent: 'keyup', button: 'Escape', callback: [Interface.CloseControl] }, 
+							   		resize: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: -13, x2: -1, y2: -1}, cursor: 'nw-resize', callback: [Interface.ResizeControl] }, 
+							   		resizex: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: -13, y1: 0, x2: -1, y2: -1}, cursor: 'e-resize', callback: [Interface.ResizeControl] }, 
+							   		resizey: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', area: {x1: 0, y1: -13, x2: -1, y2: -1}, cursor: 'n-resize', callback: [Interface.ResizeControl] }, 
+							   		push: { captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', elements: [], cursor: 'pointer', callback: [Interface.PushControl] }, 
+							   		drag: { button: 0, captureevent: 'mousedown', processevent: 'mousemove', releaseevent: 'mouseup', cursor: 'grabbing', callback: [Interface.DragControl] }, 
+							   		default: { callback: [] }, 
+							  	   };
 
 // Todo1 - Some boxes may stick to another one, example OV boxes may stick to sidebar box or to parent box edges
 // Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available) and scale 'cm' icon that scale child div. Close control action should be questionable (optionally)

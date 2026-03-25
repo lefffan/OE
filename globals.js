@@ -10,22 +10,138 @@ export const CELLMINWIDTH           = 25;
 export const CELLMINHEIGHT          = 25;
 export const EDITABLE               = 'plaintext-only';
 export const NOTEDITABLE            = 'false';
-export const ANIMATIONS		        = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
+export const ANIMATIONS		          = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 export const TITLEVIRTUALROWID      = -2;
 export const NEWVIRTUALROWID        = -1;
 export const PRIMARYKEYSTARTVALUE   = 3;
+export const HTMLINNERENCODEMAP		  = [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode corresponded array elements from 1st one to second
+export const HTMLINNERDECODEMAP		  = [['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;'], ['&', '<', '>', '\n', ' ', '"']];
+export const TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
+export const TAGHTMLCODEMAP		      = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
+export const ELEMENTINNERALLOWEDTAGS= ['span', 'pre', 'br'];
+export const ELEMENTCOLUMNPREFIX    = 'eid';
+export const TRANSACTIONERROR       = 'Transaction init error!'
+export const FIELDSDIVIDER          = '~';
+export const USERNAMEMAXCHAR        = 125;
+const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
+const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
+const EMPTYDBCONFDBNAME         = 'Cannot create new database with empty name!';
 
+export function GetTableNameId(name)
+{
+ let pos = name.indexOf('_');
+ if (pos === -1) return;
+ name = name.substring(pos + 1);
+ return isNaN(+name) ? undefined : name;
+}
+
+export function GetOptionNameId(option)
+{
+ [option] = option.split(FIELDSDIVIDER, 1); // Get option name without flags/style
+ let id = option.lastIndexOf('id');                 // Serach id string in non-cloned option names
+ if (id === -1) return;                             // Return undefined for no 'id' string present
+ id = option.slice(id + 2, -1);                     // Clip num after 'id' string and convert it to number
+ return isNaN(+id) ? '' : id;                       // and return string containing 
+}
+
+// Function checkes OD dialog structure and returns true for correct structure, otherwise throws an error. In case of correct structure and empty db name with element/view/rules profiles number - function returns undefined to remove db
+export function CheckDatabaseConfigurationDialogStructure(dialog, action)
+{
+ let elements, views, rules, odname;
+ if (!(elements = GetDialogElement(dialog, 'padbar/Element/elements'))) throw new Error(INCORRECTDBCONFDIALOG);
+ if (!(views = GetDialogElement(dialog, 'padbar/View/views'))) throw new Error(INCORRECTDBCONFDIALOG);
+ if (!(rules = GetDialogElement(dialog, 'padbar/Rule/rules'))) throw new Error(INCORRECTDBCONFDIALOG);
+ if (typeof elements.data !== 'object' || typeof views.data !== 'object' || typeof rules.data !== 'object') throw new Error(INCORRECTDBCONFDIALOG);
+
+ odname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true);
+ if (typeof odname !== 'string') throw new Error(INCORRECTDBCONFDIALOG);
+
+ if (!odname && ['create', 'read'].includes(action)) throw new Error(EMPTYDBCONFDBNAME); // Empty od name for new OD creating or old OD reading
+ if (!odname && action === 'edit' && (Object.keys(elements.data).length > 1 || Object.keys(views.data).length > 1 || Object.keys(rules.data).length > 1)) throw new Error(INCORRECTDBCONFDBNAME); // Empty od name with non empty elements, views or rules
+ return odname;
+}
+
+export function CorrectProfileIds(e, excludeoption, lastid)
+{
+ const nonclonedids = [];
+ const clonedids = [];
+ for (const option of Object.keys(e.data))
+     {
+      let [name, flag, ...style] = option.split(FIELDSDIVIDER);                       // Split option to its name and flag via FIELDSDIVIDER char '~'
+      flag = `${FIELDSDIVIDER}${flag || ''}`;                                         // Convert flag to string with divider added
+      style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : '';          // Join back style string
+      if (!flag.includes('*'))                                                        // Option is old (noncloned)?
+         {
+          const tempoption = e.data[option];                                          // Leave default options order (creation time) via property recreation
+          delete e.data[option];
+          e.data[option] = tempoption;
+          if (excludeoption && excludeoption !== name)
+             nonclonedids.push(+GetOptionNameId(option));                             // Add profile id to <nonclonedids> except <excludeoption> (template)
+          continue;
+         }
+      if (lastid !== undefined) name += ` (id${++lastid})`;                           // Add ' (id<num>)' to option name
+      if (lastid !== undefined) clonedids.push(lastid);                               // Add profile id to <clonedids>
+      flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-'; // Remove clonable/removable/cloned flags and add clonable/removable ones only
+      e.data[name + flag + style] = e.data[option];                                   // and rename it in element selectable data
+      delete e.data[option];
+      if ('type' in e.data[name + flag + style])
+         e.data[name + flag + style].type.expr = '/^/';                               // Make readonly element column type
+     }
+ return [nonclonedids, clonedids];
+}
+
+// Specified ms value to sleep by function
+export const freeze = ms => new Promise(resolve => setTimeout(resolve, ms)); // await freeze(0);
+
+// Function creates regexp to match tag names list 'tags'
+export function HTMLTagsRegexp(tags)
+{
+ let regexp = '';
+ if (Array.isArray(tags)) for (const tag of tags) regexp += `<${tag} .*?>|<${tag} *>|<\/${tag} *>|`;
+ return new RegExp(regexp.substring(0, regexp.length - 1), 'g');
+}
+
+// Function replaces every char in array encodemap[0] to corresponded chars in encodemap[1] array
+export function EncodeString(string, encodemap)
+{
+ if (typeof string !== 'string') return '';
+ if (!Array.isArray(encodemap) || !Array.isArray(encodemap[0]) || !Array.isArray(encodemap[1])) return string;
+
+ for (let i = 0; i < encodemap[0].length; i ++)
+     string = string.replace(new RegExp(encodemap[0][i], 'g'), encodemap[1][i]);
+ return string;
+}
+
+// Function encodes string based on <encodemap> array (see EncodeString function above) excluding html tags in <excludehtmltags> array
+export function AdjustString(string, encodemap, excludehtmltags, trim)
+{
+ if (typeof string !== 'string') return '';
+ if (trim) string = string.trim();
+
+ let result, newstring = '';
+ if (Array.isArray(excludehtmltags)) while (result = HTMLTagsRegexp(excludehtmltags).exec(string))
+    {
+     newstring += EncodeString(string.substr(0, result.index), encodemap) + result[0];  // Convert special chars till the result.index and concatenate with the matched <tag> of itself
+     string = string.substr(result.index + result[0].length);                           // Generate string after allowed <tag> for the next search
+    }
+ return newstring + EncodeString(string, encodemap);
+}
+
+// There are four sql tables read/write process - OV display (read, only native tables via rouserodid)
+// handler system calls (write, data/metr table only)
+// element data macroses (read, native OD tables via rouserodid, foreign OD tables permission should be allowed in OD conf)
+// rules (read/write only native tables via rwuserodid)
 const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
                       General: {
                                 dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as an object database name, others before - as a folders. Empty folders are ignored` }, 
-                                description: { type: 'textarea', data: '', head: 'Database description' },
-                                history: { type: 'checkbox', data: 'Keep object versions~!', head: 'Database object history', flag: '*' }, }, 
+                                description: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, },
                       Permissions: {
-                                od: { type: 'textarea', data: '', head: `Restrict this 'Object Database' read configuraion for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored). Specified restriction (so all below) is applied for the user that matches the list. No match - no restriction applied. Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char. Empty list matches no user. Note that user 'root' is a super user with no any restrictions applied regardless of any lists, so good practice is to use that super user account for recovery purposes only` },
+                                od: { type: 'textarea', data: '', head: `Restrict this 'Object Database' configuraion read access for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored). Specified restriction (so all below) is applied for the user that matches the list. No match - no restriction applied. Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char. Empty list matches no user. Note that user 'root' is a super user with no any restrictions applied regardless of any lists, so good practice is to use that super user account for recovery purposes only` },
                                 Database: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
                                 Element: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
                                 View: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
-                                Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`, flag: '*' }, },
+                                Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`},
+                                Macros: { type: 'textarea', data: '', head: `Permit this 'Object Database' data read access for next OD id list`, flag: '*' }, },
                       Macroses: {
                                  80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`, data: { 'New macros~+-': {
                                             10: { type: 'textarea', head: 'Macros value', data: '' },
@@ -47,25 +163,19 @@ const VIEWPAD = {
                  settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
                  General: {
                            name: { type: 'textarea', data: '', flag: '+Enter view name', head: `Name~Enter here view name list (one by line). All names will be sidebar displayed according their paths. Usually second and other ones are used as alias names to be placed in favorites. No view names specified - the view is sidebar hidden, but still can be called to open from event handlers or shortcut keys` },
-                           description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '', flag: '*' },
-                           hide: { type: 'checkbox', head: `Hide from sidebar~The option keeps unnecessary views off sidebar. Hidden views may be called to open from event handlers or shortcut keys yet`, data: 'Hide' },
+                           description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '' },
                            shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window. For sidebar focus only`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
                            refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' }, }, 
                  Selection: {
-                           select: { type: 'text', head: 'SELECT~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '!' },
-                           from: { type: 'select', head: 'FROM', data: 'Interactive actual data~!/Actual data/Interactive historical data/Historical data/Time series data/None' },
-                           where: { type: 'textarea', head: 'WHERE', data: '' }, 
-                           groupby: { type: 'textarea', head: 'GROUP BY, HAVING', data: '', e_xpr: '/Interactive actual data~!|Interactive historical data~!/from' },
-                           limit: { type: 'textarea', head: 'ORDER BY, LIMIT, OFFSET, FETCH', data: '', flag: '*' },
-                           linkname: { type: 'text', head: 'Object selection link name', data: '' }, }, 
+                           template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map', flag: '*' },
+                           layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '' },
+                           query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = 1' },
+                           linkname: { type: 'text', head: 'Link~Object selection link name', data: '' }, }, 
                  Macroses: {
-                           autoset: { type: 'checkbox', data: 'Call dialog~!/Auto structure~!', head: `Macros definition dialog~This 'View' layout/selection and rule message/query text settings containing macroses may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before 'View' opening. Manually define dialog structure JSON in text area below or set it to 'Auto' for the dialog to be created automatically with input fields for all undefined macroses. Empty/error dialog structure with no 'Auto' option set (or no any macroses with 'Auto' set) - no dialog is called. Any valid dialog structure with no 'Auto' set is called anyway regardless of macroses in text settings and may be used as an info/warning message for the user before 'View' opening` },
-                           dialog: { type: 'textarea', head: ``, data: '', flag: '*', expr: '/Auto structure~!/autoset' }, }, 
-                 Layout: {
-                           template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map' },
-                           layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '', flag: '*' }, },
+                           autoset: { type: 'checkbox', data: 'Call dialog/Auto structure~!', head: `Macros definition dialog~Macroses in this OV 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't. Checked 'Auto structure' option automatically creates dialog structure to call. Dialog structure property name is a macros name, input field content - macros value (for 'textarea', 'text' and 'password' interface element types only). Dialog structure defined macroses are applied regardless of 'Call dialog' option. Dialog structure may contain input fields only, 'OK'/'CANCEL' dialog buttons are added automatically if absent. Client side dialog call may be used not for macros definitions, but for info/warning message display before OV open. Macros 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macros SOMEMACROS value", "data": "" } }` },
+                           dialog: { type: 'textarea', head: '', data: '', flag: '*', expr: '/Auto structure~!/autoset' }, }, 
                  Appearance: {
-                           a: { type: 'checkbox', data: 'Open in a new window~Option forces OV to be displayed in a new window' },
+                           a: { type: 'radio', head: 'Window init~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Browser new tab' },
                            b: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random', head: 'Initial window position~Select view window position at the opening' },
                            c: { type: 'radio', head: 'Initial window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
                            d: { type: 'text', head: 'Width and height in pixels via comma', data: '', expr: '/Auto~!|Full screen~!/c', flag: '*' },
@@ -198,22 +308,22 @@ export const CUSTOMIZATIONS =
            "View": {
                     ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
                     ".ovboxmessage":               { "display": "flex;", "overflow": "auto;", "justify-content": "center;", "align-items": "center;", "width": "100%;", "height": "100%;", "padding": "0 10px 0 10px;", "box-sizing": "border-box;", "t ext-align": "justify;" },
-		            ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
-		            ".gridcontainer":              { "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
-		            ".undefinedcell":              { "padding": "10px;", "background-color": "",                                                                              "border": "1px solid #999;" },
-		            ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "",                 "border": "1px solid #999;" },
-		            ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "",                 "border": "1px solid #999;" },
-		            ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
-		            ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
-		            ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+		                ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
+		                ".gridcontainer":              { "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
+		                ".undefinedcell":              { "padding": "10px;", "background-color": "",                                                                              "border": "1px solid #999;" },
+		                ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "",                 "border": "1px solid #999;" },
+		                ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "",                 "border": "1px solid #999;" },
+		                ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
+		                ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+		                ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
                     ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
                     ".interactivecursorcell":      { "outline": "green solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
                     ".celleditmode":               { "box-shadow": "rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset; !important;", "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;" },
                     ".clipboardcell":              { "filter": "blur(1px);" }, 
-		            ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
+		                ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
                     ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
-		            [`.ovbox table tbody tr td:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
-                }
+		                [`.gridcontainer div:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
+                   }
 };
 
 export const CUSTOMIZATIONDIALOG = { section: { type: 'select', head: 'Select customization section', data: {} },
@@ -319,6 +429,81 @@ export function SearchPropValue(object, value)
 {
  if (typeof object === 'object')
     for (const i in object) if (object[i] === value) return i;
+}
+
+export function MacrosReplace(string, replacements, chain)
+{
+ let newstring = '';
+
+ while (true)
+       {
+        const pos1 = string.indexOf('${'); // Search start of macros
+        const pos2 = string.indexOf('}'); // and the finish
+        if (pos1 === -1 || pos2 === -1 || pos1 > pos2) return newstring + string; // No found? return previous result plus current
+        const macrosname = string.substring(pos1 + 2, pos2); // Retrieve macros name
+         // and substitue ${macrosname} to macros value via recursive function call, setting loop/undefined cases to empty string:
+        const macrosvalue = macrosname in replacements && (chain === undefined || !(macrosname in chain)) ? MacrosReplace(replacements[macrosname], replacements, Object.assign(chain || {}, { [macrosname]: true })) : '';
+        newstring += string.substring(0, pos1) + macrosvalue; // Collect newstring with macros value
+        string = string.substring(pos2 + 1); // and redefine remaining part to pass it for next cycle
+       }
+}
+
+export function GenerateRandomString(length)
+{
+ let randomstring = '';
+ for (let i = 0; i < length; i++) randomstring += RANDOMSTRINGCHARS[Math.floor(Math.random() * RANDOMSTRINGCHARS.length)];
+ return randomstring;
+}
+
+// Dialog data has next structure: root-profile -> element1, element2 -> profile1 -> element1 -> profile1, profile2.., so path represents a slash divided string to point needed element or profile:
+// element2/profile1/element1/profile2.. with <dialog> as a root-profile
+// Function search specified element or profile for specified splited path.
+// Undefined <value> just return a found element for a specified <path>, string type <value> set found element data to <value>, other <value> types - data prop of a found element is returned
+export function GetDialogElement(dialog, path, value)
+{
+ if (!dialog || typeof dialog !== 'object') return;
+ path = path.split('/')
+ for (let i in path) // Go through all elements of splited path 
+     {
+      dialog = +i%2 ? GetOptionInSelectElement(dialog, path[i]) : dialog[path[i]]; // Go to next element or profile (element group)
+      if (!dialog) return;
+     }
+
+ switch (typeof value) // Undefined <value> just return a found element (current <dialog> var) for a specified <path>, string type <value> set found element data to <value>, other <value> types - data prop of a found element is returned (for selectable elements with at least one checked option first checked option name is returned instead of whole data prop)
+        {
+          case 'undefined':
+               return dialog;
+          case 'string':
+               dialog.data = value;
+               break;
+          default:
+               if (['select', 'multiple', 'checkbox', 'radio'].includes(dialog.type) && typeof dialog.data === 'string')
+               for (const option of dialog.data.split('/'))
+                   {
+                    const [name, flag] = option.split(FIELDSDIVIDER, 2);
+                    if (flag && flag.includes('!')) return name;
+                  }
+               return dialog.data;
+        }
+}
+
+export function GetOptionInSelectElement(e, option)
+{
+ if (!e?.data || e.type !== 'select' || typeof e.data !== 'object') return;
+ for (const name in e.data) if (CompareOptionInSelectElement(option, name)) return e.data[name];
+}
+
+export function GetOptionNameInSelectElement(e, option)
+{
+ if (!e?.data || e.type !== 'select' || typeof e.data !== 'object') return;
+ for (const name in e.data) if (CompareOptionInSelectElement(option, name)) return name;
+}
+
+export function CompareOptionInSelectElement(string, option)
+{
+ [string] = string.split('~', 1);
+ [option] = option.split('~', 1);
+ return string === option;
 }
 
 export const HELPDIALOG = { pad: { type: 'select', data: {

@@ -1,41 +1,11 @@
-// Todo - Use another user (instead of root) with priv granted to 'OEDB' database only and Unicode for MySQL https://mathiasbynens.be/notes/mysql-utf8mb4 http://phpfaq.ru/mysql/charset
-// Todo - All db operations (except handlers and db config) should use the connection via user with read-only permissions
-// Todo - index columns: alter table data_1 add index (`lastversion`);
-// Todo - Use unbuffered queries just not to get all data as one whole XPathResult, but get it portion by portion
-// Todo - problems of deploying - can i use postgre db on commerisal base? 
-// Todo - db readonly replicas?
-// Todo0 - Process no PGSQL running error, in this case no error in concole and client side shows just no any OD in sidebar without any warnings. What if new OD is created? What error will it be?
-// Todo0 - Study psql syntax:
-//         CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
-//         SELECT current_database(); SELECT current_schema(); SELECT current_user;
-//         \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html)
-//         \l list databases
-//         \dt [*.*] list tables [of all schemas]
-//         \c postgres postgres; 
-//         DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
-//         \d <table> - DESCRIBE TABLE
-//         CREATE TABLE metr(); alter table metr add time TIMESTAMPTZ; SELECT create_hypertable('metr', by_range('time')); SELECT add_dimension('metr', by_range('id'));
-//                                                                     SELECT create_hypertable('metr_1', by_range('datetime'))
-//         set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
-
-
 import * as globals from './globals.js';
 
-export const ELEMENTCOLUMNPREFIX          = 'eid';
 const REGEXPCUTOFFCOLUMNTYPE              = new RegExp(`::\\S+`);
-const REGEXPISUSERELEMENTCOLUMN           = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*\\s*->>?\\s*['][^']*[']$|^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*$`, `i`);
-const REGEXPSEARCHUSERELEMENTCOLUMNNAME   = new RegExp(`^${ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
-export const PRIMARYKEYSTARTVALUE         = 3;
-
-console.log('Executing querymaker.js!!');
+const REGEXPISUSERELEMENTCOLUMN           = new RegExp(`^${globals.ELEMENTCOLUMNPREFIX}[1-9][0-9]*\\s*->>?\\s*['][^']*[']$|^${globals.ELEMENTCOLUMNPREFIX}[1-9][0-9]*$`, `i`);
+const REGEXPSEARCHUSERELEMENTCOLUMNNAME   = new RegExp(`^${globals.ELEMENTCOLUMNPREFIX}[1-9][0-9]*`, `i`);
 
 export class QueryMaker
 {
- constructor()
- {
-  console.log('New Query Maker!');
- }
-
  // Function parsed select operand (column) and returns array of element name (id, version, edi1..) and element property name (in case of json type)
  GetColumnElementAndProp(column)
  {
@@ -60,6 +30,8 @@ export class QueryMaker
   this.database = database;
   delete this.method;
   delete this.index;
+  delete this.privileges;
+  delete this.role;
   delete this.mode;
   delete this.limit;
   this.fields = [];  // Column names array for 'SELECT', 'ADD COLUMN', 'CREATE INDEX' and 'WHERE' statements
@@ -82,6 +54,14 @@ export class QueryMaker
  Index(indexmethod = 'btree')
  {
   this.index = indexmethod;
+  return this;
+ }
+
+ // GRANT SELECT|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER|ALL ON TABLE <table> TO <role>;
+ Role(role, privileges)
+ {
+  this.privileges = privileges;
+  this.role = role;
   return this;
  }
 
@@ -151,10 +131,10 @@ export class QueryMaker
   for (const name in fields)
       {
        let field = fields[name];                                                                                                    // Fix current field of object <fields>
-       if (field === null || ['boolean', 'number', 'string', 'object'].indexOf(typeof field) === -1) continue;                      // Continue for disallowed field types
+       if (field === null || !['boolean', 'number', 'string', 'object'].includes(typeof field)) continue;                      // Continue for disallowed field types
        if (typeof field !== 'object') field += '';                                                                                  // Bring field to string type, for non object types only
        if (typeof field === 'string') field = { value: field };                                                                     // Bring string type field to object type
-       if (['boolean', 'number'].indexOf(typeof field.value) !== -1) field += '';                                                   // Bring field value to string
+       if (['boolean', 'number'].includes(typeof field.value)) field.value += '';                                                   // Bring field value to string
        const i = this.fields.push(name) - 1;                                                                                        // Return last pos of field array
        if (typeof field.value !== 'string') continue;                                                                               // Field value does exist?
        if (field.escape) this.args.push(field.value);                                                                               // Set arg array value to escapable for a true escape flag
@@ -228,6 +208,12 @@ export class QueryMaker
                this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.GetWhereClause()}${this.GetOrderClause()}${this.GetLimitClause()}`;
                break;
           case 'CREATE':
+               // CREATE ROLE <role> and GRANT PRIVILEGES TO it
+               if (this.role)
+                  {
+                   this.query = `CREATE ROLE ${this.role}; GRANT CONNECT ON DATABASE ${this.database} TO ${this.role}; GRANT USAGE ON SCHEMA public TO ${this.role}; GRANT ${this.privileges} ON TABLE ${this.table} TO ${this.role}`;
+                   break;
+                  }
                // Create database if this.database does exist
                if (this.database)
                   {
@@ -276,6 +262,12 @@ export class QueryMaker
                   }
                break;
           case 'DROP':
+               // DROP role
+               if (this.role)
+                  {
+                   this.query = `REVOKE ${this.privileges} ON TABLE ${this.table} FROM ${this.role}; REVOKE CONNECT ON DATABASE ${this.database} FROM ${this.role}; REVOKE USAGE ON SCHEMA public FROM ${this.role}; DROP ROLE ${this.role}`;
+                   break;
+                  }
                // Drop database if this.database does exist
                if (this.database)
                   {
@@ -322,3 +314,20 @@ export class QueryMaker
   return this.args.length ? [this.query, this.args] : [this.query];
  }
 }
+
+// Todo0 - index columns: alter table data_1 add index (`lastversion`);
+// Todo0 - problems of deploying - can postgreSQL be used on commercial base? 
+// Todo0 - db readonly replicas?
+// Todo0 - 19/03/2026: Process no PGSQL running error, in this case no error in concole and client side shows just no any OD in sidebar without any warnings. What if new OD is created? What error will it be?
+// Todo0 - Study psql syntax:
+//         CREATE DATABASE OE; DROP DATABASE [IF EXISTS] OE;
+//         SELECT current_database(); SELECT current_schema(); SELECT current_user;
+//         \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html)
+//         \l list databases
+//         \dt [*.*] list tables [of all schemas]
+//         \c postgres postgres; 
+//         DROP DATABASE oe; CREATE DATABASE oe; \c oe postgres;
+//         \d <table> - DESCRIBE TABLE
+//         CREATE TABLE metr(); alter table metr add time TIMESTAMPTZ; SELECT create_hypertable('metr', by_range('time')); SELECT add_dimension('metr', by_range('id'));
+//                                                                     SELECT create_hypertable('metr_1', by_range('datetime'))
+//         set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
