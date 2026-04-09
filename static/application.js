@@ -146,7 +146,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //  Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
 //  scrypt from openssl (passwords hashing)
 //  auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
-
+//  https://node-postgres.com/apis/pool
 
 // Megacom appliance information systems:
 // Todo - discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?

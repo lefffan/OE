@@ -23,9 +23,10 @@ export const ELEMENTCOLUMNPREFIX    = 'eid';
 export const TRANSACTIONERROR       = 'Transaction init error!'
 export const FIELDSDIVIDER          = '~';
 export const USERNAMEMAXCHAR        = 125;
-const INCORRECTDBCONFDIALOG     = 'Incorrect dialog structure!';
-const INCORRECTDBCONFDBNAME     = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
-const EMPTYDBCONFDBNAME         = 'Cannot create new database with empty name!';
+const INCORRECTDBCONFDIALOG         = 'Incorrect dialog structure!';
+const INCORRECTDBCONFDBNAME         = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
+const EMPTYDBCONFDBNAME             = 'Cannot create new database with empty name!';
+const DISALLOWEDTOCONFIGURATE       = 'You are not allowed to configurate this Object Database!';
 
 export function GetTableNameId(name)
 {
@@ -44,8 +45,25 @@ export function GetOptionNameId(option)
  return isNaN(+id) ? '' : id;                       // and return string containing 
 }
 
-// Function checkes OD dialog structure and returns true for correct structure, otherwise throws an error. In case of correct structure and empty db name with element/view/rules profiles number - function returns undefined to remove db
-export function CheckDatabaseConfigurationDialogStructure(dialog, action)
+//
+export function AcceptODConfigurationDialogChanges(dialogold, dialognew, users)
+{
+ const restrictedpads = [];
+ let list = GetDialogElement(dialogold, 'padbar/Database/settings/Permissions/od', true);
+ if (CheckItemsToMatchTheList(users, list)) throw new Error(DISALLOWEDTOCONFIGURATE); // Users match OD read restrictions
+
+ for (const name of ['Database', 'Element', 'View', 'Rule'])
+     {
+      list = globals.GetDialogElement(dialogold, `padbar/Database/settings/Permissions/${name}`, true); // Get old dialog restricted user list
+      if (!CheckItemsToMatchTheList(users, list) || DialogProfileCompare(GetOptionInSelectElement(dialogold.padbar, name), GetOptionInSelectElement(dialognew.padbar, name))) continue; // If current users do not match the list above (so pad is not restricted) or pad is not changed - continue
+      restrictedpads.push(`'${name}'`); // Store pad name and restore old dialog pad to new dialog appropriate pad below
+      dialognew.padbar.data[GetOptionNameInSelectElement(dialognew.padbar, name)] = dialogold.padbar.data[GetOptionNameInSelectElement(dialogold.padbar, name)];
+     }
+ return restrictedpads;
+}
+
+// Function checkes OD dialog structure and returns true for correct structure, otherwise throws an error. In case of correct structure and empty db name with no any element/view/rule profiles - function still returns odname (empty string)
+export function CheckODConfigurationDialogSyntax(dialog, update)
 {
  let elements, views, rules, odname;
  if (!(elements = GetDialogElement(dialog, 'padbar/Element/elements'))) throw new Error(INCORRECTDBCONFDIALOG);
@@ -56,15 +74,49 @@ export function CheckDatabaseConfigurationDialogStructure(dialog, action)
  odname = GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true);
  if (typeof odname !== 'string') throw new Error(INCORRECTDBCONFDIALOG);
 
- if (!odname && ['create', 'read'].includes(action)) throw new Error(EMPTYDBCONFDBNAME); // Empty od name for new OD creating or old OD reading
- if (!odname && action === 'edit' && (Object.keys(elements.data).length > 1 || Object.keys(views.data).length > 1 || Object.keys(rules.data).length > 1)) throw new Error(INCORRECTDBCONFDBNAME); // Empty od name with non empty elements, views or rules
+ if (!odname && !update) throw new Error(EMPTYDBCONFDBNAME); // Throw an exception for empty od name for new OD creating
+ if (!odname && update && (Object.keys(elements.data).length > 1 || Object.keys(views.data).length > 1 || Object.keys(rules.data).length > 1)) throw new Error(INCORRECTDBCONFDBNAME); // Throw an exception for updating existing OD with empty od name non empty content (Element, View or Rule pads)
  return odname;
 }
 
-export function CorrectProfileIds(e, excludeoption, lastid)
+// Function goes through some element profiles (false searchtype - noncloned profiles, true - cloned ones, other value - all) and calls <callback> function for each one to adjust profile with its name 
+export function ProcessDialogProfiles(e, searchtype, excludeoption, callback)
 {
- const nonclonedids = [];
- const clonedids = [];
+ const options = Object.keys(e.data);
+ for (const option of options)
+     {
+      let [name, flag, ...style] = option.split(FIELDSDIVIDER);                   // Split option to its name and flag via FIELDSDIVIDER char '~'
+      flag = flag || '';
+      style = style.length ? style.join(FIELDSDIVIDER) : '';                      // Join back style string
+      if (typeof excludeoption === 'string' && excludeoption === name) continue;  // Option should be passed? Continue
+      if (searchtype === false && flag.includes('*')) continue;                   // Search for noncloned, but option is cloned? Continue
+      if (searchtype === true && !flag.includes('*')) continue;                   // Search for cloned, but option is noncloned? Continue
+      callback(e.data, option, name, flag, style);
+     }
+}
+
+// Function removes +- flags, adds id string and makes <readonlyprop> read only
+export function AdjustDialogProfileFlags(data, option, name, flag, style, addid, readonlyprop)
+{
+ if (addid) name += ` (id${addid})`;                                                                      // Add ' (id<num>)' to option name
+ flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';                          // Remove clonable/removable/cloned flags and add clonable/removable ones only
+ if (typeof readonlyprop === 'string') data[option][readonlyprop].expr = '/^/';                           // Make readonly <readonlyprop>
+ data[`${name}${flag ? FIELDSDIVIDER + flag : ''}${style ? FIELDSDIVIDER + style : ''}`] = data[option];  // and rename it in element selectable data
+ delete data[option];
+}
+
+// Todo0 - delete func below after elemnt/vew profiles order is correct
+export function CorrectProfileIds(e, excludeoption, addid)
+{
+ const nonclonedids = [], clonedids = [], options = Object.keys(e.data);
+ let maxid = 0;
+
+ if (addid) for (const option of options) // Calc profile name max id if needed (true <addid>)
+    {
+     const id = +GetOptionNameId(option);
+     if (id > maxid) maxid = id;
+    }
+
  for (const option of Object.keys(e.data))
      {
       let [name, flag, ...style] = option.split(FIELDSDIVIDER);                       // Split option to its name and flag via FIELDSDIVIDER char '~'
@@ -79,8 +131,8 @@ export function CorrectProfileIds(e, excludeoption, lastid)
              nonclonedids.push(+GetOptionNameId(option));                             // Add profile id to <nonclonedids> except <excludeoption> (template)
           continue;
          }
-      if (lastid !== undefined) name += ` (id${++lastid})`;                           // Add ' (id<num>)' to option name
-      if (lastid !== undefined) clonedids.push(lastid);                               // Add profile id to <clonedids>
+      if (addid) name += ` (id${++maxid})`;                           // Add ' (id<num>)' to option name
+      if (addid) clonedids.push(maxid);                               // Add profile id to <clonedids>
       flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-'; // Remove clonable/removable/cloned flags and add clonable/removable ones only
       e.data[name + flag + style] = e.data[option];                                   // and rename it in element selectable data
       delete e.data[option];
@@ -163,82 +215,6 @@ export function AdjustString(string, encodemap, excludehtmltags, trim)
     }
  return newstring + EncodeString(string, encodemap);
 }
-
-// There are four sql tables read/write process - OV display (read, only native tables via rouserodid)
-// handler system calls (write, data/metr table only)
-// element data macroses (read, native OD tables via rouserodid, foreign OD tables permission should be allowed in OD conf)
-// rules (read/write only native tables via rwuserodid)
-const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
-                      General: {
-                                dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as an object database name, others before - as a folders. Empty folders are ignored` }, 
-                                description: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, },
-                      Permissions: {
-                                od: { type: 'textarea', data: '', head: `Restrict this 'Object Database' configuraion read access for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored). Specified restriction (so all below) is applied for the user that matches the list. No match - no restriction applied. Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char. Empty list matches no user. Note that user 'root' is a super user with no any restrictions applied regardless of any lists, so good practice is to use that super user account for recovery purposes only` },
-                                Database: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
-                                Element: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
-                                View: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
-                                Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`},
-                                Macros: { type: 'textarea', data: '', head: `Permit this 'Object Database' data read access for next OD id list`, flag: '*' }, },
-                      Macroses: {
-                                 80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`, data: { 'New macros~+-': {
-                                            10: { type: 'textarea', head: 'Macros value', data: '' },
-                                            20: { type: 'textarea', head: 'Macros description~Enter some text here to describe macros uasge', flag: '*', data: '' }, }, } }
-    
-                    },},},};
-    
-const ELEMENTPAD = {
-                    elements: { type: 'select', head: 'Element profile~Set this template element properties and clone it to create new element in object database', data: { 'New element template~+': {
-                    name: { type: 'textarea', head: 'Name~Element name, used as a default element title in object view display', data: '', flag: '+Enter element name' },
-                    description: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
-                    type: { type: 'text', head: 'Element column type~', data: 'JSON' },
-                    index: { type: 'radio', head: `Element column index~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'None~!/btree/UNIQUE btree/hash', flag: '*' },
-                    event: { type: 'textarea', head: `Event profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
-                   },},},};
-
-const VIEWPAD = {
-                 views: { type: 'select', head: 'View profile~Set view properties and clone this template to create new view', data: { 'New view template~+': {
-                 settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
-                 General: {
-                           name: { type: 'textarea', data: '', flag: '+Enter view name', head: `Name~Enter here view name list (one by line). All names will be sidebar displayed according their paths. Usually second and other ones are used as alias names to be placed in favorites. No view names specified - the view is sidebar hidden, but still can be called to open from event handlers or shortcut keys` },
-                           description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '' },
-                           shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window. For sidebar focus only`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
-                           refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' }, }, 
-                 Selection: {
-                           template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map', flag: '*' },
-                           layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '' },
-                           query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = 1' },
-                           linkname: { type: 'text', head: 'Link~Object selection link name', data: '' }, }, 
-                 Macroses: {
-                           autoset: { type: 'checkbox', data: 'Call dialog/Auto structure~!', head: `Macros definition dialog~Macroses in this OV 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't. Checked 'Auto structure' option automatically creates dialog structure to call. Dialog structure property name is a macros name, input field content - macros value (for 'textarea', 'text' and 'password' interface element types only). Dialog structure defined macroses are applied regardless of 'Call dialog' option. Dialog structure may contain input fields only, 'OK'/'CANCEL' dialog buttons are added automatically if absent. Client side dialog call may be used not for macros definitions, but for info/warning message display before OV open. Macros 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macros SOMEMACROS value", "data": "" } }` },
-                           dialog: { type: 'textarea', head: '', data: '', flag: '*', expr: '/Auto structure~!/autoset' }, }, 
-                 Appearance: {
-                           a: { type: 'radio', head: 'Window init~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Browser new tab' },
-                           b: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random', head: 'Initial window position~Select view window position at the opening' },
-                           c: { type: 'radio', head: 'Initial window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
-                           d: { type: 'text', head: 'Width and height in pixels via comma', data: '', expr: '/Auto~!|Full screen~!/c', flag: '*' },
-                           e: { type: 'checkbox', head: 'Control', data: 'Resize~!/Full screen~!/Escape/Close icon\n~!/Always on top/Modal', flag: '*' },
-                           f: { type: 'checkbox', head: 'Bring to top on event', data: 'New data/Data delete/Data change' },
-                           g: { type: 'checkbox', head: `Auto open in a new window on event`, data: 'New data/Data delete/Data change', flag: '*' },
-                           h: { type: 'text', head: 'Lifetime~OV window lifetime (in seconds) after which the window will be closed automatically. Zero/empty/error value - no action', data: '', flag: '' }, }, 
-                 Permissions: {
-                           10: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
-                           20: { type: 'textarea', head: `Restrict write access for next users/groups`, data: '', flag: '*' },
-                }, } } }, }, }, };
-
-const RULEPAD = {
-                 rules: { type: 'select', head: 'Rule profile~Set rule properties and clone this template to create new rule. Rules are tested in alphabetical order one by one until the rule query is successful, the rule action is applied then', data: { 'New rule template~+': {
-                           10: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
-                           20: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
-                           30: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macroses (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
-                           40: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' },
-                }, }, } };
-
-export const NEWOBJECTDATABASE = {
-                           padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
-                           title: { type: 'title', data: 'New Database Configuration' },
-                           ok: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
-                           cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
-                          };
 
 const DIALOGBOXMACROSSTYLE	= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
 export const CUSTOMIZATIONS =
@@ -1554,3 +1530,101 @@ Row/column resizing operation like in 'excel' are not implemented also, use elem
 properties to set initial table column width. By default, table column width are adjusted to fit the content.`
 }}
 }}};
+
+const DATABASEPAD = { settings: { type: 'select', head: 'Select object database settings', data: {
+                      General: {
+                                dbname: { type: 'text', data: '', flag: '+Enter new database name', head: `Database name~Enter database name full path in next format: folder1/../folderN/dbname. Folders are optional and created automatically in a sidebar db hierarchy. Leading slash is not necessary, last slash divided name is always treated as an object database name, others before - as a folders. Empty folders are ignored` }, 
+                                description: { type: 'textarea', data: '', head: 'Database description', flag: '*' }, },
+                      Permissions: {
+                                od: { type: 'textarea', data: '', head: `Restrict this 'Object Database' configuraion read access for next user/group list~User/group list is a list of users (or groups) one by line (empty lines are ignored). Specified restriction (so all below) is applied for the user that matches the list. No match - no restriction applied. Prefix '!' inverts the value, so string '!support' matches all user names, except 'support'. For the list to match all users use '!' single char. Empty list matches no user. Note that user 'root' is a super user with no any restrictions applied regardless of any lists, so good practice is to use that super user account for recovery purposes only` },
+                                Database: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
+                                Element: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
+                                View: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
+                                Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`},
+                                Macros: { type: 'textarea', data: '', head: `Permit this 'Object Database' data read access for next OD id list`, flag: '*' }, },
+                      Macroses: {
+                                 80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`, data: { 'New macros~+-': {
+                                            10: { type: 'textarea', head: 'Macros value', data: '' },
+                                            20: { type: 'textarea', head: 'Macros description~Enter some text here to describe macros uasge', flag: '*', data: '' }, }, } }
+    
+                    },},},};
+    
+const ELEMENTPAD = {
+                    elements: { type: 'select', head: 'Element profile~Set this template element properties and clone it to create new element in object database', data: { 'New element template~+': {
+                    name: { type: 'textarea', head: 'Name~Element name, used as a default element title in object view display', data: '', flag: '+Enter element name' },
+                    description: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
+                    type: { type: 'text', head: 'Element column type~', data: 'JSON' },
+                    index: { type: 'radio', head: `Element column index~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'None~!/btree/UNIQUE btree/hash', flag: '*' },
+                    event: { type: 'textarea', head: `Event profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
+                   },},},};
+
+const VIEWPAD = {
+                 views: { type: 'select', head: 'View profile~Set view properties and clone this template to create new view', data: { 'New view template~+': {
+                 settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
+                 General: {
+                           name: { type: 'textarea', data: '', flag: '+Enter view name', head: `Name~Enter here view name list (one by line). All names will be sidebar displayed according their paths. Usually second and other ones are used as alias names to be placed in favorites. No view names specified - the view is sidebar hidden, but still can be called to open from event handlers or shortcut keys` },
+                           description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '' },
+                           shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window. For sidebar focus only`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
+                           refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' }, }, 
+                 Selection: {
+                           template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map', flag: '*' },
+                           layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '' },
+                           query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = 1' },
+                           linkname: { type: 'text', head: 'Link~Object selection link name', data: '' }, }, 
+                 Macroses: {
+                           autoset: { type: 'checkbox', data: 'Call dialog/Auto structure~!', head: `Macros definition dialog~Macroses in this OV 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't. Checked 'Auto structure' option automatically creates dialog structure to call. Dialog structure property name is a macros name, input field content - macros value (for 'textarea', 'text' and 'password' interface element types only). Dialog structure defined macroses are applied regardless of 'Call dialog' option. Dialog structure may contain input fields only, 'OK'/'CANCEL' dialog buttons are added automatically if absent. Client side dialog call may be used not for macros definitions, but for info/warning message display before OV open. Macros 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macros SOMEMACROS value", "data": "" } }` },
+                           dialog: { type: 'textarea', head: '', data: '', flag: '*', expr: '/Auto structure~!/autoset' }, }, 
+                 Appearance: {
+                           a: { type: 'radio', head: 'Window init~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Browser new tab' },
+                           b: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random', head: 'Initial window position~Select view window position at the opening' },
+                           c: { type: 'radio', head: 'Initial window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
+                           d: { type: 'text', head: 'Width and height in pixels via comma', data: '', expr: '/Auto~!|Full screen~!/c', flag: '*' },
+                           e: { type: 'checkbox', head: 'Control', data: 'Resize~!/Full screen~!/Escape/Close icon\n~!/Always on top/Modal', flag: '*' },
+                           f: { type: 'checkbox', head: 'Bring to top on event', data: 'New data/Data delete/Data change' },
+                           g: { type: 'checkbox', head: `Auto open in a new window on event`, data: 'New data/Data delete/Data change', flag: '*' },
+                           h: { type: 'text', head: 'Lifetime~OV window lifetime (in seconds) after which the window will be closed automatically. Zero/empty/error value - no action', data: '', flag: '' }, }, 
+                 Permissions: {
+                           10: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
+                           20: { type: 'textarea', head: `Restrict write access for next users/groups`, data: '', flag: '*' },
+                }, } } }, }, }, };
+
+const RULEPAD = {
+                 rules: { type: 'select', head: 'Rule profile~Set rule properties and clone this template to create new rule. Rules are tested in alphabetical order one by one until the rule query is successful, the rule action is applied then', data: { 'New rule template~+': {
+                           10: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
+                           20: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
+                           30: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macroses (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
+                           40: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' },
+                }, }, } };
+
+export const NEWOBJECTDATABASE = {
+                           padbar: { type: 'select', data: { Database: DATABASEPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
+                           title: { type: 'title', data: 'New Database Configuration' },
+                           ok: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
+                           cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
+                          };
+// Function makes a deep source object merge to target (only non object props are copied, for object type props are new instance are created)
+function ObjectMerge(target, source)
+{
+ for (const prop in source) source[prop] && typeof source[prop] === 'object' ? ObjectMerge(prop in target ? target[prop] : (target[prop] = {}), source[prop]) : target[prop] = source[prop];
+ return target;
+}
+
+const USERODLAYOUT = `{"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
+{"row":"r < 9", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+4", "s tyle": "color: red;"}
+"row":"r%2===1 || r%2===-1", "col":"id", "attributes": "title=\"@@@@@@@@@\" style=\"background-color: green;\"", "value":"HUIIII"}
+{"r ow":"r%2===1 || r%2===-1", "row":"1", "col":"", "s tyle": "color: red;", "v alue":"HUIIII", "hint":"@@@@@@@@#%^&*("}
+{"event":"", "x":"0", "y":"13311"}
+{"ow":"r === -1", "col":"", "x":"c", "y":"19", "s tyle": "color: red;"}`;
+
+const USERODADDON = { padbar: { data: { Database: { settings: { data: { General: { dbname: { data: 'Users' } } } } },
+                                        Element: { elements: { data: {
+                                                                      'username~*': { name: 'Username', description: 'Username', type: `VARCHAR(${globals.USERNAMEMAXCHAR})`, index: 'None/btree/UNIQUE btree~!/hash' },
+                                                                      'password~*': { name: 'Password', description: 'Password', type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash' },
+                                                                      'custom~*': { name: 'Custom field', description: 'Custom field', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                                                                      'policy~*': { name: 'Policy', description: 'Policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                                                                      'macroses~*': { name: 'Macroses', description: 'Macroses', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                                                                      'customization~*': { name: 'Customization', description: 'Customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                                                                      'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' } } } },
+                                        View: { views: { data: { 'All~*': { settings: { data: { General: { name: { data: 'All users' }, description: { data: 'All users list' } }, 
+                                                                                                Selection: { layout: { data: USERODLAYOUT }, query: { data: 'SELECT *\nFROM data_1' } } } } } } } } } } };
+export const USEROBJECTDATABASE = ObjectMerge(JSON.parse(JSON.stringify(globals.NEWOBJECTDATABASE)), USERODADDON);

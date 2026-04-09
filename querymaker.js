@@ -50,6 +50,13 @@ export class QueryMaker
   return this;
  }
 
+ // CREATE/DROP method locks/unlocks specified identificator. Id locking is usefull operation that allows to bind some DB actions executed monopoly
+ Lock(id)
+ {
+  this.lock = id;
+  return this;
+ }
+
  // CREATE/DROP method makes result query to create/drop index instead of create/drop column
  Index(indexmethod = 'btree')
  {
@@ -208,6 +215,12 @@ export class QueryMaker
                this.query = `SELECT ${this.Join(',', '')} FROM ${this.table}${this.GetWhereClause()}${this.GetOrderClause()}${this.GetLimitClause()}`;
                break;
           case 'CREATE':
+               // 
+               if (this.lock !== undefined)
+                  {
+                   this.query = `SELECT pg_advisory_xact_lock(${this.lock})`;
+                   break;
+                  }
                // CREATE ROLE <role> and GRANT PRIVILEGES TO it
                if (this.role)
                   {

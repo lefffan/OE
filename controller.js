@@ -1,43 +1,31 @@
 import http from 'http';
 import fs from 'fs';
 import { WebSocketServer } from 'ws';
-import { qm, pool } from './main.js';
-import { ReadAllDatabase, SendViewsToClients, EditDatabase } from './objectdatabase.js';
+import { QueryMaker } from './querymaker.js';
 import * as globals from './globals.js';
+import pg from 'pg';
 
+const { Pool, Client }   = pg; // Todo0 - change to import { Pool, Client } from 'pg' ?
 const UNKNOWNDBID        = 'Incorrect or nonexistent database id!';
 const INCORRECTLAYOUT    = 'Incorrect layout - no any object/virtual elements defined in OD configuration layout section!';
 const UNAUTHORIZEDACCESS = 'Unauthorized access detected, please relogin!';
 const TIMEOUTACCESS      = 'Server has closed connection due to timeout, please relogin!';
 const UNDEFINEDQUERYRES  = 'Database query returned udnefined result!'
-const STATICDOCS         = {
-                            '/application.js': '/static/application.js',
-                            '/connection.js': '/static/connection.js',
-                            '/constant.js': '/static/constant.js',
-                            '/contextmenu.js': '/static/contextmenu.js',
-                            '/dialogbox.js': '/static/dialogbox.js',
-                            '/dropdownlist.js': '/static/dropdownlist.js',
-                            '/' : '/static/index.html',
-                            '/interface.js': '/static/interface.js',
-                            '/sidebar.js': '/static/sidebar.js',
-                            '/view.js': '/static/view.js',
-                            '/globals.js': '/globals.js',
-                           };
-const HTTPIP             = '127.0.0.1';
-const HTTPPORT           = '8003';
-const WSIP               = '127.0.0.1';
-const WSPORT             = '8002';
+const qm                 = new QueryMaker();
 
 export class Controller
 {
- constructor()
+ constructor(HTTP, WS, DB)
  {
+  if (HTTP) http.createServer(this.HTTPNewConnection.bind(this)).listen(HTTP.port, HTTP.ip); // Todo0 - set secure server via https instead of http
+  if (this.WS = WS) new WebSocketServer({ host: WS.ip, port: WS.port }).on('connection', this.WSNewConnection.bind(this));
+  if (!HTTP || !WS || !DB) return;
+  this.DB = DB;
+  this.pool = new Pool(DB.adminconfig);
   this.clientauthcodes = {};
   this.clients = new Map();
   this.ods = {};
-  http.createServer(this.HTTPNewConnection.bind(this)).listen(HTTPPORT, HTTPIP); // Todo0 - set secure server via https instead of http
-  ReadAllDatabase();
-  new WebSocketServer({ port: WSPORT }).on('connection', this.WSNewConnection.bind(this));
+  this.ReadAllDatabase();
  }
 
  HTTPNewConnection(req, res)
@@ -74,7 +62,7 @@ export class Controller
   client.on('close', code => console.log(`${this.clients.delete(client) ? 'Client' : 'Undefined client'} socket was closed with code ${code}!`));
  }
 
-  // Todo0 - do Settimeout to remove expired auth codes
+ // Todo0 - do Settimeout to remove expired auth codes
  AddClientAuthCode(string, data)
  {
   this.clientauthcodes[string] = data;
@@ -85,11 +73,12 @@ export class Controller
  Authenticate(username, password)
  {
   if (!username || !password || username !== 'root' || password !== '1') return { type: 'LOGINERROR', data: 'Wrong username or password!' };
-  return { type: 'LOGINACK', data: { username: username, userid: '0', protocol: 'ws', ip: WSIP, port: WSPORT, authcode: this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: '0', username: username }/* Todo0 - set user id here */) } };
+  return { type: 'LOGINACK', data: { username: username, userid: '0', protocol: 'ws', ip: this.WS.ip, port: WSPORT, authcode: this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: '0', username: username }/* Todo0 - set user id here */) } };
  }
 
  Handler(msg, client)
  {
+  if (!client) { console.log(`Unknown web socket client with next event: ${msg}`); return; }  
   try { msg = JSON.parse(msg); }
   catch { console.log(`Client side incorrect incoming JSON: ${msg}`); return; }
   console.log('Incoming msg:', msg);
@@ -103,31 +92,31 @@ export class Controller
      }
 
   switch (msg.type)
-	      {
-	       case 'SETDATABASE':
-               EditDatabase(msg, this.clients.get(client));
-	            break;
-	       case 'GETDATABASE':
+	    {
+	     case 'SETDATABASE':
+              this.SetNewODInstance(msg.data.dialog, msg.data.odid, client);
+	          break;
+	     case 'GETDATABASE':
                if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', data: { content: UNKNOWNDBID, title: 'Error' } }));
                 else client.send(JSON.stringify({ type: 'CONFIGUREDATABASE', data: { dialog: this.ods[msg.data.odid].dialog, odid: msg.data.odid } }));
-	            break;
-	       case 'SIDEBARGET':
+	          break;
+	     case 'SIDEBARGET':
                SendViewsToClients(null, client);
-	            break;
+	          break;
           case 'LOGIN':
                client.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
                msg = this.Authenticate(msg.data.username, msg.data.password);
                client.write(JSON.stringify(msg));
                client.end()
                break;
-	       case 'CREATEWEBSOCKET':
+	     case 'CREATEWEBSOCKET':
                if (this.clientauthcodes[msg.data?.authcode] && this.clientauthcodes[msg.data.authcode].userid === msg.data.userid)
                   {
                    this.clients.get(client).auth = true;
                    this.clients.get(client).userid = this.clientauthcodes[msg.data.authcode].userid;
                    this.clients.get(client).username = this.clientauthcodes[msg.data.authcode].username;
                    delete this.clientauthcodes[msg.data.authcode];
-	                client.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK' }));
+	               client.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK' }));
                   }
                 else
                   {
@@ -204,6 +193,308 @@ export class Controller
   console.log(msg);
   client.send(JSON.stringify(msg));
  }
+
+ // Function gets application database ro/wr all roles
+ async GetAllDatabaseRoles()
+ {
+  let client;
+  const users = [];
+
+  try {
+       client = new Client(this.DB.defaultconfig); // Get all ro/rw users to delete
+       await client.connect();
+       const rousers = await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Table('pg_roles').Method('SELECT').Fields('rolname').Fields({ rolname: { value: 'rouserodid%', sign: ' LIKE ' } }).Make());
+       const rwusers = await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Table('pg_roles').Method('SELECT').Fields('rolname').Fields({ rolname: { value: 'rwuserodid%', sign: ' LIKE ' } }).Make());
+       if (Array.isArray(rousers?.rows)) rousers.rows.map(row => { if (row.rolname?.match(/\d+$/)?.[0]) users.push(row.rolname); });
+       if (Array.isArray(rwusers?.rows)) rwusers.rows.map(row => { if (row.rolname?.match(/\d+$/)?.[0]) users.push(row.rolname); });
+      }
+  catch (error)
+        {
+         console.error('Getting Database roles error: ', error.stack);
+        }
+
+  if (client) await client.end();
+  return users;
+ }
+
+ // Function removes ro/wr OD roles from <users> array. There are four sql read/write processes:
+ // 1. OV display 'read' (own ro user per OD)
+ // 2. Handler system calls 'write' (rw user for data/metr tables only)
+ // 3. Element data macroses 'read' (own OD ro user, foreign OD views via permissions in OD conf)
+ // 4. Rules 'read/write' (own rw user per OD)
+ async DeleteODUsers(users)
+ {
+  let client;
+  try {
+       client = new Client(this.DB.adminconfig);
+       await client.connect();
+      }
+  catch (error)
+      {
+       console.error(`Connecting database '${this.DB.adminconfig.database}' error: `, error.stack);
+       return;
+      }
+
+  for (const role of users)
+      {
+       const odid = role?.match(/\d+$/)?.[0]; // Role name string end digit check
+       if (!odid) continue;
+       try {
+            await client.query(...qm.Table(`data_${odid},metr_${odid},meta_${odid}`, null, this.DB.adminconfig.database).Method('DROP').Role(role, role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE').Make());
+            console.log(`Dropping role '${role}'.. dropped!`);
+           }
+       catch (error)
+           {
+            console.error(`Removing role ${role} error: `, error.stack);
+           }
+      }
+
+  client.end();
+ }
+
+ async Reset()
+ {
+  // Getting all ro/rw users and deleting them     
+  let client;
+  await this.DeleteODUsers(await this.GetAllDatabaseRoles());
+  
+  // Connecting to database
+  try {
+       client = new Client(this.DB.adminconfig);
+       await client.connect();
+      }
+  catch (error)
+      {
+       console.error(`Connecting database '${this.DB.adminconfig.database}' error: `, error.stack);
+       return;
+      }
+
+  // Dropping database
+  try {
+       await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Method('DROP').Make());
+       console.log(`Database ${this.DB.adminconfig.database} is dropped`);
+      }
+  catch (error)
+      {
+       console.error(`Error dropping database '${this.DB.adminconfig.database}': `, error.stack);
+      }
+
+  // Creating database
+  try {
+       await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Method('CREATE').Make());
+       console.log(`Database ${this.DB.adminconfig.database} is created successfully`);
+      }
+  catch (error)
+      {
+       console.error(`Error creating database '${this.DB.adminconfig.database}': `, error.stack);
+       return;
+      }
+
+  // Creating extension
+  try {
+       await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Method('CREATE').Make());
+       await client.query(...qm.Table('CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE').Make());
+       console.log(`TimescaleDB extension is activated successfully`);
+      }
+  catch (error)
+      {
+       console.error('Activation TimescaleDB extension error: ', error.stack);
+      }
+  await client.end();
+
+  // Creating new User OD
+  this.clients.set(client = {}, { username: globals.SUPERUSER });
+  await SetNewODInstance(globals.USEROBJECTDATABASE, undefined, client);
+ }
+
+ // Function removes specified OD sql tables
+ async RemoveOD(odid, client)
+ {
+  for (const table of ['head_', 'data_', 'metr_', 'meta_']) await transaction.query(...qm.Table(`${table}${odid}`).Method('DROP').Make()); // Drop all OD related tables
+  for (const [, value] of this.clients) value.socket.send(JSON.stringify({ type: 'SIDEBARDELETE', data: { odid: odid } })); // and send OD remove msg to all wss clients
+  delete this.ods?.[odid]; // Delete OD from app memory
+  if (client?.send) client.send(JSON.stringify({ type: 'WARNING', data: { content: 'Object Database is successfully removed!', title: 'Info' } })); // and send info mgs for client initiated removing
+ }
+
+ // Function creates new OD sql tables
+ async CreateOD(odid, client)
+ {
+  // Create new databases and write its structure
+  await transaction.query(...qm.Table(`head_${odid}`).Method('CREATE').Make());
+  await transaction.query(...qm.Table(`head_${odid}`).Method('CREATE').Fields({ id: { value: 'INTEGER', constraint: 'PRIMARY KEY GENERATED ALWAYS AS IDENTITY' },
+                                                                                datetime: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                userid: 'INTEGER',
+                                                                                dialog: 'JSON' }).Make());
+  //                                                                                
+  await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Make());
+  await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Fields({ id: { value: 'INTEGER', constraint: 'GENERATED BY DEFAULT AS IDENTITY' },
+                                                                                version: { value: 'INTEGER', constraint: 'DEFAULT 1' },
+                                                                                lastversion: { value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
+                                                                                mask: 'TEXT',
+                                                                                ownerid: 'INTEGER',
+                                                                                owner: `VARCHAR(${globals.USERNAMEMAXCHAR})`,
+                                                                                datetime: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
+                                                                                time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                PRIMARY: 'KEY(id, version)' }).Make());
+  //                                                                                
+  await transaction.query(...qm.Table(`metr_${odid}`).Method('CREATE').Make());
+  await transaction.query(...qm.Table(`metr_${odid}`).Method('CREATE').Fields({ id: 'INTEGER',
+                                                                                datetime: { value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
+                                                                                time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                value: 'FLOAT' }).Make());
+  await transaction.query(...qm.Table(`metr_${odid}`, 'datetime').Method('CREATE').Make());
+  await transaction.query(...qm.Table(`metr_${odid}`, 'id').Method('WRITE').Make());
+  // Create custom user data table <meta_N> in a addition to <data_N>/<metr_N> to insert any non application random data
+  await transaction.query(...qm.Table(`meta_${odid}`).Method('CREATE').Make());
+  // Create readonly and read/write user roles for data, metr and meta tables
+  await transaction.query(...qm.Table(`data_${msg.data.odid},metr_${msg.data.odid},meta_${msg.data.odid}`, null, DBNAME).Method('CREATE').Role(`rouserodid${msg.data.odid}`, 'SELECT').Make());
+  await transaction.query(...qm.Table(`data_${msg.data.odid},metr_${msg.data.odid},meta_${msg.data.odid}`, null, DBNAME).Method('CREATE').Role(`rwuserodid${msg.data.odid}`, 'SELECT, INSERT, UPDATE, DELETE').Make());
+  if (client?.send) client.send(JSON.stringify({ type: 'WARNING', data: { content: 'Object Database is successfully created!', title: 'Info' } }));
+ }
+
+ // Function adjust some parameteres of OD dialog structure to add/update. Todo1 - adjust all views layout text areas commenting error jsons as a error ones
+ async AdjustOD(dialogold, dialognew, odid)
+ {
+  const newelementids = {};
+  let maxid;
+
+  // Old OD does exist, so remove appropriate table columns if needed. Old OD does not exist otherwise
+  if (odid)
+     {
+      const remainingeids = {}; // Remaining element id list
+      globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Element/elements', true), false, 'New element template', (data, option, name) => { const id = globals.GetOptionNameId(name); if (id) remainingeids[id] = ''; });
+      globals.ProcessDialogProfiles(globals.GetDialogElement(dialogold, 'padbar/Element/elements', true), false, 'New element template', (data, option, name) =>
+      {
+       const id = globals.GetOptionNameId(name);
+       if (id in remainingeids) return remainingeids[id] = globals.GetDialogElement(data[option], 'index', true);
+       transaction.query(...qm.Table(`data_${odid}`).Method('DROP').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make());
+       transaction.query(...qm.Table(`metr_${odid}`).Method('DROP').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make());
+      });
+      globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Element/elements', true), false, 'New element template', (data, option, name) =>
+      {
+       const id = globals.GetOptionNameId(name);
+       if (!(id in remainingeids)) return;
+       const newindex = globals.GetDialogElement(data[option], 'index', true);
+       if (newindex === remainingeids[id]) return; // Old column index doesn't change? Return
+       if (newindex === 'None') return transaction.query(...qm.Table(`data_${odid}`).Method('DROP').Index().Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make()); // Drop index
+       transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Index(index.includes('hash') ? 'hash' : 'btree').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index. Todo0 - should column index be deleted apparently at column destroy?
+      });
+     }
+   else
+     {
+      dialognew.ok.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
+      delete dialognew.ok.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
+     }
+
+  // Correct OD dialog title
+  const odname = globals.GetDialogElement(dialognew, 'padbar/Database/settings/General/dbname', true); // Get OD name
+  dialognew.title.data = `Database '${globals.CutString(odname.split('/').pop())}' configuration (id${odid})`; // Change OD dialog title 
+
+  // Correct OD dialog 'Element' profile names (id, clone flag remove, +- flags add, column type readonly set)
+  maxid = 0;
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Element/elements', true), false, 'New element template', (data, option, name) => { const id = +globals.GetOptionNameId(name); if (id && id > maxid) maxid = id; });
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Element/elements', true), true, null, (data, option, name, flag, style) => { newelementids[++maxid] = { type: data[option].type.data, index: data[option].index.data }; globals.AdjustDialogProfileFlags(data, option, name, flag, style, maxid, 'type'); });
+
+  // Correct OD dialog 'Element' profile names (id, clone flag remove, +- flags add)
+  maxid = 0;
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/View/views', true), false, 'New view template', (data, option, name) => { const id = +globals.GetOptionNameId(name); if (id && id > maxid) maxid = id; });
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/View/views', true), true, null, (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style, ++maxid));
+
+  // Correct OD dialog 'Rule' profile names (clone flag remove, +- flags add)
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Rule/rules', true), true, null, (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style));
+
+  return newelementids;
+ }
+
+ // Function checks <dialog> 'correctness' and save it to DB (undefined OD id (<odid>) - new OD creation)
+ async SetNewODInstance(dialognew, odid, client)
+ {
+  let dialogold, restrictedpads, transaction;
+  if (!this.clients.get(client)) return;
+  const users = [this.clients.get(client).username]; // Todo0 - create a function that returns a ws client username and its group names in a single arraya add group list to current user (<[client.username]>) check and release config OD restrinction at GETDATABASE
+
+  try {
+       transaction = await this.pool.connect();
+       await transaction.query('BEGIN');
+       await transaction.query(...qm.Table().Lock(odid ? odid : 0).Method('CREATE').Make()); // Lock OD<odid> for change
+       globals.CheckODConfigurationDialogSyntax(dialognew, odid); // Check new dialog syntax for true (OD does exist, so update operation is perfomed) or false (OD does not exist, so new OD creation is perfomed) odid
+       // Check existing OD presence in <ods> array
+       if (odid)
+          {
+           dialogold = this.ods[odid].dialog;
+           if (!dialogold) throw new Error(UNKNOWNDBID);
+           restrictedpads = globals.AcceptODConfigurationDialogChanges(dialogold, dialognew, users); // OD previous instance does exist, so get its non-changed pad names due to user restriction
+           if (!globals.CheckODConfigurationDialogSyntax(dialognew, odid)) return await this.RemoveOD(); // Check changed above (due to restricted pads) new dialog syntax once again and remove OD for empty result (OD name is returned, so if it is empty - the OD should be removed)
+          }
+       const newelementids = this.AdjustOD(dialogold, dialognew, odid);
+       if (!odid)
+          {
+           odid = 1;
+           const tablelist = await transaction.query(...qm.Table().ShowTables().Make()); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
+           for (const row of tablelist.rows) // Calculate current OD max id plus 1
+               {
+                const id = globals.GetTableNameId(row.tablename);
+                if (id && +id >= odid) odid = +id + 1;
+               }
+           this.CreateOD(odid, client);
+          }
+       await transaction.query(...qm.Table(`head_${odid}`).Method('WRITE').Fields({ userid: client.userid, dialog: { value: JSON.stringify(dialognew), escape: true } }).Make());
+       for (const id in newelementids)
+           {
+            await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: newelementids[id].type }).Make()); // Create new element
+            await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Index(newelementids[id].index.includes('hash') ? 'hash' : 'btree').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: newelementids[id].index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create index
+            await transaction.query(...qm.Table(`metr_${odid}`).Method('CREATE').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: `VARCHAR(${globals.USERNAMEMAXCHAR})` }).Make()); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
+           }
+       if (restrictedpads.length && client?.send) client.send(JSON.stringify({ type: 'WARNING', data: { content: `Configuration section${restrictedpads.length > 1 ? 's' : ''} '${restrictedpads.join(', ')}' ${restrictedpads.length > 1 ? 'are' : 'is'} not modified due to user restrictions!` } }));
+       SuckInODProps(msg.data.dialog, msg.data.odid); // Refresh dialog data in memory
+       this.SendViewsToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
+      }
+  catch (error)
+      {
+       if (transaction) await transaction.query('ROLLBACK');
+       console.log(error.message);
+       if (client?.send) client.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error' } }));
+      }
+  finally
+      {
+       if (transaction) transaction.release();
+      }
+ }
+
+ // { type: 'SIDEBARSET', odid: 13, path: 'System/Users', ov: { 1: ['test/view1a', '/vie1b'], 2: ['/folder/View2c', 'test/view2d'] } }
+ SendViewsToClients(odid, clients)
+ {
+  if (typeof odid === 'number') odid += '';
+  if (typeof odid !== 'string' && (!clients || typeof clients !== 'object')) return; // No views refresh both for all clients and all dbs
+  let e;
+  clients = (clients && typeof clients === 'object') ? new Map().set(clients, this.clients.get(clients)) : this.clients; // Create one single client to send views in case of its object type, otherwise - all clients array is used (controller.clients)
+ 
+  for (const id in this.ods) if (typeof odid !== 'string' || id === odid) // Go through all object databases for undefined odid or OD 'id' for exactly defined one
+  for (const [, value] of clients) // Also go through all clients for selected OD above
+      {
+       if (!value.auth) continue;
+       e = globals.GetDialogElement(controller.ods[id].dialog, 'padbar/Database/settings/General/dbname');
+       if (!e) throw new Error(INCORRECTDBCONFDIALOG);
+       const msg = { type: 'SIDEBARSET', data: { odid: id, path: e.data, ov: {} } }; // Create message for OD 'id' with its path (e.data) and views defined below
+       e = globals.GetDialogElement(controller.ods[id].dialog, 'padbar/View/views');
+       if (!e) throw new Error(INCORRECTDBCONFDIALOG);
+ 
+       for (const option in e.data) // Go through all view profiles
+           {
+            if (globals.CompareOptionInSelectElement('New view template', option)) continue; // except view template
+            const ovid = globals.GetOptionNameId(option); // Get view id from option name
+            const aliases = globals.GetDialogElement(controller.ods[id].dialog, `padbar/View/views/${option}/settings/General/name`); // and all view aliases
+            if (!aliases || typeof aliases.data !== 'string' || typeof ovid !== 'string') throw new Error(INCORRECTDBCONFDIALOG); // Throw an error for incorrect view profile
+            msg.data.ov[ovid] = []; // Create aliases array first
+            for (let alias of aliases.data.split('\n')) // and split aliases data to one by line alias to add it to message 'ov' array
+                if (alias = alias.trim()) msg.data.ov[ovid].push(alias);
+           }
+ 
+       value.socket.send(JSON.stringify(msg)); // Todo2 - should pause (via setTimeout(0, )) be between two socket msg sendings keep non blocking main thread?
+      }
+ }
 }
 
 // Todo0 - create elemtns in new DB Users
@@ -258,6 +549,7 @@ export class Controller
 
 // Controller and event handlers
 // Todo0 - Auth user process
+// Todo0 - release config OD restrinction at GETDATABASE for the users that are not allowed OD read access
 // Todo0 - Restrict element handler call, so user double clicked on any object element is unable generate another double click event on other (or same) object element, 
 // Todo1 - Create a template from client event NEWOBJECTDATABASE to check dialog structure correctness
 // Todo0 - How to set comments on rule msg textarea? First nonempty line is a rule msg, other lines are a comment
