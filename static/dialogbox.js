@@ -1,47 +1,3 @@
-// Dialog data consists of some GUI elements with next format:
-// { type: select, data: 
-//  					option1: { element1: {}, element2: {type: data:  }, element3: {}, }
-//  					option2: {..}
-// }
-// Dialog data consists of profiles and its options. Profiles consist of options only. Options consist of profiles and interface elements
-// Root profile selection is an usual pad bar, non root - dropdown list option selection
-// Single option profile selection is hidden until the profile head/hint)is set. Multiple options - selection list is always displayed.
-// Each interface element is an object with some props:
-// non mandatory 'head'|'hint'|'data'|'expr'
-// andmandatory 'type': 'title|select|multiple|checkbox|radio|textarea|text|password|table|button'
-// 'flag' is mandatory too, but created empty if absent.
-// Option flags: checked, clonable, removable, cloned, style
-// For all interface element types property 'style' is a css style attribute value applied to the dialog interface element DOM element
-// For all types except 'button' - at least one prop (head, data or flag) should be defined.
-// For all types except 'title'/'button' - in case of incorrect/undefined data, interface element is frozen and its purpose is to display head/divider only
-// 										   For all these types: 'head' - interface element header inner html with optional divider '/' with text after set as a hint
-// interface element type 'title': 'data' is a dialog title inner html. This prop of any path first appearance sets the title as a default one.
-// 								First title element appeared acts as a default one, default title is used in case of no any other title in active profile bundle. Undefined title element 'data' sets it invisible
-// text types 'textarea', 'text', 'password': 'data' is an interface element text content,
-// 											  'flag - divider(*), readonly(!), placeholder attribute (+),
-// 										      'expr' is a combination of strings like `/regexp/prop_name` via logical operators `&& || ! ( )` to manage element readonly status. 'expr' true value - the element becomes readonly and vice versa. Undefined/incorrect 'expr' has negative value. Strings <regexp> and <prop_name> cannot include slash char '/' cause it's used divider between regexp and property name the data to be tested on. String <prop_name> is optional, so absent one forces the regexp test to be done on its own element data. To force element to be always readonly use /^/ as an expr, for a example.
-// selectable types 'select', 'multiple', 'checkbox', 'radio': 'data' is an interface element content of selectable options divided by '/'. Options with char '!' before are considered as a selected/checked one,
-//															   'flag' - divider(*), sort order(a-), readonly(!),
-// 															   'expr' - see text type description
-// table type 'type': 'data' is an interface element 2d dimension object content with properties as a table rows. Each row property is a table cells property list. Each cell property, in turn, is a cell <td> tag inner html.
-// 					  Cell props started with '_' are appliable and generate conroller call with a property name as a dialog event.
-//				      'flag' - divider(*), readonly(!)
-// button type 'button': 'head' - warning message to confirm controller call. Or just info message in case of non appliable button,
-//			  			 'data' - button inner html, undefined/incorrect data - button is invalid, while empty data string sets button invisibe and usually used with auto apply feature (see below), as an example - disappearing info messages
-//			  			 'flag' - appliable char (a) makes a controller call action on a button click with a property name as a dialog event initiated the call. No appliable flag set - the button click makes no action
-//			  			 		  interactive char (*) means no hide dialog after button apply, for appliable buttons only - no controller call action made with interactive flag makes no sense cause no dialog kill even made.
-//   							  timer in seconds the button will be applied on automatically. Number of chars '+' is number of timer minutes, chars '-' - seconds. In any order. For a example timer string '+-+' equals 121 seconds.
-//										Once the auto-apply button appeares in the profile bundle the auto-apply feature is turned on and does exist regardless of button current profile appearance.
-//								  grey style readonly button (!)
-// 						 'expr' - See text type description. In case of true expr expression the button becomes grey.
-
-// Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
-// Todo2 - Multuiple flag * creates rounded area arount GUI element. 
-// Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
-// Todo0 - Use adjusted dialog data (without service props like id, padarea, options..) at interactive (or for non interactive too?) mode just the pure dialog data to be passed to the controller
-// Todo0 - table btn push should call the controller/callback with element 'table' data?
-// Todo0 - test all dialog features including table cells click that applies table data and send it to the controller
-
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
 import * as globals from './globals.js';
@@ -954,3 +910,47 @@ export class DialogBox extends Interface
   setTimeout(this.SetFirstTextElementFocus.bind(this), 401); // Old version is not suitable due to incomplete animation, so unknown element to focus: requestIdleCallback(this.SetFirstTextElementFocus.bind(this));
  }
 }
+
+// Todo0 - Move text below to the help:
+// Dialog data consists of some GUI elements with next format:
+// { type: select, data: 
+//  					option1: { element1: {}, element2: {type: data:  }, element3: {}, }
+//  					option2: {..}
+// }
+// Dialog data consists of profiles and its options. Profiles consist of options only. Options consist of profiles and interface elements
+// Root profile selection is an usual pad bar, non root - dropdown list option selection
+// Single option profile selection is hidden until the profile head/hint)is set. Multiple options - selection list is always displayed.
+// Each interface element is an object with some props:
+// non mandatory 'head'|'hint'|'data'|'expr'
+// andmandatory 'type': 'title|select|multiple|checkbox|radio|textarea|text|password|table|button'
+// 'flag' is mandatory too, but created empty if absent.
+// Option flags: checked, clonable, removable, cloned, style
+// For all interface element types property 'style' is a css style attribute value applied to the dialog interface element DOM element
+// For all types except 'button' - at least one prop (head, data or flag) should be defined.
+// For all types except 'title'/'button' - in case of incorrect/undefined data, interface element is frozen and its purpose is to display head/divider only
+// 										   For all these types: 'head' - interface element header inner html with optional divider '/' with text after set as a hint
+// interface element type 'title': 'data' is a dialog title inner html. This prop of any path first appearance sets the title as a default one.
+// 								First title element appeared acts as a default one, default title is used in case of no any other title in active profile bundle. Undefined title element 'data' sets it invisible
+// text types 'textarea', 'text', 'password': 'data' is an interface element text content,
+// 											  'flag - divider(*), readonly(!), placeholder attribute (+),
+// 										      'expr' is a combination of strings like `/regexp/prop_name` via logical operators `&& || ! ( )` to manage element readonly status. 'expr' true value - the element becomes readonly and vice versa. Undefined/incorrect 'expr' has negative value. Strings <regexp> and <prop_name> cannot include slash char '/' cause it's used divider between regexp and property name the data to be tested on. String <prop_name> is optional, so absent one forces the regexp test to be done on its own element data. To force element to be always readonly use /^/ as an expr, for a example.
+// selectable types 'select', 'multiple', 'checkbox', 'radio': 'data' is an interface element content of selectable options divided by '/'. Options with char '!' before are considered as a selected/checked one,
+//															   'flag' - divider(*), sort order(a-), readonly(!),
+// 															   'expr' - see text type description
+// table type 'type': 'data' is an interface element 2d dimension object content with properties as a table rows. Each row property is a table cells property list. Each cell property, in turn, is a cell <td> tag inner html.
+// 					  Cell props started with '_' are appliable and generate conroller call with a property name as a dialog event.
+//				      'flag' - divider(*), readonly(!)
+// button type 'button': 'head' - warning message to confirm controller call. Or just info message in case of non appliable button,
+//			  			 'data' - button inner html, undefined/incorrect data - button is invalid, while empty data string sets button invisibe and usually used with auto apply feature (see below), as an example - disappearing info messages
+//			  			 'flag' - appliable char (a) makes a controller call action on a button click with a property name as a dialog event initiated the call. No appliable flag set - the button click makes no action
+//			  			 		  interactive char (*) means no hide dialog after button apply, for appliable buttons only - no controller call action made with interactive flag makes no sense cause no dialog kill even made.
+//   							  timer in seconds the button will be applied on automatically. Number of chars '+' is number of timer minutes, chars '-' - seconds. In any order. For a example timer string '+-+' equals 121 seconds.
+//										Once the auto-apply button appeares in the profile bundle the auto-apply feature is turned on and does exist regardless of button current profile appearance.
+//								  grey style readonly button (!)
+// 						 'expr' - See text type description. In case of true expr expression the button becomes grey.
+// Todo2 - Элементы с diaplay flex "наезжают" на margin нижестоящего элемента div
+// Todo2 - Multuiple flag * creates rounded area arount GUI element. 
+// Todo0 - don't forget to pause button apply here to prevent user flood pushing apply btns. This functionality remove to queue manager to protect controller call flood
+// Todo0 - Use adjusted dialog data (without service props like id, padarea, options..) at interactive (or for non interactive too?) mode just the pure dialog data to be passed to the controller
+// Todo0 - table btn push should call the controller/callback with element 'table' data?
+// Todo0 - test all dialog features including table cells click that applies table data and send it to the controller

@@ -13,14 +13,13 @@ export const NOTEDITABLE            = 'false';
 export const ANIMATIONS		          = ['hotnews', 'fade', 'grow', 'slideleft', 'slideright', 'slideup', 'slidedown', 'fall', 'rise'];
 export const TITLEVIRTUALROWID      = -2;
 export const NEWVIRTUALROWID        = -1;
-export const PRIMARYKEYSTARTVALUE   = 3;
+export const PRIMARYKEYSTARTVALUE   = 1;
 export const HTMLINNERENCODEMAP		  = [['&', '<', '>', '\n', ' ', '"'], ['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;']];	// Encoding map array of two arrays with symmetric values to encode corresponded array elements from 1st one to second
 export const HTMLINNERDECODEMAP		  = [['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;'], ['&', '<', '>', '\n', ' ', '"']];
 export const TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
 export const TAGHTMLCODEMAP		      = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS= ['span', 'pre', 'br'];
 export const ELEMENTCOLUMNPREFIX    = 'eid';
-export const TRANSACTIONERROR       = 'Transaction init error!'
 export const FIELDSDIVIDER          = '~';
 export const USERNAMEMAXCHAR        = 125;
 const INCORRECTDBCONFDIALOG         = 'Incorrect dialog structure!';
@@ -54,7 +53,7 @@ export function AcceptODConfigurationDialogChanges(dialogold, dialognew, users)
 
  for (const name of ['Database', 'Element', 'View', 'Rule'])
      {
-      list = globals.GetDialogElement(dialogold, `padbar/Database/settings/Permissions/${name}`, true); // Get old dialog restricted user list
+      list = GetDialogElement(dialogold, `padbar/Database/settings/Permissions/${name}`, true); // Get old dialog restricted user list
       if (!CheckItemsToMatchTheList(users, list) || DialogProfileCompare(GetOptionInSelectElement(dialogold.padbar, name), GetOptionInSelectElement(dialognew.padbar, name))) continue; // If current users do not match the list above (so pad is not restricted) or pad is not changed - continue
       restrictedpads.push(`'${name}'`); // Store pad name and restore old dialog pad to new dialog appropriate pad below
       dialognew.padbar.data[GetOptionNameInSelectElement(dialognew.padbar, name)] = dialogold.padbar.data[GetOptionNameInSelectElement(dialogold.padbar, name)];
@@ -82,8 +81,7 @@ export function CheckODConfigurationDialogSyntax(dialog, update)
 // Function goes through some element profiles (false searchtype - noncloned profiles, true - cloned ones, other value - all) and calls <callback> function for each one to adjust profile with its name 
 export function ProcessDialogProfiles(e, searchtype, excludeoption, callback)
 {
- const options = Object.keys(e.data);
- for (const option of options)
+ for (const option in e)
      {
       let [name, flag, ...style] = option.split(FIELDSDIVIDER);                   // Split option to its name and flag via FIELDSDIVIDER char '~'
       flag = flag || '';
@@ -91,7 +89,7 @@ export function ProcessDialogProfiles(e, searchtype, excludeoption, callback)
       if (typeof excludeoption === 'string' && excludeoption === name) continue;  // Option should be passed? Continue
       if (searchtype === false && flag.includes('*')) continue;                   // Search for noncloned, but option is cloned? Continue
       if (searchtype === true && !flag.includes('*')) continue;                   // Search for cloned, but option is noncloned? Continue
-      callback(e.data, option, name, flag, style);
+      callback(e, option, name, flag, style);
      }
 }
 
@@ -159,7 +157,7 @@ export function DialogProfileCompare(profile1, profile2)
       if (e1.data === e2.data) continue; else return;
       if (e2.type !== 'select' || !e2.data || typeof e2.data !== 'object' || Object.keys(e1.data).length !== Object.keys(e2.data).length) return;
       for (const option in e1.data)
-          if (!DialogProfileCompare(e1.data[option], globals.GetOptionInSelectElement(e2, option.split('~')[0]))) return;
+          if (!DialogProfileCompare(e1.data[option], GetOptionInSelectElement(e2, option.split('~')[0]))) return;
      }
 
  return true;
@@ -442,23 +440,6 @@ export function SearchPropValue(object, value)
 {
  if (typeof object === 'object')
     for (const i in object) if (object[i] === value) return i;
-}
-
-export function MacrosReplace(string, replacements, chain)
-{
- let newstring = '';
-
- while (true)
-       {
-        const pos1 = string.indexOf('${'); // Search start of macros
-        const pos2 = string.indexOf('}'); // and the finish
-        if (pos1 === -1 || pos2 === -1 || pos1 > pos2) return newstring + string; // No found? return previous result plus current
-        const macrosname = string.substring(pos1 + 2, pos2); // Retrieve macros name
-         // and substitue ${macrosname} to macros value via recursive function call, setting loop/undefined cases to empty string:
-        const macrosvalue = macrosname in replacements && (chain === undefined || !(macrosname in chain)) ? MacrosReplace(replacements[macrosname], replacements, Object.assign(chain || {}, { [macrosname]: true })) : '';
-        newstring += string.substring(0, pos1) + macrosvalue; // Collect newstring with macros value
-        string = string.substring(pos2 + 1); // and redefine remaining part to pass it for next cycle
-       }
 }
 
 export function GenerateRandomString(length)
@@ -1540,12 +1521,11 @@ const DATABASEPAD = { settings: { type: 'select', head: 'Select object database 
                                 Database: { type: 'textarea', data: '', head: `Restrict this dialog 'Database' section modify for next user/group list` },
                                 Element: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
                                 View: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
-                                Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`},
-                                Macros: { type: 'textarea', data: '', head: `Permit this 'Object Database' data read access for next OD id list`, flag: '*' }, },
+                                Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`}, },
                       Macroses: {
-                                 80: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`, data: { 'New macros~+-': {
-                                            10: { type: 'textarea', head: 'Macros value', data: '' },
-                                            20: { type: 'textarea', head: 'Macros description~Enter some text here to describe macros uasge', flag: '*', data: '' }, }, } }
+                                 macros: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`, data: { 'New macros~+-': {
+                                 value: { type: 'textarea', head: 'Macros value~Text to submit macros name', data: '' },
+                                 description: { type: 'textarea', head: 'Macros description~Enter some text here to describe macros uasge', flag: '*', data: '' }, }, } }
     
                     },},},};
     
@@ -1609,22 +1589,41 @@ function ObjectMerge(target, source)
  return target;
 }
 
-const USERODLAYOUT = `{"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
-{"row":"r < 9", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+4", "s tyle": "color: red;"}
+const USERODLAYOUT = `"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
+"row":"r < 9", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+4", "s tyle": "color: red;"}
+{"row":"r < 9", "col":"id|ownerid|owner|datetime|eid1", "x":"c", "y":"r+4"}
 "row":"r%2===1 || r%2===-1", "col":"id", "attributes": "title=\"@@@@@@@@@\" style=\"background-color: green;\"", "value":"HUIIII"}
 {"r ow":"r%2===1 || r%2===-1", "row":"1", "col":"", "s tyle": "color: red;", "v alue":"HUIIII", "hint":"@@@@@@@@#%^&*("}
 {"event":"", "x":"0", "y":"13311"}
 {"ow":"r === -1", "col":"", "x":"c", "y":"19", "s tyle": "color: red;"}`;
 
-const USERODADDON = { padbar: { data: { Database: { settings: { data: { General: { dbname: { data: 'Users' } } } } },
-                                        Element: { elements: { data: {
-                                                                      'username~*': { name: 'Username', description: 'Username', type: `VARCHAR(${globals.USERNAMEMAXCHAR})`, index: 'None/btree/UNIQUE btree~!/hash' },
-                                                                      'password~*': { name: 'Password', description: 'Password', type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash' },
-                                                                      'custom~*': { name: 'Custom field', description: 'Custom field', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                                                                      'policy~*': { name: 'Policy', description: 'Policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                                                                      'macroses~*': { name: 'Macroses', description: 'Macroses', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                                                                      'customization~*': { name: 'Customization', description: 'Customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                                                                      'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' } } } },
-                                        View: { views: { data: { 'All~*': { settings: { data: { General: { name: { data: 'All users' }, description: { data: 'All users list' } }, 
-                                                                                                Selection: { layout: { data: USERODLAYOUT }, query: { data: 'SELECT *\nFROM data_1' } } } } } } } } } } };
-export const USEROBJECTDATABASE = ObjectMerge(JSON.parse(JSON.stringify(globals.NEWOBJECTDATABASE)), USERODADDON);
+export const USEROBJECTDATABASE = JSON.parse(JSON.stringify(NEWOBJECTDATABASE));
+USEROBJECTDATABASE.padbar.data.Database.settings.data.General.dbname.data = 'Users';
+
+const elementprofileTemplate = JSON.stringify(GetDialogElement(USEROBJECTDATABASE, 'padbar/Element/elements/New element template'));
+const viewprofileTemplate = JSON.stringify(GetDialogElement(USEROBJECTDATABASE, 'padbar/View/views/New view template'));
+const elements = GetDialogElement(USEROBJECTDATABASE, 'padbar/Element/elements', true);
+const views = GetDialogElement(USEROBJECTDATABASE, 'padbar/View/views', true);
+
+const enewprofiles = { 'username~*': { name: 'Username', description: 'Username', type: `VARCHAR(${USERNAMEMAXCHAR})`, index: 'None/btree/UNIQUE btree~!/hash' },
+                    'password~*': { name: 'Password', description: 'Password', type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash' },
+                    'custom~*': { name: 'Custom field', description: 'Custom field', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                    'policy~*': { name: 'Policy', description: 'Policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                    'macroses~*': { name: 'Macroses', description: 'Macroses', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                    'customization~*': { name: 'Customization', description: 'Customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                    'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' } };
+const vnewprofiles = { 'All~*': { settings: { data: { General: { name: 'All users', description: 'All users list' }, 
+                                                      Selection: { layout: USERODLAYOUT, query: 'SELECT id,ownerid,owner,datetime,eid1\nFROM data_1' } } } } };
+
+for (const profilename in enewprofiles)
+    {
+     elements[profilename] = JSON.parse(elementprofileTemplate);
+     for (const e in enewprofiles[profilename]) elements[profilename][e].data = enewprofiles[profilename][e];
+    }                                                     
+for (const profilename in vnewprofiles)
+    {
+     views[profilename] = JSON.parse(viewprofileTemplate);
+     for (const p in vnewprofiles[profilename].settings.data) 
+     for (const e in vnewprofiles[profilename].settings.data[p]) 
+         views[profilename].settings.data[p][e].data = vnewprofiles[profilename].settings.data[p][e];
+    }                                                     

@@ -146,7 +146,7 @@ export class View extends Interface
       if (editablecell !== clickedcell) return;
      }
   // Apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller, otherwise - apply cell text content via CONFIRMEDIT client event to the controller
-  return editablecell.oid === NEWVIRTUALROWID ? { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() } : { type: 'CONFIRMEDIT', destination: this.parentchild, data: cell.value };
+  return editablecell.oid === NEWVIRTUALROWID ? Object.assign({ type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() }, this.GetCellMetaData()) : Object.assign({ type: 'CONFIRMEDIT', destination: this.parentchild, data: cell.value }, this.GetCellMetaData(editablecell));
  }
 
  // Function returns 'new object' cells text content 
@@ -165,7 +165,7 @@ export class View extends Interface
 
  GetCellMetaData(cell)
  {
-  return { odid: this.odid, ovid: this.ovid, oid: cell.oid, eid: cell.ename, prop: cell.eprop };
+  return Object.assign({ odid: this.odid, ovid: this.ovid }, cell ? { oid: cell.oid, eid: cell.ename, prop: cell.eprop } : {} );
  }
 
  DispatchMouseKeyboardEvent(event)
@@ -227,9 +227,9 @@ export class View extends Interface
                switch (event.data[0].substring(0, 6))
                       {
                        case 'Add ob':
-                            return { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() };
+                            return Object.assign({ type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() }, this.GetCellMetaData());
                        case 'Delete':
-                            return { type: 'DELETEOBJECT', destination: this.parentchild, data: event.data[1] };
+                            return Object.assign({ type: 'DELETEOBJECT', destination: this.parentchild, data: event.data[1] }, this.GetCellMetaData());
                        case 'Copy':
 		                      this.CopyToClipboard(event.data[1], true); // Copy areas cell (1st arg) innerText/innerHTML (2nd arg) to clipboard
                             return;

@@ -12,6 +12,7 @@
   "author": "Lephan",
   "license": "ISC",
   "dependencies": {
+    "argon2": "^0.44.0",
     "pg": "^8.13.1",
     "ws": "^8.14.2",
     "wss": "^0.0.2"

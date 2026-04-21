@@ -1,5 +1,3 @@
-// Todo0 - handle context key menu creation
-
 import { Interface } from './interface.js';
 
 export class ContextMenu extends Interface
@@ -32,3 +30,5 @@ export class ContextMenu extends Interface
   this.elementDOM.style.top  = document.documentElement.clientHeight > this.elementDOM.offsetHeight + event.clientY ? event.clientY + 'px' : event.clientY - this.elementDOM.clientHeight + 'px';
  }
 }
+
+// Todo0 - handle context key menu creation

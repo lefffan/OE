@@ -8,7 +8,7 @@ const DB            = { defaultconfig: { host: '127.0.0.1', port: '5433', user: 
 switch (process.argv[2])
        {
         case 'start':
-             new Controller(HTTP, WS, DB);
+             await new Controller(HTTP, WS, DB).Start();
              break;
         case 'reset':
              await new Controller(null, null, DB).Reset();

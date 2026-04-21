@@ -134,6 +134,7 @@ export class Connection extends Interface
 	     case 'BRINGTOTOP':
                break;
           default:
+               console.log(event);
                if (globals.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
 	    }
  }

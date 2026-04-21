@@ -1,4 +1,5 @@
-import * as globals from './globals.js';
+import argon2 from 'argon2';
+import * as globals from '../globals.js';
 
 const USERPOLICYDIALOG = {
                           title: { type: 'title', data: 'Policy settings' },
@@ -49,27 +50,56 @@ const WARNINGDIALOG               = { title: { type: 'title', data: 'Warning' },
 
 // Function return element data for new objects od OD 'Users', function args: eid - element id to return data for, value - input data, username - user name to return data for (return events dialog structure for root user only)
 // Todo0 - User dialog settings: (user.js <eid> <username>) (dialogedit.js CREATEDIALOG|CONFIRMDIALOG data flag) data is a string (json or not) and flag (for json is option additive/not, for not json is confirmable/not)
-export function AddUser(eid, value, username)
+export async function AddUser(eid, value, username)
 {
  switch (eid)
         {
-         case '1': // Username - input <value> acts as a user name, so set it as an element value excluding non-symbol chars with '!'
+         case 'eid1': // Username - input <value> acts as a user name, so set it as an element value excluding non-symbol chars with '!'
               return `{ "type": "SET", "data": "${value.replace(/\W|\!/g, '')}" }`;
-         case '2': // Password - the field is untouched on user add
+         case 'eid2': // Password - the field is untouched on user add
               return `{ "type": "SET", "data": "" }`;
-         case '3': // Custom user props
+         case 'eid3': // Custom user props
               return `{ "type": "SET", "data": { "Name": "", "Phone": "", "Email": "" } }`;
-         case '4': // Policy dialog
-              WARNINGDIALOG.msg.head = 'Super user policy settings have no any restrictions and cannot be changed!';
-              return `{ "type": "SET", "data": "${JSON.stringify(username === globals.SUPERUSER ? WARNINGDIALOG : USERPOLICYDIALOG)}" }`;
-         case '5': // Macroses dialog
-              return `{ "type": "SET", "data": "${JSON.stringify(USERMACROSDIALOG)}" }`;
-         case '6': // Customization dialog
-              return `{ "type": "SET", "data": "${JSON.stringify(globals.CUSTOMIZATIONDIALOG)}" }`;
-         case '7': // Event profiling dialog
+         case 'eid4': // Policy dialog
+              WARNINGDIALOG.msg.head = `Super user '${globals.SUPERUSER}' has no any restrictions, so policy settings change is not available!`;
+              return `{ "type": "SET", "data": ${JSON.stringify(username === globals.SUPERUSER ? WARNINGDIALOG : USERPOLICYDIALOG)} }`;
+         case 'eid5': // Macroses dialog
+              return `{ "type": "SET", "data": ${JSON.stringify(USERMACROSDIALOG)} }`;
+         case 'eid6': // Customization dialog
+              return `{ "type": "SET", "data": ${JSON.stringify(globals.CUSTOMIZATIONDIALOG)} }`;
+         case 'eid7': // Event profiling dialog
               WARNINGDIALOG.msg.head = 'Event profiling is super user option only!';
-              return `{ "type": "SET", "data": "${JSON.stringify(username === globals.SUPERUSER ? EVENTPROFILINGDIALOG : WARNINGDIALOG)}" }`;
+              return `{ "type": "SET", "data": ${JSON.stringify(username === globals.SUPERUSER ? EVENTPROFILINGDIALOG : WARNINGDIALOG)} }`;
         }
+}
+
+export async function HashPassword(password)
+{
+ try {
+      const hash = await argon2.hash(password, {
+                                                type: argon2.argon2id, // argon2id is recomended type for default
+                                                memoryCost: 65536, // 64 MB is set specifically for your server
+                                                timeCost: 3,       // iterations number
+                                                parallelism: 4     // streams number
+                                               });
+      return `{ "type": "SET", "data": "${hash}" }`;
+     }
+ catch (error)
+     {
+      return `{ "type": "INFO", "data": { "": "Error hashing the password: ${error.message}" } }`;
+     }
+}
+
+
+export async function CheckPassword(user, password)
+{
+ try {
+      // First get user hash from OD 'Users' and compare it from input password below
+      const isMatch = await argon2.verify(hash, password);
+     }
+ catch (error)
+     {
+     }
 }
 
 // { "type": "DIALOG", "data": '{ "content": '${}' }' }

@@ -82,6 +82,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 
 // Application architecture:
 // Todo1 - Make browser favicon more brighter and change it dinamycly to show unread msges presence
+// Todo1 - Intercept Alt+PrintScreen to copy image of current child to buffer?
 // Todo2 - Custom cursor div via css style * {cursor: none;}
 // Todo0 - Make module based system, see Shemsetdinov justify src arch via require/import
 // Todo0 - Parse all files from old app version in php
@@ -89,24 +90,20 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo0 - Main goal is automize app configuration and fit that configuration to some template than can be easily set by the user
 // Todo0 - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
 // Todo0 - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses and ask Rozbah what we do need for FSB and others
-// 
-// Presentation:
-// Todo - Y-combinator practice:
-//		  https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
-//		  https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
-//	      https://tass.ru/ekonomika/14542887
-//		  https://rb.ru/longread/where-to-go-with-business-idea/
-//		  https://vc.ru/flood/60006-kuda-startapu-poyti-za-nastavnikami-i-investorami-desyat-krupnyh-akseleratorov-rossii
-// Todo - big amount of data with faster and quick perfomance
-// Todo - data is native
-// Todo - data constructor
-// Todo - voting
-// Todo - keep last twoversions
-// Todo - don't add objects more than 100
-// Todo - cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
-// Todo - to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!
-
-// Todo - Links and study:
+// Todo0 - Benefits:
+//  big amount of data with faster and quick perfomance
+//  data is native
+//  data constructor
+//  voting
+//  keep last twoversions
+//  don't add objects more than 100
+//  cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
+//  to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!
+//  Y-combinator presentation: https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
+//  Y-combinator presentation: https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
+//  Y-combinator presentation: https://tass.ru/ekonomika/14542887
+//  Y-combinator presentation: https://rb.ru/longread/where-to-go-with-business-idea/
+//  Y-combinator presentation: https://vc.ru/flood/60006-kuda-startapu-poyti-za-nastavnikami-i-investorami-desyat-krupnyh-akseleratorov-rossii
 //  https://node-postgres.com/apis/client
 //  https://github.com/brianc/node-postgres/wiki/FAQ#14-how-do-i-install-pg-on-windows
 //  Fix my project link https://github.com/lefffan/OE/blob/main/static/constant.js
@@ -193,6 +190,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //										          arp table history for one ip/mac
 //                                                FSB request about our system ips perimetr, so every ip should have next types: client, service (web site, mail), system (ups, switch ip), net number, broadcast, free (if net number and broadcast are set correctly we can calc free nets)
 //                                                BTV asked to parse all wifi-sms clients, or all Sberbank (or all clients) активные подключения
+//                                                switches (nodes) with specified in dialog clients number (0,1,2, or more), nodes with two or more 8port swithes
 // Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
 // Todo - Paraga mail functional  
 // Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata
