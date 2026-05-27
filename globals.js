@@ -1,9 +1,9 @@
 export const SYSTEMELEMENTNAMES     = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', owner: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
 export const LAYOUTJSONPROPS        = ['row', 'col', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow', 'event'];
 export const SUPERUSER              = 'root';
-export const BUTTONOK               = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
-export const BUTTONCANCEL           = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
-export const BUTTONAPPLY            = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: 12px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
+export const BUTTONOK               = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: bold 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
+export const BUTTONCANCEL           = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: bold 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
+export const BUTTONAPPLY            = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: bold 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
 export const MODALBOXPROPS          = JSON.stringify({ animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
 export const RANDOMSTRINGCHARS      = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
 export const CELLMINWIDTH           = 25;
@@ -21,7 +21,7 @@ export const TAGHTMLCODEMAP		      = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS= ['span', 'pre', 'br'];
 export const ELEMENTCOLUMNPREFIX    = 'eid';
 export const FIELDSDIVIDER          = '~';
-export const USERNAMEMAXCHAR        = 125;
+export const USERNAMEMAXCHAR        = 255;
 const INCORRECTDBCONFDIALOG         = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME         = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
 const EMPTYDBCONFDBNAME             = 'Cannot create new database with empty name!';
@@ -99,7 +99,9 @@ export function AdjustDialogProfileFlags(data, option, name, flag, style, addid,
  if (addid) name += ` (id${addid})`;                                                                      // Add ' (id<num>)' to option name
  flag = flag.replaceAll('*', '').replaceAll('-', '').replaceAll('+', '') + '+-';                          // Remove clonable/removable/cloned flags and add clonable/removable ones only
  if (typeof readonlyprop === 'string') data[option][readonlyprop].expr = '/^/';                           // Make readonly <readonlyprop>
- data[`${name}${flag ? FIELDSDIVIDER + flag : ''}${style ? FIELDSDIVIDER + style : ''}`] = data[option];  // and rename it in element selectable data
+ const newoption = `${name}${flag ? FIELDSDIVIDER + flag : ''}${style ? FIELDSDIVIDER + style : ''}`;
+ if (newoption === option) return;
+ data[newoption] = data[option];  // and rename it in element selectable data
  delete data[option];
 }
 
@@ -358,9 +360,12 @@ for (const customization in CUSTOMIZATIONS)
     }
 
 export const OPTIONSDIVIDER              = '/';
-export const KEYBOARDEVENTS              = ['KEYA', 'KEYB', 'KEYC', 'KEYD', 'KEYE', 'KEYF', 'KEYG', 'KEYH', 'KEYI', 'KEYJ', 'KEYK', 'KEYL', 'KEYM', 'KEYN', 'KEYO', 'KEYP', 'KEYQ', 'KEYR', 'KEYS', 'KEYT', 'KEYU', 'KEYV', 'KEYW', 'KEYX', 'KEYY', 'KEYZ', 'KEY0',   'KEY1',   'KEY2',   'KEY3',   'KEY4',   'KEY5',   'KEY6',   'KEY7',   'KEY8',   'KEY9',   'KEYF1', 'KEYF2', 'KEYF3', 'KEYF4', 'KEYF5', 'KEYF6', 'KEYF7', 'KEYF8', 'KEYF9', 'KEYF10', 'KEYF11', 'KEYF12', 'KEYSpace', 'KEYDelete', 'KEYBracketLeft', 'KEYBracketRight', 'KEYPRESS'];
 export const NATIVEKEYBOARDEVENTS        = ['KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'F1',    'F2',    'F3',    'F4',    'F5',    'F6',    'F7',    'F8',    'F9',    'F10',    'F11',    'F12',    'Space',    'Delete',    'BracketLeft',    'BracketRight'];
-export const CLIENTEVENTS                = ['ADDOBJECT', 'DELETEOBJECT', 'ONOBJECTCHANGE', 'ONMACROSCHANGE', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE', 'SCHEDULE', 'DOUBLECLICK', ...KEYBOARDEVENTS];
+export const KEYBOARDEVENTS              = ['KEYA', 'KEYB', 'KEYC', 'KEYD', 'KEYE', 'KEYF', 'KEYG', 'KEYH', 'KEYI', 'KEYJ', 'KEYK', 'KEYL', 'KEYM', 'KEYN', 'KEYO', 'KEYP', 'KEYQ', 'KEYR', 'KEYS', 'KEYT', 'KEYU', 'KEYV', 'KEYW', 'KEYX', 'KEYY', 'KEYZ', 'KEY0',   'KEY1',   'KEY2',   'KEY3',   'KEY4',   'KEY5',   'KEY6',   'KEY7',   'KEY8',   'KEY9',   'KEYF1', 'KEYF2', 'KEYF3', 'KEYF4', 'KEYF5', 'KEYF6', 'KEYF7', 'KEYF8', 'KEYF9', 'KEYF10', 'KEYF11', 'KEYF12', 'KEYSpace', 'KEYDelete', 'KEYBracketLeft', 'KEYBracketRight', 'KEYPRESS'];
+export const MOUSEEVENTS                 = ['DOUBLECLICK'];
+export const MISCEVENTS                  = ['ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE'];
+export const CALLBACKEVENTS              = ['ONEVENT', 'ONTIMER'];
+export const CLIENTEVENTS                = [...KEYBOARDEVENTS, ...MOUSEEVENTS, ...MISCEVENTS, ...CALLBACKEVENTS];
 
 export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
 {
@@ -456,7 +461,7 @@ export function GenerateRandomString(length)
 export function GetDialogElement(dialog, path, value)
 {
  if (!dialog || typeof dialog !== 'object') return;
- path = path.split('/')
+ path = path ? path.split('/') : [];
  for (let i in path) // Go through all elements of splited path 
      {
       dialog = +i%2 ? GetOptionInSelectElement(dialog, path[i]) : dialog[path[i]]; // Go to next element or profile (element group)
@@ -469,15 +474,16 @@ export function GetDialogElement(dialog, path, value)
                return dialog;
           case 'string':
                dialog.data = value;
-               break;
+               return;
           default:
-               if (['select', 'multiple', 'checkbox', 'radio'].includes(dialog.type) && typeof dialog.data === 'string')
+               if (!('data' in dialog)) return '';
+               if (!['select', 'multiple', 'checkbox', 'radio'].includes(dialog.type) || typeof dialog.data !== 'string') return dialog.data;
                for (const option of dialog.data.split('/'))
                    {
                     const [name, flag] = option.split(FIELDSDIVIDER, 2);
                     if (flag && flag.includes('!')) return name;
                   }
-               return dialog.data;
+               return ''; // Return false for no any option checked
         }
 }
 
@@ -498,6 +504,30 @@ export function CompareOptionInSelectElement(string, option)
  [string] = string.split('~', 1);
  [option] = option.split('~', 1);
  return string === option;
+}
+
+// Function goes through dialog <profile> elements calling <callback> function for each one. Root <profile> and true <recursive> args iterate all dialog elements
+export function DialogProfileElementsAdjust(profile, recursive, callback, ...args)
+{
+ for (const ename in profile)
+	   {
+	    const e = profile[ename];
+	    const result = callback(profile, ename, ...args);
+	    if (result !== undefined) return result;
+	    if (recursive && e?.type === 'select' && e.data && typeof e.data === 'object')
+		   for (const profilename in e.data)
+			     {
+			      const result = DialogProfileElementsAdjust(e.data[profilename], true, callback, ...args);
+			      if (result !== undefined) return result;
+			     }
+	   }
+}
+
+export function GetDialogMacrosValues(dialog)
+{
+ const replacements = {};
+ DialogProfileElementsAdjust(dialog, true, (profile, ename) => { if (['text', 'password', 'textarea', 'select', 'radio', 'checkbox'].includes(profile[ename].type) && typeof profile[ename].data === 'string') replacements[ename] = GetDialogElement(profile[ename], '', true); });
+ return replacements;
 }
 
 export const HELPDIALOG = { pad: { type: 'select', data: {
@@ -1544,25 +1574,27 @@ const VIEWPAD = {
                  General: {
                            name: { type: 'textarea', data: '', flag: '+Enter view name', head: `Name~Enter here view name list (one by line). All names will be sidebar displayed according their paths. Usually second and other ones are used as alias names to be placed in favorites. No view names specified - the view is sidebar hidden, but still can be called to open from event handlers or shortcut keys` },
                            description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '' },
-                           shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window. For sidebar focus only`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' },
-                           refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' }, }, 
+                           shortcut: { type: 'select', head: `Shortcut key~Select key combination to open the view in a new window. For sidebar focus only`, data: 'None/ALT+SHIFT+KeyA/ALT+SHIFT+KeyB/ALT+SHIFT+KeyC/ALT+SHIFT+KeyD/ALT+SHIFT+KeyE/ALT+SHIFT+KeyF/ALT+SHIFT+KeyG/ALT+SHIFT+KeyH/ALT+SHIFT+KeyI/ALT+SHIFT+KeyJ/ALT+SHIFT+KeyK/ALT+SHIFT+KeyL/ALT+SHIFT+KeyM/ALT+SHIFT+KeyN/ALT+SHIFT+KeyO/ALT+SHIFT+KeyP/ALT+SHIFT+KeyQ/ALT+SHIFT+KeyR/ALT+SHIFT+KeyS/ALT+SHIFT+KeyT/ALT+SHIFT+KeyU/ALT+SHIFT+KeyV/ALT+SHIFT+KeyW/ALT+SHIFT+KeyX/ALT+SHIFT+KeyY/ALT+SHIFT+KeyZ' }, },
+                           //refresh: { type: 'text', head: 'Auto refresh interval', data: '', flag: '*' }, }, 
                  Selection: {
                            template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map', flag: '*' },
                            layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '' },
                            query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = 1' },
                            linkname: { type: 'text', head: 'Link~Object selection link name', data: '' }, }, 
                  Macroses: {
-                           autoset: { type: 'checkbox', data: 'Call dialog/Auto structure~!', head: `Macros definition dialog~Macroses in this OV 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user via dialog that is called at client side, allowing the user to define macros values manually before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't. Checked 'Auto structure' option automatically creates dialog structure to call. Dialog structure property name is a macros name, input field content - macros value (for 'textarea', 'text' and 'password' interface element types only). Dialog structure defined macroses are applied regardless of 'Call dialog' option. Dialog structure may contain input fields only, 'OK'/'CANCEL' dialog buttons are added automatically if absent. Client side dialog call may be used not for macros definitions, but for info/warning message display before OV open. Macros 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macros SOMEMACROS value", "data": "" } }` },
-                           dialog: { type: 'textarea', head: '', data: '', flag: '*', expr: '/Auto structure~!/autoset' }, }, 
+                           call: { type: 'checkbox', data: 'Call dialog', head: `Macros definition dialog~This OV Macroses for 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user manually via dialog that is called at client side before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't, but all macros values in dialog structure below are applied anyway. Trimmed text area below is empty - dialog structure for all mentioned macroses in 'View selection' and 'OD Rule' are created automatically. Dialog structure interface element property name is a macros name, input field content - macros value (for 'textarea', 'text', 'password', 'select', 'radio' and 'checkbox' interface element types only). Dialog structure defined macroses are applied regardless of 'Call dialog' option. Dialog structure should contain input fields only, dialog title with 'OK'/'CANCEL' buttons are added automatically. Client side dialog call may be used not for macros definitions, but for info/warning message display before OV open. Macros 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macros SOMEMACROS value", "data": "" } }` },
+                           dialog: { type: 'textarea', head: '', data: '', flag: '*' }, }, 
                  Appearance: {
                            a: { type: 'radio', head: 'Window init~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Browser new tab' },
                            b: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random', head: 'Initial window position~Select view window position at the opening' },
                            c: { type: 'radio', head: 'Initial window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
-                           d: { type: 'text', head: 'Width and height in pixels via comma', data: '', expr: '/Auto~!|Full screen~!/c', flag: '*' },
+                           d: { type: 'text', head: 'Comma separated width and height in pixels', data: '', expr: '/Auto~!|Full screen~!/c', flag: '*' },
                            e: { type: 'checkbox', head: 'Control', data: 'Resize~!/Full screen~!/Escape/Close icon\n~!/Always on top/Modal', flag: '*' },
                            f: { type: 'checkbox', head: 'Bring to top on event', data: 'New data/Data delete/Data change' },
-                           g: { type: 'checkbox', head: `Auto open in a new window on event`, data: 'New data/Data delete/Data change', flag: '*' },
-                           h: { type: 'text', head: 'Lifetime~OV window lifetime (in seconds) after which the window will be closed automatically. Zero/empty/error value - no action', data: '', flag: '' }, }, 
+                           g: { type: 'checkbox', head: `Auto open in a new window on event`, data: 'New data/Data delete/Data change' },
+                           h: { type: 'checkbox', head: `OV full refresh on event`, data: 'New data/Data delete/Timer' },
+                           i: { type: 'text', data: '', flag: '*', expr: '/^((?!Timer~!).)*$/h', flag: '*' },
+                           j: { type: 'text', head: 'Lifetime~OV window lifetime (in seconds) after which the window will be closed automatically. Zero/empty/error value - no action', data: '', flag: '' }, }, 
                  Permissions: {
                            10: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
                            20: { type: 'textarea', head: `Restrict write access for next users/groups`, data: '', flag: '*' },
@@ -1570,10 +1602,10 @@ const VIEWPAD = {
 
 const RULEPAD = {
                  rules: { type: 'select', head: 'Rule profile~Set rule properties and clone this template to create new rule. Rules are tested in alphabetical order one by one until the rule query is successful, the rule action is applied then', data: { 'New rule template~+': {
-                           10: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
-                           20: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
-                           30: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macroses (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
-                           40: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' },
+                           message: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
+                           action: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
+                           query: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macroses (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
+                           log: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' },
                 }, }, } };
 
 export const NEWOBJECTDATABASE = {
@@ -1582,6 +1614,21 @@ export const NEWOBJECTDATABASE = {
                            ok: { type: 'button', data: 'CREATE DATABASE', flag: 'a', expr: '/^$/dbname' },
                            cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
                           };
+
+export function SearchMacrosNames(macrosnames, ...strings)
+{
+ for (let string of strings)
+     if (typeof string === 'string') while (true)
+        {
+         const pos1 = string.indexOf('${'); // Search start of macros
+         const pos2 = string.indexOf('}'); // and the finish
+         if (pos1 === -1 || pos2 === -1 || pos1 > pos2) break;
+         macrosnames[string.substring(pos1 + 2, pos2)] = ''; // Add new macros name
+         string = string.substring(pos2 + 1); // and redefine remaining part to pass it for next cycle
+        }
+ return macrosnames;
+}
+                           
 // Function makes a deep source object merge to target (only non object props are copied, for object type props are new instance are created)
 function ObjectMerge(target, source)
 {
@@ -1589,13 +1636,18 @@ function ObjectMerge(target, source)
  return target;
 }
 
-const USERODLAYOUT = `"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
+const USERODLAYOUTOLD = `"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
 "row":"r < 9", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+4", "s tyle": "color: red;"}
 {"row":"r < 9", "col":"id|ownerid|owner|datetime|eid1", "x":"c", "y":"r+4"}
 "row":"r%2===1 || r%2===-1", "col":"id", "attributes": "title=\"@@@@@@@@@\" style=\"background-color: green;\"", "value":"HUIIII"}
 {"r ow":"r%2===1 || r%2===-1", "row":"1", "col":"", "s tyle": "color: red;", "v alue":"HUIIII", "hint":"@@@@@@@@#%^&*("}
 {"event":"", "x":"0", "y":"13311"}
 {"ow":"r === -1", "col":"", "x":"c", "y":"19", "s tyle": "color: red;"}`;
+
+const USERODLAYOUT = `{"row":"1", "col":"id,ownerid,owner,datetime,${ELEMENTCOLUMNPREFIX}1,${ELEMENTCOLUMNPREFIX}2,${ELEMENTCOLUMNPREFIX}6", "x":"c", "y":"r+2"}
+{"row":"r>=0", "col":"${ELEMENTCOLUMNPREFIX}2", "value":"Change password"}
+{"row":"r>=0", "col":"${ELEMENTCOLUMNPREFIX}6", "value":"Configure event groups"}
+`;
 
 export const USEROBJECTDATABASE = JSON.parse(JSON.stringify(NEWOBJECTDATABASE));
 USEROBJECTDATABASE.padbar.data.Database.settings.data.General.dbname.data = 'Users';
@@ -1609,11 +1661,11 @@ const enewprofiles = { 'username~*': { name: 'Username', description: 'Username'
                     'password~*': { name: 'Password', description: 'Password', type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash' },
                     'custom~*': { name: 'Custom field', description: 'Custom field', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
                     'policy~*': { name: 'Policy', description: 'Policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                    'macroses~*': { name: 'Macroses', description: 'Macroses', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
+                    //'macroses~*': { name: 'Macroses', description: 'Macroses', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
                     'customization~*': { name: 'Customization', description: 'Customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
                     'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' } };
 const vnewprofiles = { 'All~*': { settings: { data: { General: { name: 'All users', description: 'All users list' }, 
-                                                      Selection: { layout: USERODLAYOUT, query: 'SELECT id,ownerid,owner,datetime,eid1\nFROM data_1' } } } } };
+                                                      Selection: { layout: USERODLAYOUT, query: `SELECT id,ownerid,owner,datetime,${ELEMENTCOLUMNPREFIX}1,${ELEMENTCOLUMNPREFIX}2,${ELEMENTCOLUMNPREFIX}6,lastversion\nFROM data_1` } } } } };
 
 for (const profilename in enewprofiles)
     {

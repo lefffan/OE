@@ -1,22 +1,24 @@
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
+import { DialogBox } from './dialogbox.js';
 import * as globals from './globals.js';
 
-const TITLEVIRTUALROWID     = -2;
-const NEWVIRTUALROWID       = -1;
-const UNDEFINEDSELECTION    = 'Undefined database object selection!';
-const EMPTYSELECTION        = 'Object View table is empty, no any data matched its object selection and/or element layout!';
-const COLLAPSEDSELECTION    = 'Object View table is empty, all table cells are collapsed!';
-const OUTOFRANGESELECTION   = 'Object View table is empty, all data has its x/y cell coordinates out of range!';
-const MAXVIEWTABLEWIDTH     = 256 * 1024;
-const MAXVIEWTABLEHEIGHT    = 256 * 1024;
-const MAXVIEWCELLS          = 1024 * 1024;
-const LEFTSIDE	   			 = 0b1000; 
-const TOPSIDE					 = 0b0100; 
-const RIGHTSIDE				 = 0b0010; 
-const BOTTOMSIDE	   		 = 0b0001; 
-const CURSOROFFSETS         = { ArrowUp: { y: -1 }, ArrowDown: { y: 1 }, ArrowLeft: { x: -1 }, ArrowRight: { x: 1 } };
-const NULLPROP              = Symbol('NULLPROP');
+const TITLEVIRTUALROWID    = -2;
+const NEWVIRTUALROWID      = -1;
+const UNDEFINEDSELECTION   = 'Undefined database object selection!';
+const EMPTYSELECTION       = 'Object View table is empty, no any data matched its object selection and/or element layout!';
+const COLLAPSEDSELECTION   = 'Object View table is empty, all table cells are collapsed!';
+const OUTOFRANGESELECTION  = 'Object View table is empty, all data has its x/y cell coordinates out of range!';
+const CANCELEDVIEW         = 'Object View call was canceled by the user';
+const MAXVIEWTABLEWIDTH    = 256 * 1024;
+const MAXVIEWTABLEHEIGHT   = 256 * 1024;
+const MAXVIEWCELLS         = 1024 * 1024;
+const LEFTSIDE             = 0b1000; 
+const TOPSIDE              = 0b0100; 
+const RIGHTSIDE            = 0b0010; 
+const BOTTOMSIDE           = 0b0001; 
+const CURSOROFFSETS        = { ArrowUp: { y: -1 }, ArrowDown: { y: 1 }, ArrowLeft: { x: -1 }, ArrowRight: { x: 1 } };
+const NULLPROP             = Symbol('NULLPROP');
 
 
 export class View extends Interface
@@ -34,19 +36,32 @@ export class View extends Interface
   super(...args);
   this.props.control.drag.elements = this.props.control.fullscreendblclick.elements = [this.elementDOM];
   for (const controlname of ['resize', 'resizex', 'resizey', 'fullscreenicon', 'fullscreendblclick']) this.props.control[controlname].callback.push(this.Render.bind(this));
-  this.ChangeHeader(this.data);
+  this.ChangeHeader();
   this.range = document.createRange();   
   this.selection = window.getSelection();
  }
 
  // Change view header
- ChangeHeader(data)
+ ChangeHeader()
  {
-  this.odid = data.odid;
-  this.ovid = data.ovid;
-  this.status = data.status;
-  const statusstring = this.status === -1 ? 'server pending..' : `loaded ${this.status}%`;
-  this.props.control.text.icon = globals.SVGUrlHeader(350, 18) + globals.SVGText(3, 14, `database id: ${this.odid}, view id: ${this.ovid}, status: ${statusstring}`) + globals.SVGUrlFooter();
+  const od = `Database '${this.data.od ? this.data.od : ''}' (id${this.data.odid})`;
+  const ov = `View '${this.data.ov ? this.data.ov : ''}' (id${this.data.ovid})`;
+  let status = 'status: ';
+  switch (this.data.status)
+         {
+          case undefined:  
+               status += 'undefined';
+               break;
+          case -2:  
+               status += 'client pending..';
+               break;
+          case -1:  
+               status += 'server pending..';
+               break;
+          default:  
+               status += `loaded ${this.data.status}%`;
+         }
+  this.props.control.text.icon = globals.SVGUrlHeader(768, 18) + globals.SVGText(3, 14, `${od}, ${ov}, ${status}`) + globals.SVGUrlFooter();
   this.RefreshControlIcons();
  }
 
@@ -165,19 +180,20 @@ export class View extends Interface
 
  GetCellMetaData(cell)
  {
-  return Object.assign({ odid: this.odid, ovid: this.ovid }, cell ? { oid: cell.oid, eid: cell.ename, prop: cell.eprop } : {} );
+  return Object.assign({ odid: this.data.odid, ovid: this.data.ovid }, cell ? { oid: cell.oid, eid: cell.ename, prop: cell.eprop } : {} );
  }
 
  DispatchMouseKeyboardEvent(event)
  {
   let eventpos;
+  if (!this.cursor) return;
   if (event.type !== 'dblclick' && (eventpos = globals.NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
   const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x]; // Old version: const [x, y] = event.type === 'dblclick' ? this.GetElementGridCoordinates(event.target) : [this.cursor.x, this.cursor.y];  const cell = this.valuetable?.[y]?.[x];
   if (!cell?.interactive) return;
   const modifier = String(event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1);
-  if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: { modifier: modifier } }, this.GetCellMetaData(cell));
-  const events = [Object.assign({ type: globals.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: { modifier: modifier } }, this.GetCellMetaData(cell))];
-  if (event.key && event.key.length === 1) events.push(Object.assign({ type: 'KEYPRESS', destination: this.parentchild, data: { key: event.key, modifier: modifier } }, this.GetCellMetaData(cell)));
+  if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell));
+  const events = [Object.assign({ type: globals.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell))];
+  if (event.key && event.key.length === 1 && modifier === '0') events.push(Object.assign({ type: 'KEYPRESS', destination: this.parentchild, data: event.key }, this.GetCellMetaData(cell)));
   return events;
  }
 
@@ -223,6 +239,23 @@ export class View extends Interface
 
   switch (event.type)
          {
+	       case 'CONFIRMDIALOG':
+               switch (event.source.props.callback.type)
+                      {
+                       case 'SETVIEW':
+                            const { odid, ovid, od, ov, childid } = event.source.props.callback.data;
+                            return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, od: od, ov: ov, childid: childid, macros: globals.GetDialogMacrosValues(event.source.data) } };
+                      }
+               return;
+	       case 'CANCELDIALOG':
+               switch (event.source.props.callback.type)
+                      {
+                       case 'SETVIEW':
+                            this.data.status = 100;
+                            this.ChangeHeader();
+                            return this.DisplayView(null, CANCELEDVIEW);
+                      }
+               return;
           case 'CONTEXTMENU':
                switch (event.data[0].substring(0, 6))
                       {
@@ -243,7 +276,7 @@ export class View extends Interface
                       }
                return;
           case 'KILL':
-               return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, childid: undefined, status: undefined } };
+               return { type: 'SIDEBARVIEWSTATUS', data: { odid: this.data.odid, ovid: this.data.ovid, childid: undefined, status: undefined } };
           case 'mousedown':
                if (event.button === 0 && event.buttons !== 1) break; // Any left with non-left button is hold? Break;
                if (event.button === 1 && event.buttons !== 4) break; // Any middle with non-middle button is hold? Break;
@@ -306,8 +339,10 @@ export class View extends Interface
           case 'SETVIEW':
                // Step 1 - init OV params and handle some errors, such as incoming event 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in event)
                this.InitView(event);
+               this.EventManager({ type: 'KILL', destination: null }); // Kill all view childs (dialogs)
+               if (event.data.dialog) return this.DisplayView('', 'Pending..', event);
                if (event.data.error) return this.DisplayView(event.data.error);
-               if (!event.data.selections) return this.DisplayView(UNDEFINEDSELECTION);
+               if (!event.data.selections || !event.data.selections.length) return this.DisplayView(UNDEFINEDSELECTION);
 
                // Step 2 - handle db selection rows with two virtual rows ('title' and 'new') before
                let r = TITLEVIRTUALROWID;
@@ -453,15 +488,18 @@ export class View extends Interface
      }
  }
 
- DisplayView(errormsg, warningmsg)
+ DisplayView(errormsg, warningmsg, dialogmsg)
  {
-  // Step 1 - display error message and return setting view percent loading status to 100
-  const event = { type: 'SIDEBARVIEWSTATUS', data: { odid: this.odid, ovid: this.ovid, status: 100, childid: this.id } };
+  // Step 1 - display some messages if needed and return
+  this.data.status = dialogmsg ? -2 : 100; // Set 'pending' status for OV macros dialog or 100% loaded otherwise
+  const event = { type: 'SIDEBARVIEWSTATUS', data: Object.assign(this.data, { childid: this.id }) }; // Fix refresh sidebar OV status event
+  // hui ended here - macros(es) -> macro; Handler-EventManager for all 
   this.props.control.mouseareaselect.elements = [];
-  if (errormsg || warningmsg)
+  if (errormsg || warningmsg || dialogmsg)
      {
-      this.elementDOM.innerHTML = `<div class="ovboxmessage" style="color: ${errormsg ? 'RGB(251,179,179)' : '#9FBDDF'};"><div  style="text-align: justify;"><h1>${errormsg ? errormsg : warningmsg}</h1></div></div>`;
-      this.ChangeHeader(event.data);
+      if (errormsg || warningmsg) this.elementDOM.innerHTML = `<div class="ovboxmessage" style="color: ${errormsg ? 'RGB(251,179,179)' : '#9FBDDF'};"><div  style="text-align: justify;"><h1>${errormsg ? errormsg : warningmsg}</h1></div></div>`;
+      this.ChangeHeader();
+      if (dialogmsg) new DialogBox(dialogmsg.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: dialogmsg }), undefined, undefined, undefined, null); // Create macros definition dialog with null as a last arg to remove interactive btns
       return event;
      }
 
@@ -522,7 +560,7 @@ export class View extends Interface
                                                             this.cursor.ticking = true;
                                                            });
   this.Render();
-  this.ChangeHeader(event.data);
+  this.ChangeHeader();
   return event;
  }
 
@@ -862,7 +900,7 @@ export class View extends Interface
 //         Controller passes all changed data to all clients that has this view opened, so that clients apply all changes right now (not forgetting to check oid presense, cause of possible random or non-actual selection).
 //         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar against the sent view
 // Todo0 - regexp search should be implemented to all types of view including tree and map. Should js range be used instead of span highlighting in regexp search? Not only regexp search but search on mask with only one asterisk as a special char or just plain text
-// Todo0 - Voting view example
+// Todo0 - Voting view example (multiple choices(with limit number), number and owners for all choices, anonymous voting, vote from other user (for root), summary votes)
 //		     layout: {"oid":"3", "eid":"element id number for every voting", "y":"0", "x":"0", "value":"Голосовать"}
 //		     object selection: empty
 //	  	     Rule reject:
@@ -907,7 +945,7 @@ export class View extends Interface
 // Todo - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
 // Todo - macroses like in joe
 // Todo - Context menu Graph
-//        Table selection of this strings and values (hui1 space, hui2 space, hui3 space..) displays pie chart with hui1 - 100%, and 0% for other values, is it right?
+//        Table selection of this strings and values (dlink space, snr space, eltex space..) displays pie chart with dlink - 100%, and 0% for other values, is it right?
 // Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event or PASTE to specific object element
 //        One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
 // Todo - Fetch progress indicator for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload

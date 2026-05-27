@@ -1,3 +1,4 @@
+import argon2 from 'argon2';
 import http from 'http';
 import pg from 'pg';
 import fs from 'fs';
@@ -6,15 +7,20 @@ import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 import { QueryMaker } from './querymaker.js';
 import * as globals from './globals.js';
+import { table } from 'console';
 
-const { Pool, Client }   = pg;
-const UNKNOWNDBID        = 'Incorrect or nonexistent database id!';
-const INCORRECTLAYOUT    = 'Incorrect layout - no any object/virtual elements defined in OD configuration layout section!';
-const UNAUTHORIZEDACCESS = 'Unauthorized access detected, please relogin!';
-const TIMEOUTACCESS      = 'Server has closed connection due timeout, please relogin!';
-const UNDEFINEDQUERYRES  = 'Database query returned udnefined result!'
-const EMPTYODLIST        = 'OD list is empty!'
-const qm                 = new QueryMaker();
+const { Pool, Client }      = pg;
+const UNKNOWNDBID           = 'Incorrect or nonexistent database id!';
+const INCORRECTLAYOUT       = 'Incorrect layout - no any object/virtual elements defined in OD configuration layout section!';
+const UNAUTHORIZEDACCESS    = 'Unauthorized access detected, please relogin!';
+const TIMEOUTACCESS         = 'Server has closed connection due timeout, please relogin!';
+const UNDEFINEDQUERYRES     = 'Database query returned udnefined result!';
+const EMPTYQUERY            = 'OV query is empty!';
+const EMPTYODLIST           = 'OD list is empty!';
+const SYSTEMSTATICMACROS    = ['USERNAME', 'USERID', 'OD', 'OV', 'ODID', 'OVID', 'FIELDS', 'OID', 'EID', 'EPROP', 'EVENTNAME', 'EVENTDATA', 'RANDOM', 'DATE', 'TIME', 'DATETIME', 'NULL', 'DBDATATBLNAME'];
+const SYSTEMDYNAMICMACROS   = ['LAYOUT'];
+const NORMALIZEDMACROS      = { username: 'USERNAME', userid: 'USERID', od: 'OD', ov: 'OV', odid: 'ODID', ovid: 'OVID', fields: 'FIELDS', oid: 'OID', eid: 'EID', eprop: 'EPROP', type: 'EVENTNAME', data: 'EVENTDATA' }; // Macros names for corresponded props in client event object
+const qm                    = new QueryMaker();
 
 export class Controller
 {
@@ -32,9 +38,9 @@ export class Controller
        await this.ClosePool();
        process.exit(0); // Closing process with no errors
       }
-  catch (error)
+  catch(error)
       {
-       console.error('Error closing DB pool:', error);
+       console.error('Error closing DB pool:', error.stack);
        process.exit(1); // Closing process with some errors
       }
  }
@@ -85,9 +91,9 @@ export class Controller
        for (const table of showtables.rows) tables.push(table.tablename); // and store them
        if (!tables.length) throw new Error(EMPTYODLIST); // Cause an error for empty table list
       }
-  catch (error)
+  catch(error)
       {
-       console.log(error.message);
+       console.error(error.stack);
        return;
       }
  
@@ -106,9 +112,9 @@ export class Controller
             globals.CheckODConfigurationDialogSyntax(dialog?.rows?.[0]?.dialog);                                                        // check its syntax
             await this.SuckInODProps(dialog.rows[0].dialog, odid);                                                                      // and suck it to the memory
            }
-       catch (error)
+       catch(error)
            {
-            console.log(error.message);
+            console.error(error.stack);
            }
       }
  }
@@ -154,11 +160,25 @@ export class Controller
   return string;
  }
 
-  // Todo0 - Compare here user/pass from corresponded pair in 'User' OD
- Authenticate(username, password)
+ async Authenticate(username, password)
  {
-  if (!username || !password || username !== 'root' || password !== '1') return { type: 'LOGINERROR', data: 'Wrong username or password!' };
-  return { type: 'LOGINACK', data: { username: username, userid: '0', protocol: 'ws', ip: this.WS.ip, port: this.WS.port, authcode: this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: '0', username: username }/* Todo0 - set user id here */) } };
+  let hash;
+  if (typeof username !== 'string' || !username) return { type: 'LOGINERROR', data: "User name couldn't be empty!" };
+  if (typeof password !== 'string' || !password) return { type: 'LOGINERROR', data: "Password couldn't be empty!" };
+
+  try {
+       hash = await this.MacrosReplace('$' + `{"odid":"1", "ovid":"1", "ename":"${globals.ELEMENTCOLUMNPREFIX}2", "oid":"${globals.ELEMENTCOLUMNPREFIX}1='${username}'"}`, {}); // First get username hash from OD 'Users'
+       if (!hash || !await argon2.verify(hash, password)) return { type: 'LOGINERROR', data: 'Wrong username or password!' }; // then compare it from input password
+      }
+  catch (error)
+      {
+       console.error(`Argon2 exception occurs for hash '${hash}': `, error.stack);
+       return { type: 'LOGINERROR', data: 'Argon2 error: ' + error.message };
+      }
+
+  const userid = await this.MacrosReplace('${"odid":"1", "ename":"id", "oid":"' + `${globals.ELEMENTCOLUMNPREFIX}1='${username}'` + '"}', {});
+  const authcode = this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: userid, username: username });
+  return { type: 'LOGINACK', data: { username: username, userid: userid, protocol: 'ws', ip: this.WS.ip, port: this.WS.port, authcode: authcode } };
  }
 
  async Handler(msg, client)
@@ -177,6 +197,7 @@ export class Controller
           }
        if (session) session.idle = Date.now();
 
+       console.log('Incoming msg:', msg);
        switch (msg.type)
     	      {
 	           case 'SETDATABASE':
@@ -191,7 +212,7 @@ export class Controller
                     break;
 	           case 'LOGIN':
                     client.writeHeader(200, {'Content-Type': 'application/json; charset=UTF-8'});
-                    msg = this.Authenticate(msg.data.username, msg.data.password);
+                    msg = await this.Authenticate(msg.data.username, msg.data.password);
                     client.write(JSON.stringify(msg));
                     client.end()
                     break;
@@ -214,69 +235,13 @@ export class Controller
                     this.SendView(client, msg);
                     break;
 	           default:
-                    // user permission check, view permission check, non disabled event existing check for the element, selection/layout check, rule check, event handler exec
-                    // For element to be callable: explicit 'id'/'lastversion' mention for the object and column name ed1..N or eidN->>prop (for json/jsonb types only). In case of eidN->>prop extra style/hint props  may be added to the selection to customize cell element
-                    console.log('Incoming msg:', msg);
                     await this.ElementHandlerExec(msg, session);
 	          }
       }
   catch(error)
       {
-       console.log(error.message);
+       console.error(error.stack);
       }
- }
-
- async SendView(client, msg)
- {
-  if (!client?.send) return;
-  const selections = [], fields = [], query = this.ods[msg.data.odid].query[msg.data.ovid], layout = this.ods[msg.data.odid].layout[msg.data.ovid];
-  let transaction, ress;
-
-  msg.type = 'SETVIEW';
-  if (!this.ods[msg.data?.odid])
-     {
-      msg.data.error = UNKNOWNDBID;
-      client.send(JSON.stringify(msg));
-      return;
-     }
-
-  if (!Object.keys(layout.nondbdata).length && !Object.keys(layout.dbdata).length)
-     {
-      msg.data.error = INCORRECTLAYOUT;
-      client.send(JSON.stringify(msg));
-      return;
-     }
-
-  try {
-       if (query)
-          {
-           transaction = await this.pool.connect();
-           await transaction.query('BEGIN');
-           await transaction.query(`SET LOCAL ROLE rouserodid${msg.data.odid}`);
-           ress = await transaction.query(...qm.Make({ query: query }, { rowMode: 'array' }));
-           if (!ress) throw new Error(UNDEFINEDQUERYRES);
-           await transaction.query('COMMIT');
-          }
-      }
-  catch (error)
-      {
-       msg.data.error = `Query: ${query}<br>Error message: ${error.message}`;
-       client.send(JSON.stringify(msg));
-       return;
-      }
-  finally
-      {
-       if (transaction) transaction.release();
-      }
-
-  if (!Array.isArray(ress)) ress = [ress];
-  for (const res of ress)
-      {
-       selections.push(res.rows);
-       fields.push(res.fields.map(item => { const [elementname, elementprop] = qm.GetColumnElementAndProp(item.name); return { original: item.name, elementname: elementname, elementprop: elementprop }; }));
-      }
-  [msg.data.layout, msg.data.selections, msg.data.fields] = [layout, selections, fields];
-  client.send(JSON.stringify(msg));
  }
 
  // Function removes ro/wr OD roles from <roles> array. Empty/undefined/incorrect <roles> - all applcication roles are used (to delete them all on DB reset). Roles are for four sql read/write processes:
@@ -302,7 +267,7 @@ export class Controller
            if (Array.isArray(rwusers?.rows)) rwusers.rows.map(row => { if (row.rolname?.match(/\d+$/)?.[0]) roles.push(row.rolname); });
            console.log('DB user list:', roles);
           }
-      catch (error)
+      catch(error)
           {
            console.error('Getting all roles error: ', error.stack);
           }
@@ -314,7 +279,7 @@ export class Controller
        client = new Client(this.DB.adminconfig);
        await client.connect();
       }
-  catch (error)
+  catch(error)
       {
        console.error('Connect to application database for managing roles error: ', error.stack);
        return;
@@ -326,21 +291,20 @@ export class Controller
        const odid = role?.match(/\d+$/)?.[0]; // Role name string end digit check
        if (!odid) continue;
        const tables = `data_${odid},metr_${odid},meta_${odid}`;
-       if (drop) // Drop role and its priveleges
+       if (drop) // Drop role and its privileges
           {
-           try { await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database, table: tables, role: role, priveleges: role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE' })); }
-           catch (error) { console.log(`Dropping role ${role} priveleges error: `, error.message); }
+           try { await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database, table: tables, role: role, privileges: role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE' })); }
+           catch(error) { console.log(`Dropping role ${role} privileges error: `, error.stack); }
 
            try { await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database, table: tables, role: role })); }
-           catch (error) { console.log(`Dropping role ${role} error: `, error.message); }
+           catch(error) { console.log(`Dropping role ${role} error: `, error.stack); }
           }
-       if (create) // Create role with its priveleges
+       if (create) // Create role with its privileges
           { 
            try { await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database, table: tables, role: role })); }
-           catch (error) { console.log(`Creating role ${role} error: `, error.message); }
-           try { await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database, table: tables, role: role, priveleges: role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE' })); }
-           // ended here
-           catch (error) { console.log(`Creating role ${role} priveleges error: `, error.message); }
+           catch(error) { console.log(`Creating role ${role} error: `, error.stack); }
+           try { await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database, table: tables, role: role, privileges: role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE' })); }
+           catch(error) { console.log(`Creating role ${role} privileges error: `, error.stack); }
           }
       }
 
@@ -358,14 +322,14 @@ export class Controller
   try {
        client = new Client(this.DB.defaultconfig);
        await client.connect();
-       await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Method('DROP').Make());
+       await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database }));
        console.log(`Database ${this.DB.adminconfig.database} is dropped`);
-       await client.query(...qm.Table(null, null, this.DB.adminconfig.database).Method('CREATE').Make());
+       await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database }));
        console.log(`Database ${this.DB.adminconfig.database} is created successfully`);
       }
-  catch (error)
+  catch(error)
       {
-       console.error(`Reset database '${this.DB.adminconfig.database}' error: `, error);
+       console.error(`Reset database '${this.DB.adminconfig.database}' error: `, error.stack);
        return;
       }
   await client.end();
@@ -374,12 +338,12 @@ export class Controller
   try {
        client = new Client(this.DB.adminconfig);
        await client.connect();
-       await client.query(...qm.Table('CREATE EXTENSION IF NOT EXISTS timescaledb CASCADE').Make());
+       await client.query(...qm.Make({ method: 'CREATETMDBEXTENSION' }));
        console.log(`TimescaleDB extension is activated successfully`);
       }
-  catch (error)
+  catch(error)
       {
-       console.log('Activation TimescaleDB extension error: ', error.message);
+       console.log('Activation TimescaleDB extension error: ', error.stack);
       }
   if (client) await client.end();
 
@@ -387,7 +351,7 @@ export class Controller
   this.clients.set(client = { send: function(){} }, { auth: true, userid: globals.PRIMARYKEYSTARTVALUE, username: globals.SUPERUSER, socket: client });
   await this.SetNewODInstance(globals.USEROBJECTDATABASE, undefined, client);
   await this.Start();
-  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { eid1: globals.SUPERUSER } }), client);
+  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { [globals.ELEMENTCOLUMNPREFIX + '1']: globals.SUPERUSER, [globals.ELEMENTCOLUMNPREFIX + '2']: globals.SUPERUSER } }), client);
   await this.ClosePool();
  }
 
@@ -395,34 +359,34 @@ export class Controller
  async CreateOD(odid, transaction)
  {
   // Create new databases and write its structure. First - head_ table
-  await transaction.query(...qm.Table(`head_${odid}`).Method('CREATE').Make());
-  await transaction.query(...qm.Table(`head_${odid}`).Method('CREATE').Fields({ id: { value: 'INTEGER', constraint: `PRIMARY KEY GENERATED ALWAYS AS IDENTITY` },
-                                                                                datetime: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
-                                                                                userid: 'INTEGER',
-                                                                                dialog: 'JSON' }).Make());
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `head_${odid}` }));
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `head_${odid}`, fields: [{ name: 'id', value: 'INTEGER', constraint: `PRIMARY KEY GENERATED ALWAYS AS IDENTITY` },
+                                                                                         { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                         { name: 'userid', value: 'INTEGER' },
+                                                                                         { name: 'dialog', value: 'JSON' }] }));
   // Second - data_ table
-  await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Make());
-  await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Fields({ id: { value: 'INTEGER', constraint: `GENERATED BY DEFAULT AS IDENTITY (START WITH ${globals.PRIMARYKEYSTARTVALUE})` },
-                                                                                version: { value: 'INTEGER', constraint: 'DEFAULT 1' },
-                                                                                lastversion: { value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
-                                                                                mask: 'TEXT',
-                                                                                ownerid: 'INTEGER',
-                                                                                owner: `VARCHAR(${globals.USERNAMEMAXCHAR})`,
-                                                                                datetime: { value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
-                                                                                date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
-                                                                                time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
-                                                                                PRIMARY: 'KEY(id, version)' }).Make());
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}` }));
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields:[{ name: 'id', value: 'INTEGER', constraint: `GENERATED BY DEFAULT AS IDENTITY (START WITH ${globals.PRIMARYKEYSTARTVALUE})` },
+                                                                                        { name: 'version', value: 'INTEGER', constraint: 'DEFAULT 1' },
+                                                                                        { name: 'lastversion', value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
+                                                                                        { name: 'mask', value: 'TEXT' },
+                                                                                        { name: 'ownerid', value: 'INTEGER' },
+                                                                                        { name: 'owner', value: `VARCHAR(${globals.USERNAMEMAXCHAR})` },
+                                                                                        { name: 'datetime', value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                        { name: 'date', value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
+                                                                                        { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                        { name: 'PRIMARY', value: 'KEY(id, version)' }] }));
   // Third - timescale table metr_                                                                               
-  await transaction.query(...qm.Table(`metr_${odid}`).Method('CREATE').Make());
-  await transaction.query(...qm.Table(`metr_${odid}`).Method('CREATE').Fields({ id: 'INTEGER',
-                                                                                datetime: { value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
-                                                                                date: { value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
-                                                                                time: { value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
-                                                                                value: 'FLOAT' }).Make());
-  await transaction.query(...qm.Table(`metr_${odid}`, 'datetime').Method('CREATE').Make());
-  await transaction.query(...qm.Table(`metr_${odid}`, 'id').Method('WRITE').Make());
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}` }));
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: [{ name: 'id', value: 'INTEGER' },
+                                                                                         { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                         { name: 'date', value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
+                                                                                         { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                         { name: 'value', value: 'FLOAT' }] }));
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, hypertable: 'datetime' })); // Create hyper table with dimension 'datetime'
+  await transaction.query(...qm.Make({ method: 'WRITE', table: `metr_${odid}`, hypertable: 'id' })); // Add hyper table dimension 'id'
   // Create custom user data table <meta_N> in a addition to <data_N>/<metr_N> to insert any non application random data
-  await transaction.query(...qm.Table(`meta_${odid}`).Method('CREATE').Make());
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `meta_${odid}` }));
  }
 
  // Function adjust some parameteres of OD dialog structure to add/update. Todo1 - adjust all views layout text areas commenting error jsons as a error ones
@@ -431,8 +395,10 @@ export class Controller
   const elementids = {};
   let maxid;
 
-  // Old OD does exist, so remove appropriate table columns if needed. Old OD does not exist otherwise
-  if (odid)
+  dialognew.ok.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
+  delete dialognew.ok.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
+  // Old OD does exist, so remove appropriate table columns if needed
+  if (dialogold)
      {
       const remainingeids = {}; // Remaining element id list
       globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Element/elements', true), false, 'New element template', (data, option, name) => { const id = globals.GetOptionNameId(name); if (id) remainingeids[id] = ''; });
@@ -448,11 +414,6 @@ export class Controller
        const newindex = globals.GetDialogElement(data[option], 'index', true);
        if (newindex !== remainingeids[id]) elementids[id] = { method: newindex === 'None' ? 'DROP' : 'CREATE', index: newindex }; // New column index has changed?
       });
-     }
-   else
-     {
-      dialognew.ok.data = 'SAVE'; // Create btn is 'SAVE' btn after db conf dialog created
-      delete dialognew.ok.expr; // No grey btn 'CREATE' for empty db name that is used to remove OD
      }
 
   // Correct OD dialog title
@@ -473,6 +434,9 @@ export class Controller
   // Correct OD dialog 'Rule' profile names (clone flag remove, +- flags add)
   globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Rule/rules', true), true, null, (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style));
 
+  // Correct OD dialog 'Macroses' profile names (clone flag remove, +- flags add)
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Database/settings/Macroses/macros', true), null, 'New macros', (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style));
+
   return elementids; // elementids = { [id]: { method: 'CREATE|DROP', type: <columntype>, index: <columnindex> } }
  }
 
@@ -482,12 +446,12 @@ export class Controller
   let dialogold, restrictedpads = [], transaction;
   client = this.clients.get(client);
   if (!client?.auth) return;
-  const users = [client.username]; // Todo0 - create a function that returns a ws client username and its group names in a single arraya add group list to current user (<[client.username]>) check and release config OD restrinction at GETDATABASE
+  const users = [client.username]; // Todo0 - create a function that returns a ws client username and its group names in a single array and add group list to current user
 
   try {
        transaction = await this.pool.connect(); // Old version: transaction = new Client(this.DB.adminconfig); await transaction.connect();
-       await transaction.query('BEGIN');
-       await transaction.query(...qm.Table().Lock(odid ? odid : 0).Method('CREATE').Make()); // Lock OD<odid> for change
+       await transaction.query(...qm.Make({ method: 'BEGIN' }));
+       await transaction.query(...qm.Make({ method: 'SELECT', lock: odid ? odid : 0 })); // Lock OD<odid> for change
        globals.CheckODConfigurationDialogSyntax(dialognew, odid); // Check new dialog syntax for true (OD does exist, so update operation is perfomed) or false (OD does not exist, so new OD creation is perfomed) odid
        // Check existing OD presence in <ods> array
        if (odid)
@@ -497,8 +461,8 @@ export class Controller
            restrictedpads = globals.AcceptODConfigurationDialogChanges(dialogold, dialognew, users); // OD previous instance does exist, so get its non-changed pad names due to user restriction
            if (!globals.CheckODConfigurationDialogSyntax(dialognew, odid)) // Check changed above (due to restricted pads) new dialog syntax once again and remove OD for empty result (OD name is returned, so if it is empty - the OD should be removed)
               {
-               for (const table of ['head_', 'data_', 'metr_', 'meta_']) await transaction.query(...qm.Table(`${table}${odid}`).Method('DROP').Make()); // Drop all OD related tables
-               await transaction.query('COMMIT');
+               for (const table of ['head_', 'data_', 'metr_', 'meta_']) await transaction.query(...qm.Make({method: 'DROP', table: `${table}${odid}` })); // Drop all OD related tables
+               await transaction.query(...qm.Make({ method: 'COMMIT' }));
                for (const [, value] of this.clients)
                    {
                     if (!value.auth) continue;
@@ -512,7 +476,7 @@ export class Controller
        if (!odid)
           {
            odid = 1;
-           const tablelist = await transaction.query(...qm.Table().ShowTables().Make()); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
+           const tablelist = await transaction.query(...qm.Make({ method: 'SHOWTABLES' })); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
            for (const row of tablelist.rows) // Calculate current OD max id plus 1
                {
                 const id = globals.GetTableNameId(row.tablename);
@@ -521,40 +485,39 @@ export class Controller
            await this.CreateOD(odid, transaction);
           }
        const elementids = await this.AdjustOD(dialogold, dialognew, odid);
-       await transaction.query(...qm.Table(`head_${odid}`).Method('WRITE').Fields({ userid: client.userid, dialog: { value: JSON.stringify(dialognew), escape: true } }).Make());
-       console.log('------------------------------', elementids);
+       await transaction.query(...qm.Make({ method: 'WRITE', table: `head_${odid}`, fields: [{ name: 'userid', value: client.userid }, { name: 'dialog', value: JSON.stringify(dialognew), escape: true }] }));
        for (const id in elementids) switch (elementids[id].method)
            {
             case 'CREATE':
                  if (elementids[id].type)
                     {
-                     await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: elementids[id].type }).Make()); // Create new element column
-                     await transaction.query(...qm.Table(`metr_${odid}`).Method('CREATE').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: `VARCHAR(${globals.USERNAMEMAXCHAR})` }).Make()); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
+                     await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${id}`, value: elementids[id].type } })); // Create new element column
+                     await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${id}`, value: `VARCHAR(${globals.USERNAMEMAXCHAR})` } })); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
                     }
                  if (elementids[id].index && elementids[id].index !== 'None')
                     {
-                     await transaction.query(...qm.Table(`data_${odid}`).Method('CREATE').Index(elementids[id].index.includes('hash') ? 'hash' : 'btree').Fields({ [`${globals.ELEMENTCOLUMNPREFIX}${id}`]: elementids[id].index.includes('UNIQUE') ? 'UNIQUE' : '' }).Make()); // Create column index
+                     await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: elementids[id].index.includes('hash') ? 'hash' : 'btree', fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${id}`, value: elementids[id].index.includes('UNIQUE') ? 'UNIQUE' : '' } })); // Create column index
                     }
                  break;
             case 'DROP':
                  if (elementids[id].index)
                     {
-                     await transaction.query(...qm.Table(`data_${odid}`).Method('DROP').Index('btree').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make()); // Drop index
+                     await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, index: '', fields: `${globals.ELEMENTCOLUMNPREFIX}${id}` })); // Drop index
                     }
                   else
                     {
-                     await transaction.query(...qm.Table(`data_${odid}`).Method('DROP').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make()); // Drop column
-                     await transaction.query(...qm.Table(`metr_${odid}`).Method('DROP').Fields(`${globals.ELEMENTCOLUMNPREFIX}${id}`).Make());
+                     await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, fields: `${globals.ELEMENTCOLUMNPREFIX}${id}` })); // Drop column
+                     await transaction.query(...qm.Make({ method: 'DROP', table: `metr_${odid}`, fields: `${globals.ELEMENTCOLUMNPREFIX}${id}` })); // Drop column
                     }
                  break;
            }
        await this.SuckInODProps(dialognew, odid); // Refresh dialog data in memory
        this.SendViewsToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
-       await transaction.query('COMMIT');
+       await transaction.query(...qm.Make({ method: 'COMMIT' }));
       }
-  catch (error)
+  catch(error)
       {
-       if (transaction) await transaction.query('ROLLBACK');
+       if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
        console.error(error.stack);
        client.socket.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error' } }));
        return;
@@ -578,20 +541,52 @@ export class Controller
  async SuckInODProps(dialog, odid)
  {
   let id;
-  this.ods[odid] = { dialog: dialog, name: globals.GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true), query: {}, layout: {}, elementprofiles: { /*eid1: { type:, name:, description: }*/} };
+  this.ods[odid] = {
+                    dialog: dialog,
+                    name: globals.GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true),
+                    replacements: {},
+                    elementprofiles: { /*eid1: { type:, name:, description: }*/},
+                    viewprofiles: { /*layout:, query:, replacements:, dialog:,*/ },
+                    ruleprofiles: { /*[profilename]:,*/ },
+                   };
 
+  // Go through all 'Element' elements to get its type, name and description
   const elements = globals.GetDialogElement(dialog, 'padbar/Element/elements', true) || {};
   for (const option in elements) if (id = globals.GetOptionNameId(option))
       this.ods[odid].elementprofiles[globals.ELEMENTCOLUMNPREFIX + id] = { type: elements[option].type.data.trim().toLowerCase(), name: elements[option].name.data, description: elements[option].description.data };
 
-  const views = globals.GetDialogElement(dialog, 'padbar/View/views', true) || {};
+  // Go through all 'Rule' rules. Todo0 - sort <this.ods[odid].ruleprofiles> in alphabetical order to easily go through all rules in a future
+  const rulereplacements = {};
+  this.ods[odid].rulereplacements = rulereplacements;
+  this.ods[odid].ruleprofiles = globals.GetDialogElement(dialog, 'padbar/Rule/rules', true) || {};
+  for (const rule in this.ods[odid].ruleprofiles)
+      if (!globals.CompareOptionInSelectElement('New rule template', rule)) globals.SearchMacrosNames(rulereplacements, globals.GetDialogElement(this.ods[odid].ruleprofiles[rule], 'message', true), globals.GetDialogElement(this.ods[odid].ruleprofiles[rule], 'query', true));
+
+  // Go through all 'View' views to get its layout and query
+  const views = globals.GetDialogElement(dialog, 'padbar/View/views', true) || {}; // Get view profile list
   for (const option in views) if (id = globals.GetOptionNameId(option))
       {
-       const layout = this.ParseViewLayout(globals.GetDialogElement(views[option], 'settings/Selection/layout', true), odid);
-       const query = await this.ParseViewQuery(globals.GetDialogElement(views[option], 'settings/Selection/query', true), layout);
-       this.ods[odid].query[id] = query;
-       this.ods[odid].layout[id] = layout;
+       const view = this.ods[odid].viewprofiles[id] = {};
+       view.layout = globals.GetDialogElement(views[option], 'settings/Selection/layout', true).trim(); // Get view layout
+       view.query = globals.GetDialogElement(views[option], 'settings/Selection/query', true).trim(); // Get view query
+       view.calldialog = globals.GetDialogElement(views[option], 'settings/Macroses/call', true); // Call or not dialog box before OV open
+       view.dialog = globals.GetDialogElement(views[option], 'settings/Macroses/dialog', true).trim(); // Macros dialog text area field
+       if (!view.dialog && view.calldialog) // Macros dialog field is empty and 'Call dialog' option is checked? Create dialog structure from 'View selection' and 'OD rule' fields
+          {
+           const replacements = Object.assign(globals.SearchMacrosNames({}, view.layout, view.query), rulereplacements); // Search for macroses in view layout/query and rule message/query
+           for (const name in replacements) // Todo0 - highlight macros name with bold font
+               if (!SYSTEMSTATICMACROS.includes(name) && !this.IsSystemDynamicMacro(name)) view.dialog += `${view.dialog ? ', ' : ''}"${name}": { "type": "text", "head": "Enter macros '${name}' value", "data": "" }`;
+           if (view.dialog) view.dialog = `{ "${SYSTEMSTATICMACROS[0]}": { "type": "title", "data": "Macros definition dialog" }, "${SYSTEMSTATICMACROS[1]}": ${globals.BUTTONOK}, "${SYSTEMSTATICMACROS[2]}": ${globals.BUTTONCANCEL}, ${view.dialog} }`; // and create macros dialog JSON. Todo0 - appliable flag manual set violates app conception
+          }
+       try { view.dialog = JSON.parse(view.dialog); } // Parse macros dialog to object and retrieve all macros values from text interface elements below
+       catch { view.dialog = {}; }
+       view.replacements = globals.GetDialogMacrosValues(view.dialog);
       }
+
+  // Get OD macroses
+  const macroses = globals.GetDialogElement(dialog, 'padbar/Database/settings/Macroses/macros', true) || {};      
+  for (const macros in macroses)
+      if (!globals.CompareOptionInSelectElement('New macros', macros)) this.ods[odid].replacements[macros.split('~', 1)] = macroses[macros].value.data;
  }
  
  // { type: 'SIDEBARSET', odid: 13, path: 'System/Users', ov: { 1: ['test/view1a', '/vie1b'], 2: ['/folder/View2c', 'test/view2d'] } }
@@ -635,7 +630,7 @@ export class Controller
  ParseViewLayout(jsons, odid)
  {
   if (typeof jsons !== 'string') return;
-  const layout = { dbdata: {}, nondbdata: {}, columns: [] }; // <columns> array has next fromat: { original:, elementname:, elementprop:, elementprofilename:, elementprofiledescription:, elementprofiletype: }, also 5 props added at client side: event, collapsedrows[], collapsedcols[], collapseundefinedrows, collapseundefinedcols
+  const layout = { dbdata: {}, nondbdata: {}, columns: [], fields: [] }; // <columns> array has next fromat: { original:, elementname:, elementprop:, elementprofilename:, elementprofiledescription:, elementprofiletype: }, also 5 props added at client side: event, collapsedrows[], collapsedcols[], collapseundefinedrows, collapseundefinedcols
 
   for (let json of jsons.split('\n'))
       {
@@ -657,10 +652,10 @@ export class Controller
            continue;
           }
 
-       // Next step - pasre column list in json.col splited via '|' then
+       // Next step - pasre column list in json.col splited via ',' then
        if (Object.keys(json).length < 3) continue; // Props count low than 3 means only row/col props defined which is incorrect
        const currentcolumns = json.col ? [] : layout.columns;
-       for (let original of json.col.split('|'))
+       for (let original of json.col.split(','))
            {
             if (!(original = original.trim())) continue; // No action for empty column
             let newcolumn;
@@ -679,90 +674,231 @@ export class Controller
        for (let column of currentcolumns) // For undefined json.col use all perviously defined columns, for defined json.col use columns set in json.col.
            {
             column = column.original; // Pull column original name to use it as a key in a layout dbdata
+            if (!layout.fields.includes(column)) layout.fields.push(column); // Collect columns for 'FIELDS' macro
             if (!(json.row in layout.dbdata)) layout.dbdata[json.row] = {}; // Create json.row key empty object in a layout dbdata (if it doesn't exist)
             layout.dbdata[json.row][column] = Object.assign(layout.dbdata[json.row][column] || {}, json); // and copy all json props to it for specified column name
            }
       }
-
+      
   return layout;
  }
 
- async ParseViewQuery(query, layout)
+ async SendView(client, msg)
  {
-  const select = [];
-  for (const column of layout.columns) select.push(column.original);
-  return await this.MacrosReplace(query.trim(), { COLUMNS: select.join(',') })
+  if (!client?.send) return;
+
+  msg.type = 'SETVIEW';
+  if (!this.ods[msg.data?.odid]?.viewprofiles[msg.data?.ovid])
+     {
+      msg.data.error = UNKNOWNDBID;
+      client.send(JSON.stringify(msg));
+      return;
+     }
+
+  const view = this.ods[msg.data.odid].viewprofiles[msg.data.ovid];
+  if (Object.keys(view.dialog).length && view.calldialog && !msg.data.macros) // if macros dialog (<view.dialog>) is not empty and 'call' option (<view.calldialog>) is set - send macros definition dialog to the client side. Note that in case of client side responce with macroses already defined (<msg.data.dialog> is set) client-side sending dialog is not needed
+     {
+      msg.data.dialog = view.dialog;
+      client.send(JSON.stringify(msg));
+      return;
+     }
+  /*1 macro group*/ view.actualreplacements = msg.data.macros || view.replacements; // Fix actual replacements to one of version: from client side input dialog (<msg.data.macros>) or from origin dialog JSON in OV settings
+  /*2 macro group*/ //this.ods[msg.data.odid].replacements
+  /*3 macro group*/ const systemmacros = this.DefineSystemMacros(this.clients.get(client), msg.data);
+
+  const selections = [], fields = [], replacements = {};
+  let transaction, ress;
+  let query = view.query;
+  let layout = view.layout;
+  if (/\$\{.*\}/.test(query + layout) || Object.keys(this.ods[msg.data.odid].rulereplacements).length) // Layout, query or rule profiles do contain any macro? Do replacing below
+     {
+      Object.assign(replacements, systemmacros, this.ods[msg.data.odid].replacements, view.actualreplacements); // Collect all macro groups for 'GETVIEW' client event (except FIELDS macro)
+      layout = await this.MacrosReplace(layout, replacements); // Replace macros in layout
+      console.log('layout------------------------------------------', layout);
+      layout = this.ParseViewLayout(layout, msg.data.odid); // and get layout object
+      Object.assign(replacements, { FIELDS: layout.fields.join(',') }); // Get FIELD macro (sql request all columns) from layout object
+      console.log('replacements------------------------------------------', replacements);
+      query = await this.MacrosReplace(query, replacements); // and replace macros in query
+     }
+   else // Layout and query do not contain any macro, so just parse 'layout' json and leave 'query' untouched
+     {
+      layout = this.ParseViewLayout(layout, msg.data.odid);
+     }
+
+  if (!Object.keys(layout.nondbdata).length && !Object.keys(layout.dbdata).length)
+     {
+      msg.data.error = INCORRECTLAYOUT;
+      client.send(JSON.stringify(msg));
+      return;
+     }
+
+  try {
+       if (!query) throw new Error(EMPTYQUERY);
+       transaction = await this.pool.connect();
+       await transaction.query(...qm.Make({ method: 'BEGIN', role: `rouserodid${msg.data.odid}` }));
+       ress = await transaction.query(...qm.Make({ query: query }, { rowMode: 'array' }));
+       if (!ress) throw new Error(UNDEFINEDQUERYRES);
+       await transaction.query(...qm.Make({ method: 'COMMIT' }));
+      }
+  catch(error)
+      {
+       if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
+       msg.data.error = `Query: '${query}'<br>Error message: ${error.message}`;
+       client.send(JSON.stringify(msg));
+       console.error(error.stack);
+       return;
+      }
+  finally
+      {
+       if (transaction) transaction.release();
+      }
+
+  if (!Array.isArray(ress)) ress = [ress];
+  for (const res of ress)
+      {
+       if (!res?.rows || !res.fields) continue;
+       selections.push(res.rows);
+       fields.push(res.fields.map(item => { const [elementname, elementprop] = qm.GetColumnElementAndProp(item.name); return { original: item.name, elementname: elementname, elementprop: elementprop }; }));
+      }
+  [msg.data.layout, msg.data.selections, msg.data.fields] = [layout, selections, fields];
+  client.send(JSON.stringify(msg));
  }
 
- // Macros name (acts as a macros profile name) is replaced by macros value. Undefined macros names are replaced by empty strings. User defined empty macros name is correct
+ // Macros names is replaced by appropriate macros values. Undefined macros names are replaced by empty strings. User defined empty macros name is correct, but is not recomended
  // Macros types:
- //  General:  ${RANDOM} ${DATE} ${DATETIME} ${TIME} ${USERNAME} ${USERID} ${NULL}
- //  View:     ${OD} ${OV} ${ODID} ${OVID} ${OID} ${COLUMNS} ${LAYOUT1} ${LAYOUT2} ${LAYOUT3} ${LAYOUT4}
- //  Event:    ${EVENT} ${EID} ${EPROP} ${MODIFIER} ${DATA}
- //  Element:  ${"odid": "6", "oid": "id=7 AND lastversion=true", "ename": "edi2", "eprop": "value"}, all macros names in parentheses are interpreted as usual macros names, except ones in JSON format. Once the string inside is any correct JSON, it becomes 'element' type macros and defines object element to retreive the data from. All JSON props are optional except "username".
- //  Dialog:   OV args in OD settings
- //  Database: macroses in general OD settings
- //  User:     User settings
- //  Handler:  via system call 'SETMACROS' handler defined macroses
+ //     System (General): ${RANDOM} ${DATE} ${DATETIME} ${TIME} ${NULL} ${USERNAME} ${USERID} ${DBDATATBLNAME}
+ //     System (View):    ${OD} ${OV} ${ODID} ${OVID} ${FIELDS} ${LAYOUT H,N,id,1,2,3} 
+ //     System (Event):   ${EVENTNAME} ${OID} ${EID} ${EPROP} ${EVENTDATA}
+ //     Element:          ${"odid": "6", "oid": "id=7 AND lastversion=true", "ename": "edi2", "eprop": "value", "limit": "1" }, all macros names in parentheses are interpreted as usual macros names, except ones in JSON format. Once the string inside is any correct JSON, it becomes 'element' type macros and defines object element to retreive the data from
+ //     Dialog:           OV args in OD settings
+ //     Database:         macroses in general OD settings
  // Application processes with macros types order to apply:
- //  OV call event parses view selection 'layout' and 'query' fields:                                    dialog, general, view, database, user
- //  Controller incoming events from client side and handlers parses rule 'message' and 'query' fields:  dialog, general, view, event, element, database, user
- //  User customization apply at user login:                                                             user, general
- //  Handler system call 'SETMACROS':                                                                    handler
+ //     Selection 'layout'/'query' fields at OV calls:             dialog, database, system (view-general)
+ //     Rule 'message'/'query' fields at client/handler events:    dialog, database, system (view-general-event)
+ //     Handler data at client/controller events:                  dialog, database, system (view-general-event), element
+ //     User customization apply at user login:                    system(general)
+ //
+ // The function determines whether the macro name is dynamic or not. And returns macro name if it is
+ IsSystemDynamicMacro(macroname)
+ {
+  for (const name of SYSTEMDYNAMICMACROS)
+      if (name === macroname.substring(0, name.length)) return name;
+ }
+
+ DefineSystemMacros(...args)
+ {
+  const now = new Date();
+  const systemmacros = { RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}' }; // Another macroses that should be defined right now
+
+  for (const prop in NORMALIZEDMACROS) // Iterate all macroses to retrieve its values from args list
+  for (const arg of args) // Var <arg> is an object with macro names as a keys and so corresponded macro values
+      {
+       if (!(prop in arg)) continue; // Go to below for the macros name exists in <arg>
+       if (typeof arg[prop] === 'string') systemmacros[NORMALIZEDMACROS[prop]] = arg[prop]; // and retrieve its string value
+       if (!arg[prop] || typeof arg[prop] !== 'object') continue;
+       try { systemmacros[NORMALIZEDMACROS[prop]] = JSON.stringify(arg[prop]); } // or its stringified 'object' type value
+       catch {}
+      }
+
+  return systemmacros;
+ }
+
+ // Function list (DefineMacro${DYNAMICMACRONAME}()) that defines dynamic macro values. Dynamic macro is a macro that starts with macro name of itself and then some user defined comma separated args. Dynamic macro 'LAYOUT' example: ${LAYOUT H,N}
+ DefineMacroLAYOUT(macro)
+ {
+  let layout = '';
+  const cols = [];
+  const objects = {};
+  const rows = { headerobject: 'r===-2', newobject: 'r===-1', userobject: '1' };
+  const disps = { headerobject: '+1', newobject: '+1', userobject: '+selection.length' };
+  macro = macro.substring('LAYOUT'.length).trim().split(',');
+
+  for (let i = 0; i < macro.length; i++)
+      {
+       if (!(macro[i] = macro[i].trim()) && macro.splice(i--, 1)) continue; // Remove empty elements and trim them all
+       if (!objects.headerobject && (macro[i] === 'H' || macro[i] === 'h')) // Header object
+          {
+           objects.headerobject = `0${'newobject' in objects ? disps.newobject : ''}${'userobject' in objects ? disps.userobject : ''}`;
+           continue;
+          }
+       if (!objects.newobject && (macro[i] === 'N' || macro[i] === 'n')) // New object
+          {
+           objects.newobject = `0${'headerobject' in objects ? disps.headerobject : ''}${'userobject' in objects ? disps.userobject : ''}`;
+           continue;
+          }
+       if (!objects.userobject) objects.userobject = `0${'headerobject' in objects ? disps.headerobject : ''}${'newobject' in objects ? disps.newobject : ''}`;
+       cols.push(/^\d+$/.test(macro[i]) ? globals.ELEMENTCOLUMNPREFIX + macro[i] : macro[i]); // Get all defined columns to <cols> array. Todo0: add [digit]-[digit] construction and apply only existing element ids
+      }
+
+  for (const col in objects) layout += `{ "row": "${rows[col]}", "col": "${cols.join(',')}", "x": "c", "y": "${objects[col]}" }\n`;
+  return layout;
+ }
+
  async MacrosReplace(string, replacements, chain = {})
  {
   let macrosvalue, newstring = '';
- 
+  chain = Object.assign({}, chain);
+
   while (true)
         {
          const pos1 = string.indexOf('${'); // Search start of macros
-         const pos2 = string.indexOf('}'); // and the finish
-         if (pos1 === -1 || pos2 === -1 || pos1 > pos2) return newstring + string; // No found? return previous result plus current
+         if (pos1 === -1) return newstring + string; // No found? return previous result plus current
+         const pos2 = string.indexOf('}', pos1); // Search end of macros
+         if (pos2 === -1 ) return newstring + string; // No found? return previous result plus current
          const macrosname = string.substring(pos1 + 2, pos2); // Retrieve macros name
-         // and substitute ${macrosname} to macros value via recursive function call, setting loop/undefined cases to empty string:
-         macrosvalue = ''; // Set macros value default value
-         if (macrosname in replacements)
+         macrosvalue = ''; // Set macros value default value, so loop/undefined macroses cause an error and remains empty
+         if (macrosname in replacements) // Macros does exist, so get its value via recursive function call
             {
-             if (!(macrosname in chain)) macrosvalue = this.MacrosReplace(replacements[macrosname], replacements, Object.assign(chain, { [macrosname]: true }));
+             if (!(macrosname in chain)) macrosvalue = await this.MacrosReplace(replacements[macrosname], replacements, Object.assign(chain, { [macrosname]: true }));
             }
-          else
+          else // Macros doesn't exist, so check it for JSON format
             {
              try { macrosvalue = JSON.parse(`{${macrosname}}`); }
              catch {}
              let transaction, elementdata;
-             if (macrosvalue)
+             if (macrosvalue) // Macros name is a JSON, so try to retrieve OD/OV JSON specified object element data
                 {
                  try {
                       transaction = await this.pool.connect();
-                      await transaction.query('BEGIN');
-                      await transaction.query(`SET LOCAL ROLE rouserodid${macrosvalue.odid}`);
-                      if ('eprop' in macrosvalue) macrosvalue.ename = qm.ExtractJSONPropField(macrosvalue.ename, macrosvalue.eprop);
-                      elementdata = await transaction.query(...qm.Table().Make(`SELECT ${macrosvalue.ename} FROM data_${macrosvalue.odid} WHERE ${macrosvalue.oid} LIMIT 1`));
-                      await transaction.query('COMMIT');
+                      await transaction.query(...qm.Make({ method: 'BEGIN', role: `rouserodid${macrosvalue.odid}` }));
+                      macrosvalue.ename = qm.ExtractJSONPropField(macrosvalue.ename, macrosvalue.eprop);
+                      elementdata = await transaction.query(...qm.Make({ method: 'SELECT', fields: macrosvalue.ename, table: `data_${macrosvalue.odid}`, where: macrosvalue.oid, limit: macrosvalue.limit ? macrosvalue.limit : '' }, { rowMode: 'array' }));
+                      await transaction.query(...qm.Make({ method: 'COMMIT' }));
+                      if (Array.isArray(elementdata)) elementdata = elementdata[0]; // In case of multiple queries - get first one only!
+                      elementdata = elementdata?.rows?.[0]?.[0]; // In case of row mode, the result is returned in 2d array with rows and columns. Get 1st column of a 1st row
+                      if (['boolean', 'number'].includes(typeof elementdata)) elementdata += '';
                      }
-                 catch (error)
+                 catch(error)
                      {
-                      await transaction.query('ROLLBACK');
+                      await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
+                      console.error(error.stack);
                       elementdata = error.message;
                      }
                  finally
                      {
                       if (transaction) transaction.release();
+                      macrosvalue = typeof elementdata === 'string' ? elementdata : '';
                      }
                 }
+              else if (this.IsSystemDynamicMacro(macrosname)) macrosvalue = this[`DefineMacro${this.IsSystemDynamicMacro(macrosname)}`](macrosname);// Macros name is not JSON, so check if it is dynamic and call appropriate function in case
             }
          newstring += string.substring(0, pos1) + macrosvalue; // Collect newstring with macros value
          string = string.substring(pos2 + 1); // and redefine remaining part to pass it for next cycle
         }
  }
   
+ // Function gets element data based on <macrosobject> props
+ async GetElementData(macrosobject)
+ {
+ }
+
  async ElementHandlerExec(msg, session)
  {
   switch (msg.type)
          {
           case 'ADDOBJECT': //
-               if (!msg.data) msg.data = {};
-               qm.Table(`data_${msg.odid}`).Method('WRITE');
+               if (!msg.data) msg.data = {}; // Zero msg data if not exist
+               const fields = [];
                for (const eid in this.ods[msg.odid].elementprofiles)
                    {
                     if (typeof this.modules?.system?.AddUser !== 'function') continue;
@@ -772,38 +908,35 @@ export class Controller
                     if (json.type !== 'SET') continue;
                     if (json.data && typeof json.data === 'object') json.data = JSON.stringify(json.data);
                     if (typeof json.data !== 'string') continue;
-                    qm.Fields({ [eid]: { value: json.data, escape: true } });
+                    fields.push({ name: eid, value: json.data, escape: true });
                    }
-               await this.pool.query(...qm.Make());
+               await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields }));
                break;
-          case 'HUI':
+          case 'KEYF2':
+            if (msg.eid === 'eid7' && msg.data.modifier === '0')
                break;
          }
  }
 }
 
-// Todo0 - wsuser -> session, remake qm
+// Todo0 - Incoming client/handler events check:
+//      1. User permissions check
+//      2. View permissions check
+//      3. Non disabled event existing check for the element
+//      4. Selection/layout check, here object id existence check:
+//           SELECT EXISTS (
+//               SELECT 1 
+//               FROM (
+//                     -- Вставьте сюда ВЕСЬ ваш сложный запрос БЕЗ изменений
+//                     SELECT * FROM data1 WHERE <ваши_условия>
+//                    ) AS subquery WHERE id = 1);
+//      5. Rule check
+//      6. Event handler exec (for element to be callable: explicit 'id'/'lastversion' columns should be queried). In case of eidN->>prop extra style/hint props may be added to the selection to customize cell element
+// Todo0 - wsuser -> session
 // Todo2 - change '*', '!' to const var and others
 // Todo0 - all DB dialog settings workable
-// Todo0 - User dialog settings
-//         Main: 
-//               username [eid1] username is unchangable after creation
-//               password [eid2] empty pass diallows login, but allows cron execution, changeble for own users only
-//               custom text fields [eid3] name, tel, email, foto, other info, changeble for own users only
-//         Policy: [eid4] (changeble for previlige users only)
-//               groups
-//               Login instances to login (undefined/incorrect/zero - no login/no cron, for all users except root)
-//               timeout after the user is logged out
-//               Restrict the user 'read' access to next OD/OV combinations ([!]od [!]ov)
-//               Restrict the user 'write' access to next OD/OV combinations
-//               Restrict the user to create OD
-//               Restrict the user to run Task Manager (or/and call with no task delete option)
-//         Macroses: [eid5] (changeble for own users only)
-//         Customization: [eid6] (Create root user read-only classic customization, so users can use it via 'force' option in user-customization dialog) (changeble for own users only)
-//         Event groups: [eid7] (changeble and viewable for root user only)
-
 // Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
-//         At any client/server side element event occur - incoming event is checked on all profiles until the match. Once the match is found - the specified event handler is called to process event and its data. 
+//         At any client/server side element event occur - incoming event is checked on all event groups until the match. Once the match is found - the specified event with its handler is called to process event and its data. 
 //         Every event may have 'none' action to explicitly set no call-handler, may be usefull to cancel through-profiles event search with no action
 //         Event profiles of themselves are defined in 'root' user settings pad 'Event profiles':
 //         event profile: add/remove
@@ -815,24 +948,8 @@ export class Controller
 //         Event profile consists of user added events only (not all). After user adds new event - all its builtin handlers reset their handler data to default. Handler data for SCHEDULE event has crontab file syntax (for all except sandbox/none handler types)
 //         Command line/user defined plain text are not single line, but multiple. Controller runs first line handler, may be used as a comments
 //         Negative queue value (the scheduler sleep for) in msec on crontab line
-
-// Controller and event handlers
-// Todo0 - Auth user process
-// Todo0 - release config OD restrinction at GETDATABASE for the users that are not allowed OD read access
 // Todo0 - Restrict element handler call, so user double clicked on any object element is unable generate another double click event on other (or same) object element, 
-// Todo1 - Create a template from client event NEWOBJECTDATABASE to check dialog structure correctness
-// Todo0 - How to set comments on rule msg textarea? First nonempty line is a rule msg, other lines are a comment
-// Todo0 - Dialog text interface element or cell editing mode autocompletes to predefined values (for a example company clients)
+// Todo0 - EDIT event autocomplete feature of predefined values (for a example company clients) and allowed chars
 // Todo0 - Native handler that get user online/offline status with datetime timestamp and current instances number logged in
-// Todo0 - UPDATE handler command (in a addition to SET/RESET) creates new object version only in case of at least one user-defined element changed
-//         Plus some aliases to SET system call (PUT/WRITE/PUSH) to apply different rules depending on a SET alias
 // Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
-// Todo0 - Discover new object:
-//		     Object selection: SELECT NONE
-//		     Define handler for any one element for event SCHEDULE 
-//		     In case of no any object selected in object selection process the handler is executed once with object id 0 (or -1..3) as input arg (plus object list ip addresses, for a example).
-//		 	  The handler runs in detach mode or answers with two possible system calls 'DELETEOBJECT' and 'NEWOBJECT' (other cmds are ignored).
-//		     So based on input args the handler can discover (create) new objects or destroy (delete) in range of user defined pool
-// Todo0 - Release system calls 'NEWOBJECT' and 'DELETEOBJECT' (don't mess with self-titled events), so the handlers can create/remove multiple objects. And 'COPY' to copy data to the buffer
-//		     May these system calls 'NEWOBJECT' and 'DELETEOBJECT' release will be similar to user self-titled events, for example - user creates a new object via context click with 'new object row' as an args,
-//         so system call 'NEWOBJECT' does with 'data' property as an arg for all creating new object elements
+// Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example: query - SELECT id FROM, layout - col=id, OV restrictions not viewable for any, event handler with element macros - {"ename": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}, result - based on input arg (macros ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"

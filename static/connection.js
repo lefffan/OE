@@ -5,7 +5,7 @@ import { Sidebar } from './sidebar.js';
 import * as globals from './globals.js';
 
 const LOGINDIALOG = { username: { type: 'text', head: 'Username', data: 'root' },
-                      password: { type: 'password', head: 'Password', data: '1' },
+                      password: { type: 'password', head: 'Password', data: 'root' },
                     };
 
 export class Connection extends Interface
@@ -25,7 +25,7 @@ export class Connection extends Interface
  {
   this.EventManager({ type: 'KILL', destination: null }); // Kill all connection childs
   const dialog = JSON.parse(JSON.stringify(LOGINDIALOG)); // Create login dialog from the template
-  new DialogBox(dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { cmd: 'LOGIN' }, control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} } }), { type: 'title', data: typeof this.logintitle === 'string' ? this.logintitle : 'Login' }, 'LOGIN'); // Create login dialog box with no-close option
+  new DialogBox(dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { type: 'LOGIN' }, control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} } }), typeof this.logintitle === 'string' ? this.logintitle : 'Login', 'LOGIN'); // Create login dialog box with no-close option
   delete this.logintitle; // Clear all disconnected-user data
   delete this.username; // Clear all disconnected-user data
   delete this.userid; // Clear all disconnected-user data
@@ -42,6 +42,7 @@ export class Connection extends Interface
 
  Handler(event)
  {
+  console.log(`Connection child new event detected:`, event);
   switch (event.type)
 	    {
 	     case 'LOGOUT':
@@ -85,7 +86,7 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(globals.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { cmd: 'SETDATABASE' } }));
+               new DialogBox(JSON.parse(JSON.stringify(globals.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { type: 'SETDATABASE' } }));
                break;
 
 	     case 'INFO':
@@ -93,10 +94,11 @@ export class Connection extends Interface
                new DialogBox(event.data?.content, this, JSON.parse(globals.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
 	          break;
 	     case 'DIALOG':
-               new DialogBox(event.data?.content, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { cmd: 'CONFIRMDIALOG', odid: '', ovid: '', oid: '', eid: '', eprop: '' } }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
+               const callback = Object.assign({ type: 'CONFIRMDIALOG', odid: event.odid, ovid: event.ovid, oid: event.oid, eid: event.eid }, 'eprop' in event ? { eprop: event.eprop } : {});
+               new DialogBox(event.data?.content, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: callback }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
 	          break;
 	     case 'CONFIRMDIALOG':
-               switch (event.source.props.callback?.cmd)
+               switch (event.source.props.callback?.type)
                       {
                        case 'SETDATABASE':
                             this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.callback?.odid } }); // Send new OD dialog data to controller via WS
@@ -116,15 +118,15 @@ export class Connection extends Interface
                this.WebsocketSend(event);
                break;
 	     case 'CONFIGUREDATABASE':
-               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { cmd: 'SETDATABASE', odid: event.data.odid } }));
+               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', odid: event.data.odid } }));
                break;
 
 	     case 'GETVIEW':
                this.WebsocketSend(event);
-               break;
+               return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: -1 }, destination: null };
 	     case 'SETVIEW':
                const view = this.childs[event.data.childid];
-               if (!view || view.odid !== event.data.odid || view.ovid !== event.data.ovid) return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: undefined, childid: undefined }, destination: null };
+               if (!view || view.data.odid !== event.data.odid || view.data.ovid !== event.data.ovid) return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: undefined, childid: undefined }, destination: null };
                event.destination = view;
                return event;
 
@@ -134,7 +136,6 @@ export class Connection extends Interface
 	     case 'BRINGTOTOP':
                break;
           default:
-               console.log(event);
                if (globals.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
 	    }
  }
@@ -164,78 +165,83 @@ export class Connection extends Interface
  {
   delete msg.source;
   delete msg.destination;
-  console.log(`WS sending '${msg.type}' msg`);
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
   try { this.socket.send(JSON.stringify(msg)); }
   catch { console.log(`Websocket error sending message "${msg}"`); }
  }
 }
 
-// Todo0: 
-// auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire.
-// auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
-// Should i send keepalive events (last client event generates setTimeout (60*1000) for keepalive event post) from client side to exclude session timeout and 
-// Todo - Make logs and handlers (task) manager accessable in context menu before menu 'Help'. And controller should send only active handler list instead of their wrapeed dialog structure, so dialog of itself should be built on a client side code
-// Todo - Ctrl + Tab switches between childs in a connection child
+// Todo2 - Token concept: auth= '{ userid:, sessionid:, expire:, sign: }', where sign is a hash (HMAC-SHA256) with a password (wich is stored specifically in server internal memory) of client LOGIN data: ip, fingerprint (user-agent and other specific data), userid and expire. Auth token may be store in LS (so page reload doesn't call relogin) or in client app memory (page reload calls relogin), auth token is no encrypted, but cannot be faked due to its sign compared on server side
+// Todo0 - Make logs and handlers (task) manager accessable in context menu before menu 'Help'. And controller should send only active handler list instead of their wraped dialog structure, so dialog of itself should be built on a client side code
+// Todo0 - Ctrl + Tab switches between childs in a connection child
 
-// Client-server message interaction format: MESSAGENAME[PROTOCOL:SOURCE:MESSAGEDATA,..]
+// All three components (Client, Controller and Handler) interact each other via JSON messages ('{ "type": "<MESSAGENAME>", "data": "<MESSAGEDATA>" }'), see scheme interaction ("MESSAGENAME:PROTOCOL[MESSAGEDATA..]") below.
+// Messages from 'Client'/'Handler' components to the 'Controller' are called "client/handler events". Messages from 'Controller' to 'Client'/'Handler' components are called "controller calls".
 
 /* Login process
-   +--------+                                                                                        +------------+                                   +---------+                                     
-   |        | LOGIN[HTTP:Connection:username,password] ->		                                    |            |                                   |         |                
-   |        |  <- LOGINACK[HTTP:Controller:ip,port,proto,authcode]|LOGINERROR[HTTP:Controller:title] |            |                                   |         |                
-   |        | CREATEWEBSOCKET[WS:Connection:userid,authcode) ->                                      |            |                                   |         |                
-   |        |                      <- CREATEWEBSOCKETACK[WS:Controller]|DROPWEBSOCKET[WS:Controller] |            |                                   |         |                
-   | Client | SIDEBARGET[WS:Connection] -> 			                                              | Controller |                                   | Handler |                
-   |        |                                              <- SIDEBARSET[WS:Controller:odid,path,ov] |            |                                   |         |                
-   +--------+                                                                                        +------------+                                   +---------+                                     
+   +--------+                                                                                            +------------+                                   +---------+                                     
+   |        | LOGIN:HTTP[username,password] ->		                                                  |            |                                   |         |                
+   |        |                         <- LOGINACK:HTTP[ip,port,protocol,authcode]|LOGINERROR:HTTP[title] |            |                                   |         |                
+   |        | CREATEWEBSOCKET:WS[userid,authcode] ->                                                     | Controller |                                   | Handler |                
+   |        |                                         <- CREATEWEBSOCKETACK:WS[]|DROPWEBSOCKET:WS[title] |            |                                   |         |                
+   | Client | SIDEBARGET:WS[] -> 			                                                            |            |                                   |         |                
+   |        |                                                             <- SIDEBARSET:WS[odid,path,ov] |            |                                   |         |                
+   +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
-/* Edit/create object database process
-   +--------+                                                                                        +------------+                                   +---------+                                     
-   |        | CREATEDATABASE[LOCAL:Sidebar] -> SETDATABASE[WS:Connection:dialogdata) ->			 |            |                                   |         |                
-   |        |             <- SIDEBARSET[WS:Controller:odid,path,ov]|DIALOG[WS:Controller:dialogdata] |            |                                   |         |                
-   | Client |                        		    		                                              |            |                                   |         |                
-   |        | GETDATABASE[WS:Sidebar|Connection:odid] ->                                             |            |                                   |         |                
-   |        |                   			<- CONFIGUREDATABASE[WS:controller:dialog,odid] 	      | Controller |                                   | Handler |                
-   |        | SETDATABASE[WS:Connection:dialogdata,odid) ->           			                |            |                                   |         |                
-   |        | <- SIDEBARSET[WS:Controller:odid,path,ov]|SIDEBARDELETE[WS:Controller:odid]|DIALOG[WS] |            |                                   |         |                
-   +--------+                                                                                        +------------+                                   +---------+                                     
+/* Edit/create OD process
+   +--------+                                                                                            +------------+                                   +---------+                                     
+   |        | CREATEDATABASE:LOCAL[] -> SETDATABASE:WS[dialog] ->                     	     	     |            |                                   |         |                
+   |        |                                   <- SIDEBARSET:WS[odid,path,ov]|WARNING:WS[content,title] |            |                                   |         |                
+   | Client |                        		    		                                                  |            |                                   |         |                
+   |        | GETDATABASE:LOCAL[odid] -> GETDATABASE:WS[odid] ->                                         | Controller |                                   | Handler |                
+   |        |                   			                       <- CONFIGUREDATABASE:WS[dialog,odid] |            |                                   |         |                
+   |        | SETDATABASE:WS[dialog,odid] ->                     		                              |            |                                   |         |                
+   |        |            <- SIDEBARSET:WS[odid,path,ov]|SIDEBARDELETE:WS[odid]|WARNING:WS[content,title] |            |                                   |         |                
+   +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
-/* Open object view process
-   +--------+                                                                                        +------------+                                   +---------+                                     
-   |        | GETVIEW[WS:Sidebar|Connection:ovid,odid,childid,newwindow) -> 			           |            |                                   |         |                
-   |        |                              			  <- SETVIEW[WS:Connection:odid/ovid/childid) |            |                                   |         |                
-   | Client |                                											 | Controller |                                   | Handler |                
-   |        |                            				     <- SETVIEW[WS:Connection:odid/ovid) |            |                                   |         |                
-   +--------+                                                                                        +------------+                                   +---------+                                     
+/* Open OV process (controller auto generated event SETVIEW is for OVs with 'scheduled open' feature enabled)
+   +--------+                                                                                            +------------+                                   +---------+                                     
+   |        | GETVIEW:LOCAL[ovid,odid,childid] -> GETVIEW:WS[odid,od,ovid,ov,childid[,macros]] ->        |            |                                   |         |                
+   |        |                   <- SETVIEW:WS[odid,ovid,childid,(layout,selections,fields|error|dialog)] | Controller |                                   | Handler |                
+   | Client |                                					          					|            |                                   |         |                
+   |        |                           <- SETVIEW:WS[odid,ovid,(layout,selections,fields|error|dialog)] |            |                                   |         |                
+   +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
-/* View data interaction
-   +--------+                                                                                        +------------+                                   +---------+                                     
-   |        | INIT [WS:View:'{"<eid1>":"${DATA}".."<eidN>":"${DATA}"}'] -> 			           |            |                                   |         |                
-   |        | DELETE [WS:View:'{"<oid1>":"".."<oidN>":""}'] -> 	          		                |            |                                   |         |                
-   |        | CONFIRMEDIT|CONFIRMDIALOG|ONCHANGE [WS:View:'${DATA}'] -> 			                |            |                                   |         |                
-   |        | PASTE [WS:View:'${DATA}'] ->                            			                |            |                                   |         |                
-   |        | KEYPRESS [WS:View:'${DATA}':'${MODIFIER}'] ->                            			 |            |                                   |         |                
-   |        | KeyA|..|KeyZ[WS:View:'${MODIFIER}'] ->                                   			 |            |                                   |         |                
-   |        | Key0|..|Key9[WS:View:'${MODIFIER}'] ->                                   			 |            |                                   |         |                
-   |        | KeyF1|..|KeyF12[WS:View:'${MODIFIER}'] ->                                 			 |            |                                   |         |                
-   |        | KeySpace|KeyInsert|KeyDelete|KeyBracketLeft|KeyBracketRight[WS:View:'${MODIFIER}'] ->  |            |                                   |         |                
-   |        | DBLCLICK[WS:View:'${MODIFIER}'] ->                                     			 |            |                                   |         |                
-   |        | SCHEDULE[WS:View] ->                                     			                |            |                                   |         |                
-   |        | RELOAD[WS:View] ->                                      			                |            |                                   |         |                
-   | Client |                                											 | Controller |                                   | Handler |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   |        |                        		    		                                              |            |                                   |         |                
-   +--------+                                                                                        +------------+                                   +---------+                                     
+/* OV ADDOBJECT|DELETEOBJECT events
+   +--------+                                                                                            +------------+                                   +---------+                                     
+   |        | ADDOBJECT:LOCAL[odid,ovid,eid1,eid2..] - > ADDOBJECT:WS[odid,ovid,eid1,eid2..] -> 	     |            |                                   |         |                
+   | Client |                                											     | Controller |                                   | Handler |                
+   |        |                        		    		                                                  |            |                                   |         |                
+   |        |                        		    		                                                  |            |                                   |         |                
+   +--------+                                                                                            +------------+                                   +---------+                                     
+*/
+
+/* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other events - modifier keys value
+   +--------+                                                                                            +------------+                                   +---------+                                     
+   |        | KEYF2:LOCAL[odid,ovid,oid,eid,eprop,data] - > KEYF2:WS[odid,ovid,oid,eid,eprop,data] -> 	|            |                                   |         |                
+   | Client |                                											     | Controller |                                   | Handler |                
+   |        |                        		    		                                                  |            |                                   |         |                
+   |        |                        		    		                                                  |            |                                   |         |                
+   +--------+                                                                                            +------------+                                   +---------+                                     
+*/
+
+/* Controller initiated ONEVENT|ONTIMER events, ONEVENT args: eventname, ovid[empty - current object, otherwise - all ovid objects]; ONTIMER args: cron_line, user[filled automatically], ovid, queue['<0' ms handler delay; '0' onlyonce; '>0' simultaneous handler number]
+   +--------+       +------------+                                                                             +---------+                                     
+   |        | 	     |            | ONEVENT:LOCAL[odid,ovid,oid,eid,data] - >                                   |         |                
+   | Client |       | Controller |                                                                             | Handler |                
+   |        |       |            |                                                                             |         |
+   |        |       |            |                                                                             |         |                
+   +--------+       +------------+                                                                             +---------+                                     
+*/
+
+/* Handler EMULATION(ADDOBJECT,DELETEOBJECT,SETVIEW),EDIT,WARNING|INFO,DIALOG,SET|WRITE|PUT|ADJUST,RESET,UPDATE(set if obj change),PUSH|COLLECT(tsdb),UPLOAD,DOWNLOAD,UNLOAD,GALLERY,NULL,COPY(buffer),NEWPAGE(url) events
+   +--------+       +------------+                                                                             +---------+                                     
+   |        | 	     |            |                                                                             |         |                
+   | Client |       | Controller |                                                                             | Handler |                
+   |        |       |            |                                                                             |         |
+   |        |       |            |                                                                             |         |                
+   +--------+       +------------+                                                                             +---------+                                     
 */

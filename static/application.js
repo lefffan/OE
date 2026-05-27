@@ -59,7 +59,9 @@ export class Application extends Interface
 		  	   new ContextMenu([['New connection'], ['Help']], this, event);
 			   break;
 	      case 'HELP':
-		  	   new DialogBox(globals.HELPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
+		  	   //new DialogBox(globals.HELPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
+			   //new DialogBox(globals.CUSTOMIZATIONDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS));
+			   new DialogBox(EVENTGROUPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS));
 			   break;
 	      case 'CONTEXTMENU':
 			   switch (event.data[0])	// Switch context item name (event data zero index)
@@ -68,8 +70,6 @@ export class Application extends Interface
 			   				new Connection(null, this);	// Args: data, parent
 							break;
 					   case 'Help':
-			   				//new DialogBox(globals.CUSTOMIZATIONDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
-			   				//new DialogBox(globals.EVENTPROFILINGDIALOG, this, JSON.parse(globals.MODALBOXPROPS));
                             return { type: 'HELP', destination: this };
 					  }
 		  	   break;

@@ -76,7 +76,7 @@ export class Sidebar extends Interface
   this.elementDOM.style.top  = '50px';
   // this.root = { type: folder/database/view, wrapped: true/false, name: , id: , odid: for the view type only, target: , new: , match: , content: [] } + sort: , searchstring: , folderlastid: 0, activeodid: , activeovid: 
   this.root = { type: 'folder', wrap: false, name: 'Root folder', id: 0, content: [], sort: '', folderlastid: 0, sort: '', searchstring: '' };
-  // this.od{id} = { branch: , ov{id}: { footnote: 0-.., status: -2||undefined (not open); -1 (server data pending); 0-100(view data loaded in %), childid: , targets: [] } }
+  // this.od{id} = { branch: , ov{id}: { footnote: 0-.., status: undefined (not open) | -2 (client pending) | -1 (server pending) | 0-100 (view data loaded in %), childid: , targets: [] } }
   this.od = {};
   this.props.control.drag.elements = [this.elementDOM];
   // Create sidebar two elements - search bar at the top and content bar (db structure) lower
@@ -121,7 +121,7 @@ export class Sidebar extends Interface
 
        branch.content.push({ type: type, wrap: true, name: path[i], id: type === 'folder' ? this.root.folderlastid++ : type === 'view' ? ovid : odid, odid: odid, new: true, content: [] }); // The cycle didn't result any subpath matched branches, so add new branch
        branch = branch.content.at(-1); // Set current branch to just created new one above
-       if (type === 'database') this.od[odid] = { branch: branch, ov: {}, oldov: this.od[odid]?.ov }; // Overwrite OD list with current OD id with empty view list (OD is always added first) and old ov link to keep every view footnote and status
+       if (type === 'database') this.od[odid] = { branch: branch, od: path[i], ov: {}, oldov: this.od[odid]?.ov }; // Overwrite OD list with current OD id with empty view list (OD is always added first) and old ov link to keep every view footnote and status
        if (type === 'view') this.od[odid]['ov'][ovid] = { footnote: this.od[odid]['oldov']?.[ovid]?.footnote, status: this.od[odid]['oldov']?.[ovid]?.status, childid: this.od[odid]['oldov']?.[ovid]?.childid, targets: [] }; // Refresh ov in od list retrieving prev ov version of footnote, status and child id
       }
  }
@@ -173,7 +173,8 @@ export class Sidebar extends Interface
                const branch = this.GetDOMElementBranch(event.target);
                if (event.button === 0)
                   {
-                   if (event.target.attributes['data-ovid'] !== undefined) return this.GetViewEventBuilder(event.target.attributes['data-odid'].value, event.target.attributes['data-ovid'].value); // OV click - open view in a current box
+                   const node = event.target.tagName === 'svg' ? event.target.parentNode : event.target; // SVG element doesn't contain od/ov attributes, so use parent Node
+                   if (node.attributes['data-ovid'] !== undefined) return this.GetViewEventBuilder(node.attributes['data-odid'].value, node.attributes['data-ovid'].value, node.attributes['data-ov'].value); // OV click - open view in a current box
                    if (branch?.content.length) this.ToggleBranchWrap(branch); // OD click - toggle database wrap only
                    break;
                   }
@@ -183,7 +184,7 @@ export class Sidebar extends Interface
                    const odid = event.target.attributes['data-odid']?.value;
                    const ovid = event.target.attributes['data-ovid']?.value;
                    if (odid !== undefined) contextmenuoptions[1] = [ 'Configure Database', odid ];
-                   if (ovid !== undefined) contextmenuoptions[1] = this.od[odid]['ov'][ovid].status === undefined ? [ 'Open in a new window', odid, ovid ] : 'Open in a new window';
+                   if (ovid !== undefined) contextmenuoptions[1] = this.od[odid]['ov'][ovid].status === undefined ? [ 'Open in a new window', odid, ovid, event.target.attributes['data-ov']?.value ] : 'Open in a new window';
                    new ContextMenu(contextmenuoptions, this, event);
                    break;
                   }
@@ -192,7 +193,7 @@ export class Sidebar extends Interface
                const option = event.data[0].substring(0, 'Logout '.length) === 'Logout ' ? 'Logout' : event.data[0];
                const optionevents = { 'New Database':            { type: 'CREATEDATABASE', destination: this.parentchild },
                                       'Configure Database':      { type: 'GETDATABASE', destination: this.parentchild, data: { odid: event.data[1] } },
-                                      'Open in a new window':    this.GetViewEventBuilder(event.data[1], event.data[2], true),
+                                      'Open in a new window':    this.GetViewEventBuilder(event.data[1], event.data[2], event.data[3], true),
                                       'Help':                    { type: 'HELP', source: this.parentchild, destination: this.parentchild.parentchild },
                                       'Logout':                  { type: 'LOGOUT', destination: this.parentchild },
                                     }; 
@@ -219,13 +220,13 @@ export class Sidebar extends Interface
  {
   const connection = this.parentchild;
   for (let i = connection.aindexes.length - 1; i > 0; i--)
-      if (connection.childs[connection.aindexes[i]].odid) return connection.aindexes[i];
+      if (connection.childs[connection.aindexes[i]].data?.odid) return connection.aindexes[i];
  }
 
  // GETVIEW event builder
  // Left btn OV sidebar click: OV is already open ? set OV active or refresh if already active : open in a current active view or in a new view if no any view exist
  // Context menu 'open in a new window' opens OV in a new window anyway, action is grey/absent for already opened OV. Todo2 - do not forget to limit max open views
- GetViewEventBuilder(odid, ovid, newwindow)
+ GetViewEventBuilder(odid, ovid, ov, newwindow)
  {
   let viewbox;
   const lastactiveviewchildid = this.GetLastActiveViewChildId(); // Get last active child with OV opened
@@ -233,33 +234,34 @@ export class Sidebar extends Interface
   if (!clickedviewprops) return;
   const status = clickedviewprops.status;
   const childid = clickedviewprops.childid;
+  const metadata = { odid: odid, ovid: ovid, od: this.od[odid].od, ov: ov };
 
-  if (status === undefined) // Requested OV is not opened, so get its data from the controller in last active view box or in a new one
+  if (status === undefined) // Requested OV is not opened, so get its data from the controller and place it in last active view box or in a new one
      {
-      if (!lastactiveviewchildid || newwindow) 
+      if (!lastactiveviewchildid || newwindow) // No any OV childs or <newwindow> is true?
          {
-          viewbox = new View({ odid: odid, ovid: ovid, status: -1, username: this.username }, this.parentchild);
+          viewbox = new View(Object.assign(metadata, { status: -2, username: this.username }), this.parentchild); // Create a new OV child
          }
        else
          {
-          viewbox = this.parentchild.childs[lastactiveviewchildid];
-          if (!viewbox) return;
-          this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: viewbox.odid, ovid: viewbox.ovid, childid: undefined, status: undefined } });
-          viewbox.ChangeHeader({ odid: odid, ovid: ovid, status: -1 });
-          this.parentchild.ChangeActive(viewbox.id);
+          if (!(viewbox = this.parentchild.childs[lastactiveviewchildid])) return; // or use current active
+          this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: viewbox.data.odid, ovid: viewbox.data.ovid, childid: undefined, status: undefined } }); // and reset its status in a sidebar
+          viewbox.data = Object.assign(metadata, { status: -2 }); // Refresh current child OV meta data
+          viewbox.ChangeHeader(); // and header
+          this.parentchild.ChangeActive(viewbox.id); // not forgetting to set it active
          }
-      this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: odid, ovid: ovid, childid: viewbox.id, status: -1 } });
-      return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, childid: viewbox.id } };
+      this.Handler({ type: 'SIDEBARVIEWSTATUS', data: Object.assign(metadata, { status: -2, childid: viewbox.id }) });
+      return { type: 'GETVIEW', destination: this.parentchild, data: Object.assign(metadata, { childid: viewbox.id }) };
      }
 
   this.parentchild.ChangeActive(childid); // Bring to top clicked view anyway
   if (status !== -1 && childid === lastactiveviewchildid) // And if its status 'loaded' (not server pending, unloaded OV is processed above) and the view box is already 'last active' - force OV refresh via 'GETVIEW'
      {
-      viewbox = this.parentchild.childs[lastactiveviewchildid];
-      if (!viewbox) return;
-      viewbox.ChangeHeader({ odid: odid, ovid: ovid, status: -1 });
-      this.Handler({ type: 'SIDEBARVIEWSTATUS', data: { odid: odid, ovid: ovid, childid: viewbox.id, status: -1 } });
-      return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, childid: viewbox.id } };
+      if (!(viewbox = this.parentchild.childs[lastactiveviewchildid])) return;
+      viewbox.data = Object.assign(metadata, { status: -2 }); // Refresh current child OV meta data
+      viewbox.ChangeHeader(); // and header
+      this.Handler({ type: 'SIDEBARVIEWSTATUS', data: Object.assign(metadata, { status: -2, childid: viewbox.id }) });
+      return { type: 'GETVIEW', destination: this.parentchild, data: Object.assign(metadata, { childid: viewbox.id }) };
      }
  }
 
@@ -336,13 +338,13 @@ export class Sidebar extends Interface
 
  GetRowInner(branch, attribute, depth)
  {
-  if (branch.type === 'database') attribute += ` data-odid="${branch.id}"`;
-  if (branch.type === 'view') attribute += ` data-odid="${branch.odid}" data-ovid="${branch.id}"`;
-  let inner = `<table><tbody><tr>`;                                                                                                                             // Collect inner with <table> tag
-  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                              // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
   let name = branch.name.trim();
   if (!name) name = '&nbsp';
   name = name.toWellFormed();
+  if (branch.type === 'database') attribute += ` data-odid="${branch.id}"`;
+  if (branch.type === 'view') attribute += ` data-odid="${branch.odid}" data-ovid="${branch.id}" data-ov="${name}"`;
+  let inner = `<table><tbody><tr>`;                                                                                                                             // Collect inner with <table> tag
+  inner += `<td style="padding: 0 ${5 + ((depth - 1) * 7)}px;"${attribute}></td>`;                                                                              // Collect inner with 'margin' <td> tag via right-left padding 5, 12, 19..
 
   switch (branch.type)
          {
@@ -371,8 +373,8 @@ export class Sidebar extends Interface
   switch (status)
          {
           case undefined:
-          case -2:
                return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGUrlFooter(false);
+          case -2:
           case -1:
                return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + globals.SVGUrlFooter(false);
           default:

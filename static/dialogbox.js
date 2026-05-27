@@ -26,7 +26,10 @@ const CLEARELEMENTFROMUNNECESSARYPROPS	= 0b00001;
 // Function sets flag <name> to <value> of element <e>. Or return element <e> current flag value in case of undefined <value> arg. For 'readonly' flag non-undefined <value> arg just set readonly status of html interface element of <e>
 function SetFlag(e, name, value)
 {
- let flag, placeholder = e.flag.indexOf('+');
+ let flag;
+ if (typeof e.flag !== 'string') e.flag = '';
+ let placeholder = e.flag.indexOf('+');
+
  if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
 	{
 	 flag = e.flag.substring(0, placeholder);
@@ -83,12 +86,12 @@ function SetFlag(e, name, value)
 						   break;
 			   		 }
 	   		  readonly ? target.classList.add('readonlyfilter') : target.classList.remove('readonlyfilter'); // Add/remove readonly class (filter, cursor)
-			  return;
+			  return e;
 		 case 'underline':
 			  if (value === undefined) return flag.includes('*');
 			  e.flag = value ? flag + '*' : flag.replaceAll('*', '');
 			  e.flag += placeholder;
-			  return;
+			  return e;
 		 case 'placeholder':
 			  if (placeholder) return placeholder.substring(1);
 			  return e.type === 'select' ? 'Enter new profile name' : '';
@@ -97,11 +100,19 @@ function SetFlag(e, name, value)
 			  if (!flag.includes('-')) e.flag = flag + '-';
 			   else e.flag = flag.includes('a') ? flag.replaceAll(/a|\-/g, '') : (flag + 'a').replaceAll('-', '');
 			  e.flag += placeholder;
-			  return;
+			  return e;
 		 case 'interactive':
-			  return flag.includes('*') && e.type === 'button';
+			  if (value === undefined) return flag.includes('*') && e.type === 'button';
+			  if (e.type !== 'button') return e;
+			  if (value) { if (!flag.includes('*')) e.flag += '*'; }
+			   else { if (e.flag.includes('*')) e.flag = e.flag.replaceAll('*', ''); } 
+			  return e;
 		 case 'appliable':
-			  return flag.includes('a') && e.type === 'button';
+			  if (value === undefined) return flag.includes('a') && e.type === 'button';
+			  if (e.type !== 'button') return e;
+			  if (value) { if (!flag.includes('a')) e.flag += 'a'; }
+			   else { if (e.flag.includes('a')) e.flag = e.flag.replaceAll('a', ''); } 
+			  return e;
 		 case 'autoapply':
 			  return (flag.split('+').length - 1) * 60 + flag.split('-').length - 1;
 		}
@@ -299,23 +310,27 @@ export class DialogBox extends Interface
   // data
   if (typeof args[0] === 'string') args[0] = { message: { type: 'text', head: args[0].padEnd(60) } }; // Convrert string type data to object type
   if (!args[0] || typeof args[0] !== 'object') return; // Return for unknown dialog data
-  // title
-  if (typeof args[3] === 'string') args[0].title = { type: 'title', data: args[3] };
-  if (args[3] && typeof args[3] === 'object') args[0].title = args[3];
-  // ok
-  if (typeof args[4] === 'string') args[0].ok = { type: 'button', data: args[4], flag: 'a' };
-  if (args[4] && typeof args[4] === 'object') args[0].ok = args[4];
-  // cancel
-  if (typeof args[5] === 'string') args[0].cancel = { type: 'button', data: args[5], flag: '' };
-  if (args[5] && typeof args[5] === 'object') args[0].cancel = args[5];
-  // apply
-  if (typeof args[6] === 'string') args[0].apply = { type: 'button', data: args[6], flag: 'a*' };
-  if (args[6] && typeof args[6] === 'object') args[0].apply = args[6];
-
-  if (!args[2]) args[2] = {}; // Props
+  // props
+  if (!args[2]) args[2] = {};
   if (!args[2].control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
   if (!args[2].attributes) args[2].attributes = {};
   args[2]['attributes']['data-element'] = '_-1';
+  // Curstom title/buttons
+  let spaces = 0;
+  globals.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (ename.length > spaces) spaces = ename.length; }); // Calc prop max length and fill it by spaces
+  spaces = ' '.repeat(spaces);
+  // title
+  if (typeof args[3] === 'string' || args[3] === null) globals.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'title') delete profile[ename]; });
+  if (typeof args[3] === 'string') args[0][spaces + 'title'] = { type: 'title', data: args[3] };
+  // ok btn
+  if (typeof args[4] === 'string' || args[4] === null) globals.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && SetFlag(profile[ename], 'appliable') && !SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
+  if (typeof args[4] === 'string') args[0][spaces + 'ok'] = SetFlag({ type: 'button', data: args[4] }, 'appliable', true);
+  // cancel btn
+  if (typeof args[5] === 'string' || args[5] === null) globals.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && !SetFlag(profile[ename], 'appliable') && !SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
+  if (typeof args[5] === 'string') args[0][spaces + 'cancel'] = { type: 'button', data: args[5] };
+  // apply btn
+  if (typeof args[6] === 'string' || args[6] === null) globals.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && SetFlag(profile[ename], 'appliable') && SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
+  if (typeof args[6] === 'string') args[0][spaces + 'apply'] = SetFlag(SetFlag({ type: 'button', data: args[6] }, 'interactive', true), 'appliable', true);
 
   super(...args);
   this.RefreshDialog(CHECKSYNTAX | SETSERVICEDATA | SHOWDIALOGDATA);
@@ -637,7 +652,13 @@ export class DialogBox extends Interface
 
 		  case 'KILL':
   			   for (const button of this.Nodes.autoapplybuttons.values()) clearTimeout(button.timeoutid);	
-	       	   return { type: 'DYINGGASP' };
+			   if (!['CONFIRMDIALOG', 'CANCELDIALOG'].includes(event.data?.type)) event.data = { type: 'CANCELDIALOG' }; // No wrapped event generated by dialog btns, so KILL event is generated via 'close' control. Generate event 'CANCELDIALOG' then
+			   event.data.destination = this.parentchild; // Set dialog parent child as a dialog OK/CANCEL events destination
+	       	   return [ { type: 'DYINGGASP' }, event.data ];
+
+		  case 'KILLHUI':
+  			   for (const button of this.Nodes.autoapplybuttons.values()) clearTimeout(button.timeoutid);	
+	       	   return [ { type: 'DYINGGASP' }, { type: 'CANCELDIALOG', data: '', destination: this.parentchild } ];
 
 		  case 'DYINGGASP':
 			   this.lastkilleddropdownlist = event.data; // event.data = { e: this.data.e, event: event.data} }
@@ -669,15 +690,34 @@ export class DialogBox extends Interface
 
  ButtonApply(e, target)
  {
-  let events = [];
-  if (!['button', 'table'].includes(e.type) || this.SetFlag(e, 'readonly')) return;					// Return for disabled (or non button/table type) element
-  if (e.type === 'button' && !SetFlag(e, 'appliable')) return { type: 'KILL', destination: this };	// Return dialog kill for non-appliable button
-  if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;	// Return for non-appliable table element
+  let event, elementname = globals.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id);
+  if (!['button', 'table'].includes(e.type) || this.SetFlag(e, 'readonly')) return;																		// Return for disabled (or non button/table type) element
+  if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;														// Return for non-appliable table element
+  if (e.type === 'button' && !SetFlag(e, 'appliable')) return { type: 'KILL', destination: this, data: { type: 'CANCELDIALOG', data: elementname } };	// Return dialog kill for non-appliable button
+
+  // Element is appliable, cancel btns or non-appliable table elements were processed above. Todo0 - dialog box is not killed for interactive flag, so all service data stays untouched, but should be removed in order to pass to the handler. Workaround - create a dialog data copy and remove all unnecessary stuff
+  event = { type: 'CONFIRMDIALOG', data: e.type === 'button' ? elementname : target.attributes['data-id']?.value, destination: this.parentchild };
+
+  // Button is non interactive and element is not a table? Wrap dialog btn/table event in KILL event
+  if (!SetFlag(e, 'interactive') && e.type !== 'table')
+	 {
+	  event = { type: 'KILL', destination: this, data: event };
+	  this.RefreshDialog(RESTOREINITIALORDER | CLEARELEMENTFROMUNNECESSARYPROPS);
+	 }
+  return event;
+ }
+
+ ButtonApplyhui(e, target)
+ {
+  let events = [], elementname = globals.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id);
+  if (!['button', 'table'].includes(e.type) || this.SetFlag(e, 'readonly')) return;																									// Return for disabled (or non button/table type) element
+  if (e.type === 'button' && !SetFlag(e, 'appliable')) return [{ type: 'CANCELDIALOG', data: elementname, destination: this.parentchild }, { type: 'KILL', destination: this }];	// Return dialog kill for non-appliable button
+  if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;																					// Return for non-appliable table element
 
   // Element is appliable
   if (SetFlag(e, 'appliable'))
 	 {
-	  events.push({ type: 'CONFIRMDIALOG', data: e.type === 'button' ? this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id) : target.attributes['data-id']?.value, destination: this.parentchild });
+	  events.push({ type: 'CONFIRMDIALOG', data: e.type === 'button' ? elementname : target.attributes['data-id']?.value, destination: this.parentchild });
 	  // Todo0 - dialog box is not killed for interactive flag, so all service data stays untouched, but should be removed in order to pass to the handler. Workaround - create a dialog data copy and remove all unnecessary stuff
 	 }
 
@@ -690,33 +730,16 @@ export class DialogBox extends Interface
   return events;
  }
 
- // Function goes through dialog <profile> elements calling <callback> function for each one. Root <profile> and true <recursive> args iterate all dialog elements
- DialogProfileElementsAdjust(profile, recursive, callback, ...args)
- {
-  for (const ename in profile)
-	  {
-	   const e = profile[ename];
-	   const result = callback(profile, ename, ...args);
-	   if (result !== undefined) return result;
-	   if (recursive && e?.type === 'select' && e.data && typeof e.data === 'object')
-		  for (const profilename in e.data)
-			  {
-			   const result = this.DialogProfileElementsAdjust(e.data[profilename], true, callback, ...args);
-			   if (result !== undefined) return result;
-			  }
-	  }
- }
-
  // Refresh specified dialog entities
  RefreshDialog(flag)
  {
-  if (flag & CHECKSYNTAX) this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
-  if (flag & RESTOREINITIALORDER) this.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
-  if (flag & SETSERVICEDATA) this.InitDialogData();																					// Init dialog data for SETSERVICEDATA flag set
-  if (flag & SETSERVICEDATA) this.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this)); // Set every element service data (id, option array, padbar..)
-  if (flag & SETSERVICEDATA) this.DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);						// Create element expression to pass to eval func from original 'expr' element property
-  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																					// Show dialog box creating html from dialog data initial source (this.data)
-  if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) this.DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);// Clear element from unnecessary props
+  if (flag & CHECKSYNTAX) globals.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
+  if (flag & RESTOREINITIALORDER) globals.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
+  if (flag & SETSERVICEDATA) this.InitDialogData();																						// Init dialog data for SETSERVICEDATA flag set
+  if (flag & SETSERVICEDATA) globals.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this));	// Set every element service data (id, option array, padbar..)
+  if (flag & SETSERVICEDATA) globals.DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);							// Create element expression to pass to eval func from original 'expr' element property
+  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																						// Show dialog box creating html from dialog data initial source (this.data)
+  if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) globals.DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);	// Clear element from unnecessary props
  }
 
  // Init <elements> (element list)
@@ -954,3 +977,4 @@ export class DialogBox extends Interface
 // Todo0 - Use adjusted dialog data (without service props like id, padarea, options..) at interactive (or for non interactive too?) mode just the pure dialog data to be passed to the controller
 // Todo0 - table btn push should call the controller/callback with element 'table' data?
 // Todo0 - test all dialog features including table cells click that applies table data and send it to the controller
+// Todo0 - Input element with type=text autocomplete feature in 'expr' property?

@@ -340,6 +340,7 @@ export class Interface
  // Function kills specified child, rebuilds z-indexes and deletes its element from child array
  KillChild(id)
  {
+  if (!this.childs[id]) return;
   this.aindexes.splice(this.aindexes.indexOf(id), 1);
   if (app.control?.child === this.childs[id])																								// Current captured control is on killing child? Release it
 	 {
@@ -658,15 +659,16 @@ export class Interface
 
   for (const event of events)
 	  {
+	   console.log(`Interface new event detected:`, event);
 	   let childs;
 	   if (!event.source) event.source = this;
-	   if (event.destination === null) // Dispatch event to all childs of a source, other cases - to all source child neighbours (brothers and sisters)
+	   if (event.destination === null) // Dispatch event to all childs of a source
 		  {
 		   childs = [];
 		   for (const id in event.source.childs) 
 			   if (id !== '0') childs.push(event.source.childs[id]);
 		  }
-		else if (typeof event.destination !== 'object') // Dispatch event to all childs of a source, other cases - to all source child neighbours
+		else if (typeof event.destination !== 'object') // Or to all source child brothers and sisters in case of non-object destination (for a example, undefined)
 		  {
 		   childs = [];
 		   if (event.source.parentchild)
