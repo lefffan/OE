@@ -21,12 +21,12 @@ export class Sidebar extends Interface
       control.child.searchbar.classList.remove('growhide', 'is-collapsed');
       control.child.searchbar.classList.add('growshow');
       control.child.searchbar.style.visibility = 'visible';
-      control.child.searchinput.addEventListener('input', control.child.Handler.bind(control.child));
+      //control.child.searchinput.addEventListener('input', control.child.Handler.bind(control.child));
       control.child.UpdateSearchString();
      }
    else // Search bar was on, so remove it
      {
-      control.child.searchinput.removeEventListener('input', control.child.Handler.bind(control.child));
+      //control.child.searchinput.removeEventListener('input', control.child.Handler.bind(control.child));
       ///control.child.searchbar.style.display = 'none';
       control.child.searchbar.style.visibility = 'hidden';
       control.child.searchbar.classList.remove('growshow');
@@ -85,12 +85,17 @@ export class Sidebar extends Interface
   this.searchinput = document.createElement('input');
   this.searchinput.classList.add('searchinput');
   this.searchinput.setAttribute('placeholder', 'Type here to search the view');
+  this.searchinput.addEventListener('input', this.Handler.bind(this));
   this.contentbar = document.createElement('div')
   this.searchbar.appendChild(this.searchinput);
   this.elementDOM.appendChild(this.searchbar);
   this.elementDOM.appendChild(this.contentbar);
-  ///this.searchbar.style.display = 'none';
-  this.searchbar.addEventListener('transitionend', () => { this.searchbar.classList.remove(this.props.control.lupaicon.data ? 'growhide' : 'growshow'); this.searchinput.focus(); if (this.props.control.lupaicon.data) this.searchbar.style.height = ''; });
+  //this.searchbar.style.display = 'none';
+  this.searchbar.addEventListener('transitionend', () => {
+                                                          this.searchbar.classList.remove(this.props.control.lupaicon.data ? 'growhide' : 'growshow');
+                                                          this.searchinput.focus();
+                                                          if (this.props.control.lupaicon.data) this.searchbar.style.height = '';
+                                                         });
   this.searchbar.style.visibility = 'hidden';
  }
 

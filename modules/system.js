@@ -14,32 +14,24 @@ const USERPOLICYDIALOG = { title: { type: 'title', data: 'Policy settings' },
                            cancel: JSON.parse(globals.BUTTONCANCEL),
                          };
 //////////////////////////
-const USERMACROSDIALOG = { // Todo2 - make user-specific macroses?
-                           title: { type: 'title', data: 'Macroses' },
-                           macroses: { type: 'select', flag: '+Enter new macros name',
-                                       head: `Macros list~User macros list is an optional list of some text data associated with the specified macros name, which may be used in any database configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored. Loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`,
-                                       data: { 'New macros~+': { 10: { type: 'textarea', head: 'Macros value', data: '' },
-                                                                 20: { type: 'textarea', head: 'Macros description', data: '', flag: '*' } } } },
+const USERMACROSDIALOG = { // Todo2 - make user-specific macros?
+                           title: { type: 'title', data: 'Macros' },
+                           macroses: { type: 'select', flag: '+Enter new macro name',
+                                       head: `Macro list~User macro list is an optional list of some text data associated with the specified macro name, which may be used in any database configuration settings via js style quoted expression \${<macro name>}. Macros may be nested, so one macro may contain another. Macro loops, when one macro contains another that contains first one, are ignored. Loop case calculation value is set to empty string - when one macro contains another that contains first, this another macro receives an empty string as a first macro value`,
+                                       data: { 'New macro~+': { 10: { type: 'textarea', head: 'Macro value', data: '' },
+                                                                20: { type: 'textarea', head: 'Macro description', data: '', flag: '*' } } } },
                            ok: JSON.parse(globals.BUTTONOK),
                            cancel: JSON.parse(globals.BUTTONCANCEL),
                          };
 //////////////////////////
-const fixedouput	   = { data: { type: 'textarea', head: 'Enter output data', data: '' }, // (macros replacable)
-                         };
-const commandline	   = { data: { type: 'textarea', head: 'Command line', data: '' }, // User cmd to exec via spawn (macros replacable)
-                           //timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' and 'Eval' handler types only`, data: '30' },
-                           //retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0' },
-                           //shell: { type: 'checkbox', data: 'Shell' },
-                           output: { type: 'checkbox', head: 'Output types to process', data: 'stdout correct JSON~!/any stdout/stderr', expr: '/Disabled~!/type' }, // any stdout or stderr is checked for 'Process' apply action- this type of output is wrapped to { type: 'SET', data: <stdout/stderr>}. For 'Message' apply action any stdout/stderr is displayed as an info msg at client side
-                           action: { type: 'radio', head: 'Output apply action', data: 'Process~!/Message/Ignore', flag: '*' },
-                         };
-const evaluation	   = { data: { type: 'textarea', head: 'NodeJS script', data: '' }, // User code (macros replacable)
-                           action: { type: 'radio', head: 'Script result apply action', data: 'Process~!/Message/Ignore', flag: '*' },
-                         };
 const newevent         = { events: { type: 'select', head: 'Select event type', data: globals.CLIENTEVENTS.join(globals.OPTIONSDIVIDER) },
                            modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', expr: `/${[...globals.CALLBACKEVENTS, ...globals.MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
                            attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEVENT~\!|ONTIMER~\!)).*$/events' },
-                           handlers: { type: 'select', head: 'Select a handler output data redirection step', data: { 'Fixed output': fixedouput, 'Command line': commandline, 'Evaluation': evaluation, 'Disabled': {} } },
+                           handlertype: { type: 'select', head: 'Handler type', data: 'Disabled~!/Fixed output/Command line/Shell command line/Module function' },
+                           handlerdata: { type: 'textarea', head: 'Handler specific data', data: '', expr: '/Disabled~!/handlertype' },
+                           timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' and 'Eval' handler types only`, data: '30', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
+                           retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', flag: '', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
+                           output: { type: 'radio', head: 'Handler result action', data: `Apply~!/Wrap/Debug/Ignore`, expr: '/Disabled~!/handlertype' }, // any stdout or stderr is checked for 'Process' apply action - this type of output is wrapped to { type: 'SET', data: <stdout/stderr>}. For 'Message' apply action any stdout/stderr is displayed as an info msg at client side
                          };
 const neweventgroup    = { 10: { type: 'select', head: 'Select event profile', data: { 'New event~+': newevent }, flag: '*' } };
 const EVENTGROUPDIALOG = { title: { type: 'title', data: 'Event profiling' },
@@ -47,7 +39,7 @@ const EVENTGROUPDIALOG = { title: { type: 'title', data: 'Event profiling' },
                            ok: JSON.parse(globals.BUTTONOK),
                            cancel: JSON.parse(globals.BUTTONCANCEL),
                          };
-
+// 
 //////////////////////////
 const WARNINGDIALOG    = { title: { type: 'title', data: 'Warning' },
                            msg: { type: 'input' },

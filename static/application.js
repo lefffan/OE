@@ -80,17 +80,14 @@ export class Application extends Interface
 export let app;
 window.onload = function () { new Connection(null, app = new Application()); }; // Connection args: data, parent
 
-// Application architecture:
-// Todo1 - Make browser favicon more brighter and change it dinamycly to show unread msges presence
-// Todo1 - Intercept Alt+PrintScreen to copy image of current child to buffer?
+// Todo0 - Main goal is automize app configuration and fit that configuration to some template than can be easily set by the user
+// Todo1 - Make browser favicon more brighter and change it dinamycly to show unread msges presence (for opened views only)
+// Todo1 - Ctrl+PrintScreen to copy image of current active child to buffer
 // Todo2 - Custom cursor div via css style * {cursor: none;}
 // Todo0 - Make module based system, see Shemsetdinov justify src arch via require/import
 // Todo0 - Parse all files from old app version in php
 // Todo0 - app deploy (docker, zabbix-like) 
-// Todo0 - Main goal is automize app configuration and fit that configuration to some template than can be easily set by the user
-// Todo0 - removeEventListener func takes callback as a second arg. Is this arg correct when it looks like 'this.Handler.bind(this)'? Bind property creates a new link instance to the func with defined <this> every time, so removeEventListener doesn't know what to remove? Does it?
-// Todo0 - Reports of OD data via native postgres functional, ask Slava what reports he does to Megacom Bosses and ask Rozbah what we do need for FSB and others
-// Todo0 - Benefits:
+// Todo0 - Present app benefits:
 //  big amount of data with faster and quick perfomance
 //  data is native
 //  data constructor
@@ -99,6 +96,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //  don't add objects more than 100
 //  cell text is not writable in case of change from 'mark' to 'john', but not from 'john' to 'mark'
 //  to leave only last two versions create rule: delete from data_1 where id=:oid and version <= :postversion -2, odtable -> odid!
+// Todo2 - links:
 //  Y-combinator presentation: https://russol.info/kak-podat-zayavku-v-y-combinator-i-vyigrat
 //  Y-combinator presentation: https://vc.ru/life/96458-kak-my-pytalis-proiti-v-y-combinator-ot-zayavki-do-intervyu
 //  Y-combinator presentation: https://tass.ru/ekonomika/14542887
@@ -181,7 +179,6 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo - tech uchet, Wiki
 // Todo - Union some request apps (like Helpdesk or CRM) where one zayavka for helpdesk, podkluchenie, otkl, expluataciya.
 //	      Develop helpdesk - how does object selection should calculate expired orders/requests? Versions date difference is more than three days?
-//		  Ask Slava for HD analitycs
 //		  Group some orders to one parent to have opportunity to close/change(status) all childs orders via one parent order. Or one order may have multiple clients?
 //		  Order/requests reassignment to one person/department(otdel)
 //		  Client order/requests history
@@ -189,8 +186,24 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo - Alse some view examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 //										          arp table history for one ip/mac
 //                                                FSB request about our system ips perimetr, so every ip should have next types: client, service (web site, mail), system (ups, switch ip), net number, broadcast, free (if net number and broadcast are set correctly we can calc free nets)
+//                                                ask Slava what reports he does to Megacom Bosses (on HD or other systems) and ask Rozbah what we do need for FSB and others
 //                                                BTV asked to parse all wifi-sms clients, or all Sberbank (or all clients) активные подключения
 //                                                switches (nodes) with specified in dialog clients number (0,1,2, or more), nodes with two or more 8port swithes
-// Todo - Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka. See all these systems for new app functional
-// Todo - Paraga mail functional  
-// Todo - See analog: metabase/apache, superset, statsbot, looker, periscopedata
+// Todo - See some systems for new app functional: metabase/apache, superset, statsbot, looker, periscopedata, Paraga mail functional, Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka
+
+const newevent         = { events: { type: 'select', head: 'Select event type', data: globals.CLIENTEVENTS.join(globals.OPTIONSDIVIDER) },
+                           modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', expr: `/${[...globals.CALLBACKEVENTS, ...globals.MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
+                           attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEVENT~\!|ONTIMER~\!)).*$/events' },
+                           handlertype: { type: 'select', head: 'Handler type', data: 'Disabled~!/Fixed output/Command line/Shell command line/Module function' },
+                           handlerdata: { type: 'textarea', head: 'Handler specific data', data: '', expr: '/Disabled~!/handlertype' },
+                           timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' and 'Eval' handler types only`, data: '30', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
+                           retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', flag: '', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
+                           //output: { type: 'checkbox', head: 'Output types to process', data: 'stdout correct JSON~!/other stdout/stderr', expr: '/Disabled~!/handlertype' }, // any stdout or stderr is checked for 'Process' apply action - this type of output is wrapped to { type: 'SET', data: <stdout/stderr>}. For 'Message' apply action any stdout/stderr is displayed as an info msg at client side
+                           //action: { type: 'radio', head: 'Output apply action', data: 'Process~!/Message/Ignore', flag: '*', expr: '/Disabled~!/handlertype' },
+                           output: { type: 'radio', head: 'Handler result action', data: `Apply~!/Wrap/Debug/Ignore`, expr: '/Disabled~!/handlertype' }, // any stdout or stderr is checked for 'Process' apply action - this type of output is wrapped to { type: 'SET', data: <stdout/stderr>}. For 'Message' apply action any stdout/stderr is displayed as an info msg at client side
+                         };
+const neweventgroup    = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': newevent }, flag: '*' } };
+const EVENTGROUPDIALOG = { title: { type: 'title', data: 'Event profiling' },
+                           eventprofiles: { type: 'select', head: 'Select event group profile', data: { 'New event group~+': neweventgroup } },
+                           ok: JSON.parse(globals.BUTTONOK),
+                           cancel: JSON.parse(globals.BUTTONCANCEL),};

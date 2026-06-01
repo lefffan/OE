@@ -17,9 +17,9 @@ const TIMEOUTACCESS         = 'Server has closed connection due timeout, please 
 const UNDEFINEDQUERYRES     = 'Database query returned udnefined result!';
 const EMPTYQUERY            = 'OV query is empty!';
 const EMPTYODLIST           = 'OD list is empty!';
-const SYSTEMSTATICMACROS    = ['USERNAME', 'USERID', 'OD', 'OV', 'ODID', 'OVID', 'FIELDS', 'OID', 'EID', 'EPROP', 'EVENTNAME', 'EVENTDATA', 'RANDOM', 'DATE', 'TIME', 'DATETIME', 'NULL', 'DBDATATBLNAME'];
+const SYSTEMSTATICMACROS    = ['USERNAME', 'USERID', 'OD', 'OV', 'ODID', 'OVID', 'FIELDS', 'OID', 'EID', 'EPROP', 'ELEMENT', 'EVENTNAME', 'EVENTDATA', 'RANDOM', 'DATE', 'TIME', 'DATETIME', 'NULL', 'DBDATATBLNAME'];
 const SYSTEMDYNAMICMACROS   = ['LAYOUT'];
-const NORMALIZEDMACROS      = { username: 'USERNAME', userid: 'USERID', od: 'OD', ov: 'OV', odid: 'ODID', ovid: 'OVID', fields: 'FIELDS', oid: 'OID', eid: 'EID', eprop: 'EPROP', type: 'EVENTNAME', data: 'EVENTDATA' }; // Macros names for corresponded props in client event object
+const NORMALIZEDMACROS      = { username: 'USERNAME', userid: 'USERID', od: 'OD', ov: 'OV', odid: 'ODID', ovid: 'OVID', fields: 'FIELDS', oid: 'OID', eid: 'EID', eprop: 'EPROP', type: 'EVENTNAME', data: 'EVENTDATA' }; // Macro names for corresponded props in client event object
 const qm                    = new QueryMaker();
 
 export class Controller
@@ -163,11 +163,12 @@ export class Controller
  async Authenticate(username, password)
  {
   let hash;
+  const macroobject = { odid: "1", ovid:"1", ename: `${globals.ELEMENTCOLUMNPREFIX}2`, oid: `${globals.ELEMENTCOLUMNPREFIX}1='${username}'` };
   if (typeof username !== 'string' || !username) return { type: 'LOGINERROR', data: "User name couldn't be empty!" };
   if (typeof password !== 'string' || !password) return { type: 'LOGINERROR', data: "Password couldn't be empty!" };
 
   try {
-       hash = await this.MacrosReplace('$' + `{"odid":"1", "ovid":"1", "ename":"${globals.ELEMENTCOLUMNPREFIX}2", "oid":"${globals.ELEMENTCOLUMNPREFIX}1='${username}'"}`, {}); // First get username hash from OD 'Users'
+       hash = await this.GetObjectElementData(macroobject); // First get username hash from OD 'Users'. Old version: //hash = await this.MacrosReplace('$' + `{"odid":"1", "ovid":"1", "ename":"${globals.ELEMENTCOLUMNPREFIX}2", "oid":"${globals.ELEMENTCOLUMNPREFIX}1='${username}'"}`, {});
        if (!hash || !await argon2.verify(hash, password)) return { type: 'LOGINERROR', data: 'Wrong username or password!' }; // then compare it from input password
       }
   catch (error)
@@ -176,7 +177,7 @@ export class Controller
        return { type: 'LOGINERROR', data: 'Argon2 error: ' + error.message };
       }
 
-  const userid = await this.MacrosReplace('${"odid":"1", "ename":"id", "oid":"' + `${globals.ELEMENTCOLUMNPREFIX}1='${username}'` + '"}', {});
+  const userid = await this.GetObjectElementData(Object.assign(macroobject, { ename: 'id' })); // Change retrieving element name to 'id' and get element data (user id)
   const authcode = this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: userid, username: username });
   return { type: 'LOGINACK', data: { username: username, userid: userid, protocol: 'ws', ip: this.WS.ip, port: this.WS.port, authcode: authcode } };
  }
@@ -235,7 +236,7 @@ export class Controller
                     this.SendView(client, msg);
                     break;
 	           default:
-                    await this.ElementHandlerExec(msg, session);
+                    await this.ElementHandlerExec(client, msg, session);
 	          }
       }
   catch(error)
@@ -247,7 +248,7 @@ export class Controller
  // Function removes ro/wr OD roles from <roles> array. Empty/undefined/incorrect <roles> - all applcication roles are used (to delete them all on DB reset). Roles are for four sql read/write processes:
  // 1. OV display 'read' (own OD ro user for data/metr/meta tables only)
  // 2. Handler system calls 'write' (own OD rw user for data/metr tables only)
- // 3. Element data macroses 'read' (own OD ro user for data tables only, foreign OD OVs via permissions in OD conf, any OV - per user/OV restriction)
+ // 3. Element data macros 'read' (own OD ro user for data tables only, foreign OD OVs via permissions in OD conf, any OV - per user/OV restriction)
  // 4. Rules 'read/write' (own rw user per OD)
  async ManageRole(roles, drop, create)
  {
@@ -434,8 +435,8 @@ export class Controller
   // Correct OD dialog 'Rule' profile names (clone flag remove, +- flags add)
   globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Rule/rules', true), true, null, (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style));
 
-  // Correct OD dialog 'Macroses' profile names (clone flag remove, +- flags add)
-  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Database/settings/Macroses/macros', true), null, 'New macros', (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style));
+  // Correct OD dialog 'Macros' profile names (clone flag remove, +- flags add)
+  globals.ProcessDialogProfiles(globals.GetDialogElement(dialognew, 'padbar/Database/settings/Macros/macros', true), null, 'New macro', (data, option, name, flag, style) => globals.AdjustDialogProfileFlags(data, option, name, flag, style));
 
   return elementids; // elementids = { [id]: { method: 'CREATE|DROP', type: <columntype>, index: <columnindex> } }
  }
@@ -511,8 +512,6 @@ export class Controller
                     }
                  break;
            }
-       await this.SuckInODProps(dialognew, odid); // Refresh dialog data in memory
-       this.SendViewsToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
        await transaction.query(...qm.Make({ method: 'COMMIT' }));
       }
   catch(error)
@@ -526,9 +525,11 @@ export class Controller
       {
        if (transaction) transaction.release();
       }
+  // hui ended here - suck in user root event group and event profiles, but first adjust this event-group dialog
 
-  // Create readonly and read/write user roles for data, metr and meta tables in case of new OD creation (old Od instance <dialogold> doesn't exist)
-  if (!dialogold)
+  await this.SuckInODProps(dialognew, odid); // The transaction is completed successfully, so suck in to the memory new OD settings and send new OD/OV names to client for sidebar refresh, first - OD settings
+  this.SendViewsToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
+  if (!dialogold) // Create readonly and read/write user roles for data, metr and meta tables in case of new OD creation (old Od instance <dialogold> doesn't exist)
      {
       await this.ManageRole(`rouserodid${odid}`, true, true);
       await this.ManageRole(`rwuserodid${odid}`, true, true);
@@ -550,6 +551,11 @@ export class Controller
                     ruleprofiles: { /*[profilename]:,*/ },
                    };
 
+  // Get OD macros
+  const macros = globals.GetDialogElement(dialog, 'padbar/Database/settings/Macros/macros', true) || {};      
+  for (const macro in macros)
+      if (!globals.CompareOptionInSelectElement('New macro', macro)) this.ods[odid].replacements[macro.split('~', 1)] = macros[macro].value.data;
+
   // Go through all 'Element' elements to get its type, name and description
   const elements = globals.GetDialogElement(dialog, 'padbar/Element/elements', true) || {};
   for (const option in elements) if (id = globals.GetOptionNameId(option))
@@ -569,24 +575,20 @@ export class Controller
        const view = this.ods[odid].viewprofiles[id] = {};
        view.layout = globals.GetDialogElement(views[option], 'settings/Selection/layout', true).trim(); // Get view layout
        view.query = globals.GetDialogElement(views[option], 'settings/Selection/query', true).trim(); // Get view query
-       view.calldialog = globals.GetDialogElement(views[option], 'settings/Macroses/call', true); // Call or not dialog box before OV open
-       view.dialog = globals.GetDialogElement(views[option], 'settings/Macroses/dialog', true).trim(); // Macros dialog text area field
-       if (!view.dialog && view.calldialog) // Macros dialog field is empty and 'Call dialog' option is checked? Create dialog structure from 'View selection' and 'OD rule' fields
+       view.calldialog = globals.GetDialogElement(views[option], 'settings/Macros/call', true); // Call or not dialog box before OV open
+       view.dialog = globals.GetDialogElement(views[option], 'settings/Macros/dialog', true).trim(); // Macros dialog text area field
+       if (!view.dialog && view.calldialog) // Macro dialog field is empty and 'Call dialog' option is checked? Create dialog structure from 'View selection' and 'OD rule' fields
           {
-           const replacements = Object.assign(globals.SearchMacrosNames({}, view.layout, view.query), rulereplacements); // Search for macroses in view layout/query and rule message/query
-           for (const name in replacements) // Todo0 - highlight macros name with bold font
-               if (!SYSTEMSTATICMACROS.includes(name) && !this.IsSystemDynamicMacro(name)) view.dialog += `${view.dialog ? ', ' : ''}"${name}": { "type": "text", "head": "Enter macros '${name}' value", "data": "" }`;
+           const replacements = Object.assign(globals.SearchMacrosNames({}, view.layout, view.query), rulereplacements); // Search for macros in view layout/query and rule message/query
+           for (const macro in macros) if (!globals.CompareOptionInSelectElement('New macro', macro)) globals.SearchMacrosNames(replacements, macros[macro].value.data); // Search for nested macros in db macro values, collecting them to <replacements>
+           for (const name in replacements)
+               if (!SYSTEMSTATICMACROS.includes(name) && !this.IsSystemDynamicMacro(name) && !(name in this.ods[odid].replacements)) view.dialog += `${view.dialog ? ', ' : ''}"${name}": { "type": "text", "head": "Enter macro '<b>${name}</b>' value", "data": "" }`;
            if (view.dialog) view.dialog = `{ "${SYSTEMSTATICMACROS[0]}": { "type": "title", "data": "Macros definition dialog" }, "${SYSTEMSTATICMACROS[1]}": ${globals.BUTTONOK}, "${SYSTEMSTATICMACROS[2]}": ${globals.BUTTONCANCEL}, ${view.dialog} }`; // and create macros dialog JSON. Todo0 - appliable flag manual set violates app conception
           }
-       try { view.dialog = JSON.parse(view.dialog); } // Parse macros dialog to object and retrieve all macros values from text interface elements below
-       catch { view.dialog = {}; }
+       try { view.dialog = JSON.parse(view.dialog); } // Parse macro dialog to object and retrieve all macro values from text interface elements below
+       catch { view.dialog = view.dialog ? { a: { type: "title", data: 'Info' }, b: { type: "text", head: view.dialog }, c: JSON.parse(globals.BUTTONOK) } : {}; }
        view.replacements = globals.GetDialogMacrosValues(view.dialog);
       }
-
-  // Get OD macroses
-  const macroses = globals.GetDialogElement(dialog, 'padbar/Database/settings/Macroses/macros', true) || {};      
-  for (const macros in macroses)
-      if (!globals.CompareOptionInSelectElement('New macros', macros)) this.ods[odid].replacements[macros.split('~', 1)] = macroses[macros].value.data;
  }
  
  // { type: 'SIDEBARSET', odid: 13, path: 'System/Users', ov: { 1: ['test/view1a', '/vie1b'], 2: ['/folder/View2c', 'test/view2d'] } }
@@ -609,7 +611,7 @@ export class Controller
             if (typeof aliases !== 'string' || typeof ovid !== 'string') throw new Error(INCORRECTDBCONFDIALOG); // Throw an error for incorrect view profile
             msg.data.ov[ovid] = []; // Create aliases array first
             for (let alias of aliases.split('\n')) // and split aliases data to one by line alias to add it to message 'ov' array
-                if (alias = alias.trim()) msg.data.ov[ovid].push(alias);
+                if ((alias = alias.trim()) && !msg.data.ov[ovid].includes(alias)) msg.data.ov[ovid].push(alias);
            }
        if (value.socket) value.socket.send(JSON.stringify(msg));
       }
@@ -619,7 +621,7 @@ export class Controller
  // |  row: boolean expression                        | vars <r>, <c>, <table> based expression (boolean result) to match the selection row ; empty property is a faulsy case, so no any row matched
  // |  col: id|owner|e1|e2..|count(*)|${e1_prop}||    | sql select statement operands (columns); empty col - any already defined col from previous jsons are used; 
  // |  x,y: number expression                         | vars <r>, <c>, <table> based expression (number result) to place the cell with x,y props table coordinates. Vars <r> and <c> are undefined for virtual cells
- // |  value: string [expression]                     | For virtual cells only - macros form vars <x>, <y>, <table> based expression (string result) to overwrite cell text content which is dinamycly refreshed at any table data refresh
+ // |  value: string [expression]                     | For virtual cells only - macro form vars <x>, <y>, <table> based expression (string result) to overwrite cell text content which is dinamycly refreshed at any table data refresh
  // |  hint: clear text                               | Cell hint text
  // |  style: clear text                              | Cell html element style attribute value
  // |  collapserow, collapsecol: clear text           | These prop any value does collapse whole table rows/columns (for cell) and undefined rows/columns (for table)
@@ -696,7 +698,7 @@ export class Controller
      }
 
   const view = this.ods[msg.data.odid].viewprofiles[msg.data.ovid];
-  if (Object.keys(view.dialog).length && view.calldialog && !msg.data.macros) // if macros dialog (<view.dialog>) is not empty and 'call' option (<view.calldialog>) is set - send macros definition dialog to the client side. Note that in case of client side responce with macroses already defined (<msg.data.dialog> is set) client-side sending dialog is not needed
+  if (Object.keys(view.dialog).length && view.calldialog && !msg.data.macros) // if macro dialog (<view.dialog>) is not empty and 'call' option (<view.calldialog>) is set - send macro definition dialog to the client side. Note that in case of client side responce with macros already defined (<msg.data.dialog> is set) client-side sending dialog is not needed
      {
       msg.data.dialog = view.dialog;
       client.send(JSON.stringify(msg));
@@ -713,11 +715,9 @@ export class Controller
   if (/\$\{.*\}/.test(query + layout) || Object.keys(this.ods[msg.data.odid].rulereplacements).length) // Layout, query or rule profiles do contain any macro? Do replacing below
      {
       Object.assign(replacements, systemmacros, this.ods[msg.data.odid].replacements, view.actualreplacements); // Collect all macro groups for 'GETVIEW' client event (except FIELDS macro)
-      layout = await this.MacrosReplace(layout, replacements); // Replace macros in layout
-      console.log('layout------------------------------------------', layout);
+      layout = await this.MacrosReplace(layout, replacements); // Replace macro in layout
       layout = this.ParseViewLayout(layout, msg.data.odid); // and get layout object
       Object.assign(replacements, { FIELDS: layout.fields.join(',') }); // Get FIELD macro (sql request all columns) from layout object
-      console.log('replacements------------------------------------------', replacements);
       query = await this.MacrosReplace(query, replacements); // and replace macros in query
      }
    else // Layout and query do not contain any macro, so just parse 'layout' json and leave 'query' untouched
@@ -768,10 +768,10 @@ export class Controller
  // Macros types:
  //     System (General): ${RANDOM} ${DATE} ${DATETIME} ${TIME} ${NULL} ${USERNAME} ${USERID} ${DBDATATBLNAME}
  //     System (View):    ${OD} ${OV} ${ODID} ${OVID} ${FIELDS} ${LAYOUT H,N,id,1,2,3} 
- //     System (Event):   ${EVENTNAME} ${OID} ${EID} ${EPROP} ${EVENTDATA}
+ //     System (Event):   ${EVENTNAME} ${OID} ${EID} ${EPROP} ${EVENTDATA} ${ELEMENT}
  //     Element:          ${"odid": "6", "oid": "id=7 AND lastversion=true", "ename": "edi2", "eprop": "value", "limit": "1" }, all macros names in parentheses are interpreted as usual macros names, except ones in JSON format. Once the string inside is any correct JSON, it becomes 'element' type macros and defines object element to retreive the data from
  //     Dialog:           OV args in OD settings
- //     Database:         macroses in general OD settings
+ //     Database:         macros in general OD settings
  // Application processes with macros types order to apply:
  //     Selection 'layout'/'query' fields at OV calls:             dialog, database, system (view-general)
  //     Rule 'message'/'query' fields at client/handler events:    dialog, database, system (view-general-event)
@@ -788,9 +788,15 @@ export class Controller
  DefineSystemMacros(...args)
  {
   const now = new Date();
-  const systemmacros = { RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}' }; // Another macroses that should be defined right now
+  const ELEMENT = {};
+  for (const arg of args) // Var <arg> is an object with macro names as a keys and so corresponded macro values
+      {
+       if ('eid' in arg) ELEMENT.EID = arg.eid;
+       if ('eprop' in arg) ELEMENT.PROP = arg.prop;
+      }
+  const systemmacros = { RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}', ELEMENT: JSON.stringify(ELEMENT) }; // Another macros that should be defined right now. Todo0 - check ELEMENT macro replacement
 
-  for (const prop in NORMALIZEDMACROS) // Iterate all macroses to retrieve its values from args list
+  for (const prop in NORMALIZEDMACROS) // Iterate all macros to retrieve its values from args list
   for (const arg of args) // Var <arg> is an object with macro names as a keys and so corresponded macro values
       {
        if (!(prop in arg)) continue; // Go to below for the macros name exists in <arg>
@@ -836,63 +842,62 @@ export class Controller
 
  async MacrosReplace(string, replacements, chain = {})
  {
-  let macrosvalue, newstring = '';
+  let macrovalue, newstring = '';
   chain = Object.assign({}, chain);
 
   while (true)
         {
-         const pos1 = string.indexOf('${'); // Search start of macros
+         const pos1 = string.indexOf('${'); // Search start of macro
          if (pos1 === -1) return newstring + string; // No found? return previous result plus current
-         const pos2 = string.indexOf('}', pos1); // Search end of macros
+         const pos2 = string.indexOf('}', pos1); // Search end of macro
          if (pos2 === -1 ) return newstring + string; // No found? return previous result plus current
-         const macrosname = string.substring(pos1 + 2, pos2); // Retrieve macros name
-         macrosvalue = ''; // Set macros value default value, so loop/undefined macroses cause an error and remains empty
-         if (macrosname in replacements) // Macros does exist, so get its value via recursive function call
+         const macroname = string.substring(pos1 + 2, pos2); // Retrieve macro name
+         macrovalue = ''; // Set macro value default value, so loop/undefined macros cause an error and remains empty
+         if (macroname in replacements) // Macro does exist, so get its value via recursive function call
             {
-             if (!(macrosname in chain)) macrosvalue = await this.MacrosReplace(replacements[macrosname], replacements, Object.assign(chain, { [macrosname]: true }));
+             if (!(macroname in chain)) macrovalue = await this.MacrosReplace(replacements[macroname], replacements, Object.assign({ [macroname]: true }, chain));
             }
-          else // Macros doesn't exist, so check it for JSON format
+          else // Macro doesn't exist, so check it for JSON format
             {
-             try { macrosvalue = JSON.parse(`{${macrosname}}`); }
+             try { if (globals.CLIENTEVENTS.includes(replacements.EVENTNAME)) macrovalue = JSON.parse(`{${macroname}}`); } // JSON macros are parsed for client/controller events only
              catch {}
-             let transaction, elementdata;
-             if (macrosvalue) // Macros name is a JSON, so try to retrieve OD/OV JSON specified object element data
-                {
-                 try {
-                      transaction = await this.pool.connect();
-                      await transaction.query(...qm.Make({ method: 'BEGIN', role: `rouserodid${macrosvalue.odid}` }));
-                      macrosvalue.ename = qm.ExtractJSONPropField(macrosvalue.ename, macrosvalue.eprop);
-                      elementdata = await transaction.query(...qm.Make({ method: 'SELECT', fields: macrosvalue.ename, table: `data_${macrosvalue.odid}`, where: macrosvalue.oid, limit: macrosvalue.limit ? macrosvalue.limit : '' }, { rowMode: 'array' }));
-                      await transaction.query(...qm.Make({ method: 'COMMIT' }));
-                      if (Array.isArray(elementdata)) elementdata = elementdata[0]; // In case of multiple queries - get first one only!
-                      elementdata = elementdata?.rows?.[0]?.[0]; // In case of row mode, the result is returned in 2d array with rows and columns. Get 1st column of a 1st row
-                      if (['boolean', 'number'].includes(typeof elementdata)) elementdata += '';
-                     }
-                 catch(error)
-                     {
-                      await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
-                      console.error(error.stack);
-                      elementdata = error.message;
-                     }
-                 finally
-                     {
-                      if (transaction) transaction.release();
-                      macrosvalue = typeof elementdata === 'string' ? elementdata : '';
-                     }
-                }
-              else if (this.IsSystemDynamicMacro(macrosname)) macrosvalue = this[`DefineMacro${this.IsSystemDynamicMacro(macrosname)}`](macrosname);// Macros name is not JSON, so check if it is dynamic and call appropriate function in case
+             if (macrovalue) macrovalue = await this.GetObjectElementData(macrovalue); // Macro name is a JSON, so try to retrieve OD/OV JSON specified object element data
+              else if (this.IsSystemDynamicMacro(macroname)) macrovalue = this[`DefineMacro${this.IsSystemDynamicMacro(macroname)}`](macroname);// Macro name is not JSON, so check if it is dynamic and call appropriate function in case
             }
-         newstring += string.substring(0, pos1) + macrosvalue; // Collect newstring with macros value
+         newstring += string.substring(0, pos1) + macrovalue; // Collect newstring with macro value
          string = string.substring(pos2 + 1); // and redefine remaining part to pass it for next cycle
         }
  }
   
- // Function gets element data based on <macrosobject> props
- async GetElementData(macrosobject)
+ // Function gets object element data. Object id and element id are retrieved from macro object
+ async GetObjectElementData(macroobject)
  {
+  let transaction, elementdata;
+  try {
+       transaction = await this.pool.connect();
+       await transaction.query(...qm.Make({ method: 'BEGIN', role: `rouserodid${macroobject.odid}` }));
+       macroobject.ename = qm.ExtractJSONPropField(macroobject.ename, macroobject.eprop);
+       elementdata = await transaction.query(...qm.Make({ method: 'SELECT', fields: macroobject.ename, table: `data_${macroobject.odid}`, where: macroobject.oid, limit: macroobject.limit ? macroobject.limit : '' }, { rowMode: 'array' }));
+       await transaction.query(...qm.Make({ method: 'COMMIT' }));
+       if (Array.isArray(elementdata)) elementdata = elementdata[0]; // In case of multiple queries - get first one only!
+       elementdata = elementdata?.rows?.[0]?.[0]; // In case of row mode, the result is returned in 2d array with rows and columns. Get 1st column of a 1st row
+      }
+  catch(error)
+      {
+       await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
+       console.error(error.stack);
+       elementdata = ''; // or elementdata = error.message;
+      }
+  finally
+      {
+       if (transaction) transaction.release();
+      }
+
+  if (['boolean', 'number'].includes(typeof elementdata)) elementdata += ''; // Convert boolean/number types to string
+  return typeof elementdata === 'string' ? elementdata : ''; // Return empty string for all non string types
  }
 
- async ElementHandlerExec(msg, session)
+ async ElementHandlerExec(client, msg, session)
  {
   switch (msg.type)
          {
@@ -952,4 +957,4 @@ export class Controller
 // Todo0 - EDIT event autocomplete feature of predefined values (for a example company clients) and allowed chars
 // Todo0 - Native handler that get user online/offline status with datetime timestamp and current instances number logged in
 // Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
-// Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example: query - SELECT id FROM, layout - col=id, OV restrictions not viewable for any, event handler with element macros - {"ename": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}, result - based on input arg (macros ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"
+// Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example: query - SELECT id FROM, layout - col=id, OV restrictions not viewable for any, event handler with element macro - {"ename": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}, result - based on input arg (macro ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"

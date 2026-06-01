@@ -727,7 +727,7 @@ const CHILDCONTROLTEMPLATES		 = {
 							   		default: { callback: [] }, 
 							  	   };
 
-// Todo1 - Some boxes may stick to another one, example OV boxes may stick to sidebar box or to parent box edges
+// Todo1 - Some boxes may stick to another, example - OV boxes may stick to sidebar box or to parent box edges
 // Todo0 - Add minimize 'cm' icon (in minimize mode 'maximize' and 'close' cm-buttons are available) and scale 'cm' icon that scale child div. Close control action should be questionable (optionally)
 // Todo1 - Control hint at cursor navigating ('close', 'fullscreen'..)
 // Todo2 - Set cursor at scrollbar priority to the child control (cursor at scrollbar track closes the box, but shouldn't). Set cursor child control priority to default child hanlder and div elements hover (resizing cursor is not shown on OV cells but should)

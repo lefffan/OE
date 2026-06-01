@@ -171,10 +171,10 @@ function CreateSelectableElementData(e)
 	  				 `${option.style ? FIELDSDIVIDER + option.style : '' }`;
       if (typeof e.data === 'object')
 		 {
-	  	  if (origin === option.origin) continue;				// Should option origin be changed in order to changed checked status? Continue if no
-	  	  e.data[origin] = e.data[option.origin];				// Otherwise change e.data profile name due to changed flags
-	  	  delete e.data[option.origin];
-	  	  option.origin = origin;
+	  	  const originoption = e.data[option.origin];			// Save origin option object
+	  	  delete e.data[option.origin];							// Delete link in element data for that origin option object
+	  	  e.data[origin] = originoption;						// Bind new option name in element data to origin option object keeping default object props appearance unchanged! Otherwise any option name change (check/uncheck, active option remove and so on) forces sort order broken!
+	  	  option.origin = origin;								// and change <origin> name (option name) to new one regardless of whether it has changed or not
 		  continue;
 		 }
 	  e.data += i === '0' ? origin : OPTIONSDIVIDER + origin; 	// Collect data (/name~flags~style/) for each option for usual selectable element with e.data string type
@@ -193,9 +193,9 @@ function CorrectCheckedOptions(e)
  for (let i = e.options.length - 1; i >= 0; i--)												// Go through all options begining with last one
 	 {
    	  if (e.options[i].checked) checkedcount++;													// Fix checked options number
-	  if (e.options[i].checked && checkedcount > 1) e.options[i].checked = false;					// Any option already checked? uncheck it
+	  if (e.options[i].checked && checkedcount > 1) e.options[i].checked = false;				// Current option is checked and any option already checked? uncheck it
 	 }
- if (!checkedcount && e.type === 'select' && e.options.length) e.options[0].checked = true;							// First option is forced checked for no any option checked (for 'select' type element only)
+ if (!checkedcount && e.type === 'select' && e.options.length) e.options[0].checked = true;		// First option is forced checked for no any option checked (for 'select' type element only)
  if ((!checkedcount && e.type === 'select') || checkedcount > 1) CreateSelectableElementData(e);// Element checked options number is changed? Correct element data then
 }
 
@@ -490,7 +490,6 @@ export class DialogBox extends Interface
  RemoveTextInput()
  {
   if (!this.Nodes.CloneInput.e.padbar) this.Nodes.CloneInput.div.parentNode.firstChild.style.display = 'block';				// For non-pad prfile clone display block 'select' DOM element
-  this.Nodes.CloneInput.input.removeEventListener('blur', this.Handler.bind(this));									// Remove event listener from 'input' DOM element
   this.Nodes.CloneInput.div.remove();																					// Remove input and its wrap div elements from DOM
   this.Nodes.CloneInput.input.remove();
   delete this.Nodes.CloneInput;																							

@@ -18,7 +18,7 @@ export const HTMLINNERENCODEMAP		  = [['&', '<', '>', '\n', ' ', '"'], ['&amp;',
 export const HTMLINNERDECODEMAP		  = [['&amp;', '&lt;', '&gt;', '<br>', '&nbsp;', '&quot;'], ['&', '<', '>', '\n', ' ', '"']];
 export const TAGATTRIBUTEENCODEMAP	= [['<', '>', '\n', '"'], ['&lt;', '&gt;', '', '&quot;']];
 export const TAGHTMLCODEMAP		      = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
-export const ELEMENTINNERALLOWEDTAGS= ['span', 'pre', 'br'];
+export const ELEMENTINNERALLOWEDTAGS= ['span', 'pre', 'br', 'b'];
 export const ELEMENTCOLUMNPREFIX    = 'eid';
 export const FIELDSDIVIDER          = '~';
 export const USERNAMEMAXCHAR        = 255;
@@ -1552,10 +1552,10 @@ const DATABASEPAD = { settings: { type: 'select', head: 'Select object database 
                                 Element: { type: 'textarea', data: '', head: `Restrict this dialog 'Element' section modify for next user/group list` },
                                 View: { type: 'textarea', data: '', head: `Restrict this dialog 'View' section modify for next user/group list` },
                                 Rule: { type: 'textarea', data: '', head: `Restrict this dialog 'Rule' section modify for next user/group list`}, },
-                      Macroses: {
-                                 macros: { type: 'select', flag: '+Enter new macros name', head: `Macros list~Database macros list is an optional list of some text data associated with the specified macros names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macros name>}. Macroses may be nested, so one macros may contain another. Macros loops, when one macros contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macros contains another that contains first, this another macros receives an empty string as a first macros value`, data: { 'New macros~+-': {
-                                 value: { type: 'textarea', head: 'Macros value~Text to submit macros name', data: '' },
-                                 description: { type: 'textarea', head: 'Macros description~Enter some text here to describe macros uasge', flag: '*', data: '' }, }, } }
+                      Macros: {
+                                 macros: { type: 'select', flag: '+Enter new macro name', head: `Macro list~Database macro list is an optional list of some text data associated with the specified macro names that can be replaced in some database or user properties text configuration settings via js style quoted expression \${<macro name>}. Macros may be nested, so one macro may contain another. Macro loops, when one macro contains another that contains first one, are ignored, so loop case calculation value is set to empty string - when one macro contains another that contains first, this another macro receives an empty string as a first macro value`, data: { 'New macro~+-': {
+                                 value: { type: 'textarea', head: 'Macro value~Text to submit macro name', data: '' },
+                                 description: { type: 'textarea', head: 'Macro description~Enter some text here to describe macro uasge', flag: '*', data: '' }, }, } }
     
                     },},},};
     
@@ -1570,7 +1570,7 @@ const ELEMENTPAD = {
 
 const VIEWPAD = {
                  views: { type: 'select', head: 'View profile~Set view properties and clone this template to create new view', data: { 'New view template~+': {
-                 settings:  { type: 'select', head: 'Select view settings', flag: '*', data: {
+                 settings:  { type: 'select', head: 'Select view setting', flag: '*', data: {
                  General: {
                            name: { type: 'textarea', data: '', flag: '+Enter view name', head: `Name~Enter here view name list (one by line). All names will be sidebar displayed according their paths. Usually second and other ones are used as alias names to be placed in favorites. No view names specified - the view is sidebar hidden, but still can be called to open from event handlers or shortcut keys` },
                            description: { type: 'textarea', head: `Description~Describe here view purpose and its usage`, data: '' },
@@ -1581,8 +1581,8 @@ const VIEWPAD = {
                            layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '' },
                            query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = 1' },
                            linkname: { type: 'text', head: 'Link~Object selection link name', data: '' }, }, 
-                 Macroses: {
-                           call: { type: 'checkbox', data: 'Call dialog', head: `Macros definition dialog~This OV Macroses for 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user manually via dialog that is called at client side before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't, but all macros values in dialog structure below are applied anyway. Trimmed text area below is empty - dialog structure for all mentioned macroses in 'View selection' and 'OD Rule' are created automatically. Dialog structure interface element property name is a macros name, input field content - macros value (for 'textarea', 'text', 'password', 'select', 'radio' and 'checkbox' interface element types only). Dialog structure defined macroses are applied regardless of 'Call dialog' option. Dialog structure should contain input fields only, dialog title with 'OK'/'CANCEL' buttons are added automatically. Client side dialog call may be used not for macros definitions, but for info/warning message display before OV open. Macros 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macros SOMEMACROS value", "data": "" } }` },
+                 Macros: {
+                           call: { type: 'checkbox', data: 'Call dialog', head: `Macro definition dialog~This OV macros for 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user manually via dialog that is called at client side before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't, but all macro values in dialog structure below are applied anyway. Trimmed text area below is empty - dialog structure for all mentioned macros in 'View selection' and 'OD Rule' are created automatically. Dialog structure interface element property name is a macro name, input field content - macro value (for 'textarea', 'text', 'password', 'select', 'radio' and 'checkbox' interface element types only). Dialog structure defined macros are applied regardless of 'Call dialog' option. Dialog structure should contain input fields only, dialog title with 'OK'/'CANCEL' buttons are added automatically. Client side dialog call may be used not for macro definitions, but for info/warning message display before OV open. Macro 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macro SOMEMACROS value", "data": "" } }` },
                            dialog: { type: 'textarea', head: '', data: '', flag: '*' }, }, 
                  Appearance: {
                            a: { type: 'radio', head: 'Window init~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Browser new tab' },
@@ -1604,7 +1604,7 @@ const RULEPAD = {
                  rules: { type: 'select', head: 'Rule profile~Set rule properties and clone this template to create new rule. Rules are tested in alphabetical order one by one until the rule query is successful, the rule action is applied then', data: { 'New rule template~+': {
                            message: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
                            action: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
-                           query: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macroses (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
+                           query: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macros (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
                            log: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' },
                 }, }, } };
 
@@ -1615,18 +1615,19 @@ export const NEWOBJECTDATABASE = {
                            cancel: { style: 'background: rgb(227,125,87);', type: 'button', data: 'CANCEL', flag: '++++++++++' },
                           };
 
-export function SearchMacrosNames(macrosnames, ...strings)
+export function SearchMacrosNames(macronames, ...strings)
 {
  for (let string of strings)
      if (typeof string === 'string') while (true)
         {
-         const pos1 = string.indexOf('${'); // Search start of macros
-         const pos2 = string.indexOf('}'); // and the finish
-         if (pos1 === -1 || pos2 === -1 || pos1 > pos2) break;
-         macrosnames[string.substring(pos1 + 2, pos2)] = ''; // Add new macros name
+         const pos1 = string.indexOf('${'); // Search start of macro
+         if (pos1 === -1) break;
+         const pos2 = string.indexOf('}', pos1); // and the finish
+         if (pos2 === -1) break;
+         macronames[string.substring(pos1 + 2, pos2)] = ''; // Add new macro name
          string = string.substring(pos2 + 1); // and redefine remaining part to pass it for next cycle
         }
- return macrosnames;
+ return macronames;
 }
                            
 // Function makes a deep source object merge to target (only non object props are copied, for object type props are new instance are created)
@@ -1639,8 +1640,8 @@ function ObjectMerge(target, source)
 const USERODLAYOUTOLD = `"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
 "row":"r < 9", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+4", "s tyle": "color: red;"}
 {"row":"r < 9", "col":"id|ownerid|owner|datetime|eid1", "x":"c", "y":"r+4"}
-"row":"r%2===1 || r%2===-1", "col":"id", "attributes": "title=\"@@@@@@@@@\" style=\"background-color: green;\"", "value":"HUIIII"}
-{"r ow":"r%2===1 || r%2===-1", "row":"1", "col":"", "s tyle": "color: red;", "v alue":"HUIIII", "hint":"@@@@@@@@#%^&*("}
+"row":"r%2===1 || r%2===-1", "col":"id", "attributes": "title=\"@@@@@@@@@\" style=\"background-color: green;\"", "value":"HERIII"}
+{"r ow":"r%2===1 || r%2===-1", "row":"1", "col":"", "s tyle": "color: red;", "v alue":"TESTESTESTESTES", "hint":"@@@@@@@@#%^&*("}
 {"event":"", "x":"0", "y":"13311"}
 {"ow":"r === -1", "col":"", "x":"c", "y":"19", "s tyle": "color: red;"}`;
 

@@ -141,3 +141,5 @@ export class QueryMaker
 //         \c postgres postgres; 
 //         \d <table> - DESCRIBE TABLE
 //         set client_encoding='win1251'; chcp 1251 SHOW SERVER_ENCODING; SHOW CLIENT_ENCODING;
+//         JSON functions and operators https://postgrespro.ru/docs/postgresql/14/functions-json
+//         SELECT operator https://postgrespro.ru/docs/postgresql/14/sql-select

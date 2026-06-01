@@ -493,7 +493,6 @@ export class View extends Interface
   // Step 1 - display some messages if needed and return
   this.data.status = dialogmsg ? -2 : 100; // Set 'pending' status for OV macros dialog or 100% loaded otherwise
   const event = { type: 'SIDEBARVIEWSTATUS', data: Object.assign(this.data, { childid: this.id }) }; // Fix refresh sidebar OV status event
-  // hui ended here - macros(es) -> macro; Handler-EventManager for all 
   this.props.control.mouseareaselect.elements = [];
   if (errormsg || warningmsg || dialogmsg)
      {
@@ -943,7 +942,7 @@ export class View extends Interface
 // Todo - Export OV data to xls(via csv) or txt file
 // Todo - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
 // Todo - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
-// Todo - macroses like in joe
+// Todo - macros like in joe
 // Todo - Context menu Graph
 //        Table selection of this strings and values (dlink space, snr space, eltex space..) displays pie chart with dlink - 100%, and 0% for other values, is it right?
 // Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event or PASTE to specific object element
