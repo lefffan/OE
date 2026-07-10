@@ -396,8 +396,6 @@ const ARROW         = [ globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 1
 const LUPA          =   globals.SVGUrlHeader(12, 12) + globals.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + globals.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + globals.SVGUrlFooter();
 
 // Todo0 - OV description as a hint on taskbar OV navigation
-// Todo0 - new sidebar control to hint folder/vew/db number or user and hints for every sidebar control
+// Todo0 - Make lupa icon is painted with the color while searching and hint for lupa icon with some sidebar statistics (folder/vew/db number, for a example)
 // Todo0 - Create new sidebar control to set sidebar-child ontop or non-ontop
-// Todo0 - Global func to return background svg for up/down arrows with user defined color
-// Todo0 - Do not place global css style props starting with space/underline char to user customization dialog, so dialog arrows classes from index.html will be replaced to dialogbox.js module
-// Todo0 - Make sidebar icon twice bigger and lupa icon is painted with the color while searching
+// Todo0 - Search text in regexp format may consists of OD/OV ids via space to display them only

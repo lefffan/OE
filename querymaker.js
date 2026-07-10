@@ -123,6 +123,10 @@ export class QueryMaker
                return 'COMMIT';
           case 'ROLLBACK':
                return 'ROLLBACK';
+          case 'EXISTS':
+               return `SELECT EXISTS (SELECT 1 FROM (${props.query}) AS subquery ${this.Join(props, ' AND ')})`;
+          case 'GETQUERYTABLENAME':
+               return `SELECT ${props.table}::regclass::text AS tblname`; // Get table oid first: const tableOid = result.fields[0]?.tableID; Then table name via that tbl oid: const tableName = resTable.rows[0].tblname;
           default:
                return props.query;
          }

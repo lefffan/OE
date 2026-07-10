@@ -21,7 +21,24 @@ export const TAGHTMLCODEMAP		      = [['<', '>', '\n'], ['&lt;', '&gt;', '']];
 export const ELEMENTINNERALLOWEDTAGS= ['span', 'pre', 'br', 'b'];
 export const ELEMENTCOLUMNPREFIX    = 'eid';
 export const FIELDSDIVIDER          = '~';
+export const OPTIONISCHECKED				= '!';
 export const USERNAMEMAXCHAR        = 255;
+export const WARNINGDIALOG          = { title: { type: 'title', data: 'Warning' },
+                                        msg: { type: 'input' },
+                                        ok: { type: 'button', data: '  OK  ' }
+                                      };
+export const USERPOLICYDIALOG       = { title: { type: 'title', data: 'Policy settings' },
+                                        groups: { type: 'textarea', head: 'Groups~Enter group names one by line the user belongs to. User groups are defined here only and act as kind of user tags in any user specific permission/restriction settings. Any names in that kind of settings are interpreted as user names, in case of no user name found - as a group name', data: '' },
+                                        instances: { type: 'text', head: 'Logged-in instances~Zero value disables login and SCHEDULE event from the user. Empty/incorrect value - no instances limit', data: '1' },
+                                        timeout: { type: 'text', head: 'Idle timout~Timeout in minutes after the user is logged out. Empty/incorrect/zero value - no timeout', data: '720', flag: '*' },
+                                        read: { type: 'textarea', head: "Restrict user READ access to next OD/OV id combinations~Enter OD id and OV id divided via some spaces or tab one by line for each combination. Char '!' inverts the match, absent OV id matches all views of specified OD. This per user restriction has a a higher priority than OVs reaad access restriction. Example: '1 2' - OV 2 of OD 1 is unaccessable (no read access) for the user, '3 !4' - any OV except OV with id 4 of OD 3 is unaccessable (another words user has read acccess to OV with id 4 only, '5' - all views of OD 5 are unaccessable for the user", data: '' },
+                                        write: { type: 'textarea', head: "Restrict user WRITE access to next OD/OV id combinations~See READ access restriction hint above", data: '' },
+                                        create: { type: 'checkbox', data: 'Restrict the user to create OD' },
+                                        task: { type: 'checkbox', data: 'Restrict the user to run Task Manager' },
+                                        ok: JSON.parse(BUTTONOK),
+                                        cancel: JSON.parse(BUTTONCANCEL),
+                                      };
+
 const INCORRECTDBCONFDIALOG         = 'Incorrect dialog structure!';
 const INCORRECTDBCONFDBNAME         = 'In order to remove Object Database via setting empty database name please remove all elements, views and rules first!';
 const EMPTYDBCONFDBNAME             = 'Cannot create new database with empty name!';
@@ -49,12 +66,12 @@ export function AcceptODConfigurationDialogChanges(dialogold, dialognew, users)
 {
  const restrictedpads = [];
  let list = GetDialogElement(dialogold, 'padbar/Database/settings/Permissions/od', true);
- if (CheckItemsToMatchTheList(users, list)) throw new Error(DISALLOWEDTOCONFIGURATE); // Users match OD read restrictions
+ if (CheckUsersToMatchTheList(users, list)) throw new Error(DISALLOWEDTOCONFIGURATE); // Users match OD read restrictions
 
  for (const name of ['Database', 'Element', 'View', 'Rule'])
      {
       list = GetDialogElement(dialogold, `padbar/Database/settings/Permissions/${name}`, true); // Get old dialog restricted user list
-      if (!CheckItemsToMatchTheList(users, list) || DialogProfileCompare(GetOptionInSelectElement(dialogold.padbar, name), GetOptionInSelectElement(dialognew.padbar, name))) continue; // If current users do not match the list above (so pad is not restricted) or pad is not changed - continue
+      if (!CheckUsersToMatchTheList(users, list) || DialogProfileCompare(GetOptionInSelectElement(dialogold.padbar, name), GetOptionInSelectElement(dialognew.padbar, name))) continue; // If current users do not match the list above (so pad is not restricted) or pad is not changed - continue
       restrictedpads.push(`'${name}'`); // Store pad name and restore old dialog pad to new dialog appropriate pad below
       dialognew.padbar.data[GetOptionNameInSelectElement(dialognew.padbar, name)] = dialogold.padbar.data[GetOptionNameInSelectElement(dialogold.padbar, name)];
      }
@@ -165,21 +182,58 @@ export function DialogProfileCompare(profile1, profile2)
  return true;
 }
 
-// Function checks incoming elements (user names, group names or OD identificators) array to match the <list> and return true for any match. Superuser no check shoud be implemented before this function call
-// Logocal AND is applied for all negative lines (with '!' as a first char), so item 'admin' doesn't match the list '!root\n!admin' (all except root and admin), but matches the list '!root\n!support'.
+// Function checks incoming <users> (user names and group names together) array to match the <list> and return true for any match. Superuser no check shoud be implemented before this function call
+// Logical AND is applied for all negative lines (with '!' as a first char), so item 'admin' doesn't match the list '!root\n!admin' (all except root and admin), but matches the list '!root\n!support'.
 // Also empty list doesn't match any item, item 'admin' matches the list 'admin\n!admin' and list '!' matches any item.
-export function CheckItemsToMatchTheList(items, list)
+export function CheckUsersToMatchTheList(users, list)
 {
  let match;
- if (!Array.isArray(items) || !items.length || typeof list !== 'string') throw new Error('Incorrect items/list format!');
+ if (!Array.isArray(users) || !users.length) throw new Error('Object Database/View permissions check failed: unknown user!');
  list = list.split('\n');
 
- for (let line of list) if (line = line.trim())
-     if (line[0] === '!') match = true;
-      else if (items.includes(line)) return true;
+ for (let line of list) if (line = line.trim()) // Iterate all list lines
+     if (line[0] === '!') match = true; // Set <mactch> to true for any negative line in a list
+      else if (users.includes(line)) return true; // Return true for any item matches any line in a list
 
- for (let line of list) if ((line = line.trim()) && line[0] === '!' && items.includes(line.substring(1))) return;
- return match;
+ for (let line of list) if (line = line.trim()) // Iterate all list lines once again
+     if (line[0] === '!' && users.includes(line.substring(1))) return; // Once line is negative and any item matches the line return no-match
+
+ return match; // Return true match for any negative line or no-match for no any negative line
+}
+
+// Function checks input od/ov ids (the user interacts) on restriction list with od/ov ids space divided combinations on each line. Algoritm checks line by line until the match is found to return true match, no any combination match returns false.
+// Omitted ov matches all ovs in od, negative ov (with '!' as a leading char) matches all ovs except specified ov, negative od matches all ods except specified and regardless of ov id value in a combination.
+// Empty list - no match, single char '!' matches all
+// Example - user is trying to open Object View (ov) id 2 of Object Database (od) id 1. Hera some restriction lists and their match result:
+// '1 3 \n 1 2' - the list matches. Opening OV2 of OD1 matches the 2nd line in a list
+// '1 !3' - the list matches. Opening OV2 of OD1 matches the 1st line in a list, !3 matches all OVs except 3
+// '1 3' - Opening OV2 of OD1 doesn't match the list
+// '1' - the list matches. Omitted OV id matches all OVs of OD1
+// '!1' - no match, list matches all OD ids except id1
+// '!2  !2\n1 !2' - the list matches. Second line - no match (all OV ids except id2), but 1st line matches all ODs except OD id2
+export function CheckViewsToMatchTheList(od, ov, list)
+{
+ let negative_od, negative_ov, match;
+ const checklist = [];
+
+ for (let line of list.split('\n')) if ((line = line.trim()) && (line = line.split(' '))) // Iterate all list lines except empty ones
+     {
+      line = [line[0].trim(), line.slice(1).join('').trim()]; // All lines in a restriction list are [!]od/[!]ov space divided, empty ov - matches all ovs in od
+      checklist.push(line);
+      if (line[0][0] === '!' && (negative_od = true)) continue;
+      if (line[0] === od && line[1][0] === '!') negative_ov = true;
+     }
+
+ for (let line of checklist) // Go through all lines in a checklist to check all od/ov combinations match
+     if (od === line[0] && (ov === line[1] || !line[1])) return true; // All lines in a check list are [!]od/[!]ov space divided, empty ov - matches all ovs in od
+
+ if (negative_ov && (match = true)) for (let line of checklist) // Go through all lines with negative ov only, od in a list should be positive (without '!') and match input od
+    if (od === line[0] && line[1][0] === '!' && ov === line[1].substring(1) && !(match = false)) break; // For the matched od check check ov - if it is negative and is matched - then the list doesn't match input od/ov, breaking cycle with faulsy match
+ if (negative_ov && match) return true;
+
+ if (negative_od && (match = true)) for (let line of checklist) // Go through all lines with negative od (ov is ignored in case, cause it doesn't matter) in a checklist
+    if (line[0][0] === '!' && od === line[0].substring(1) && !(match = false)) break; // If od 1st char is '!' and od matches - then the list doesn't match input od/ov, breaking cycle with faulsy match
+ if (negative_od) return match;
 }
 
 // Function creates regexp to match tag names list 'tags'
@@ -219,128 +273,128 @@ export function AdjustString(string, encodemap, excludehtmltags, trim)
 const DIALOGBOXMACROSSTYLE	= { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
 export const CUSTOMIZATIONS =
 {
-        "Sidebar": {
-                    ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
-                    ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
-                    ".sidebar tr:hover": { "background-color": "#25589F;", "cursor": "pointer;", "margin": "100px 100px;" },
-                    ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
-                    ".sidebar_database": { "color": "", "font": "1.6em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
-                    ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
-                    ".searchbar": { "margin": "4px 17px 1px 17px;", "border-radius": "5px;", "background-color": "rgb(32,88,138);", },
-                    ".searchinput": { "color": "", "font": "0.9em Lato, Helvetica;", "paddin": "0;", "margin": "4px;", "outline": "none;", "border": "none;", "background-color": "inherit;", "color": "inherit;", "width": "90%;" },
-                   },
-   "Context menu": {
-		            ".contextmenu": { "position": "fixed;", "overflow": "hidden;", "background-color": "#F3F3F3;", "border": "solid 1px #dfdfdf;", "padding": "10px 0;", "border-radius": "5px;", "min-width": "200px;", "white-space": "nowrap;" },
-		            ".contextmenuitem": { "background-color": "transparent;", "color": "#1166aa;", "margin-bottom": "0px;", "font-family": "sans-serif;", "font-size": "16px;", "font-weight": "300;", "line-height": "1.5;", "padding": "5px 15px;" },
-		            ".greycontextmenuitem": { "background-color": "transparent;", "color": "#CCC;", "margin-bottom": "0px;", "font-family": "sans-serif;", "font-size": "16px;", "font-weight": "300;", "line-height": "1.5;", "padding": "5px 15px;" },
-		            ".contextmenuitem:hover": { "color": "#1166aa;", "background-color": "#e7e7e7;", "cursor": "pointer;" },
-		            ".contextmenuitemdivider": { "background-color": "transparent;", "margin": "5px 10px 5px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
-                   },
-     "Dialog box": {
-	                // dialog box global css props
-	                ".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
-	                // dialog box title
-	                ".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "padding": "5px;" },
-	                // dialog box pad
-	                ".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
-	                // dialog box active pad
-	                ".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
-                	// dialog box pad bar
-	                ".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 20px 0;" },
-	                // dialog box divider
-	                ".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
-	                // dialog box button
-	                ".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${DIALOGBOXMACROSSTYLE.BUTTON_PADDING};`, "margin": "10px 10px 13px 10px;", "border-radius": "5px;", "font": `bold 12px ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "white;" },
-	                // dialog box button and pad hover
-	                ".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
-	                // dialog box element headers
-                    ".element-headers": { "margin": `${DIALOGBOXMACROSSTYLE.HEADER_MARGIN};`, "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "text-shadow": "none;", "user-select": "text;" },
-	                // dialog box help icon
-	                ".hint-icon": { "padding": "1px;", "font": `1em Arial Narrow, ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
-	                // dialog box help icon hover
-	                ".hint-icon:hover": { "padding": "1px;", "font": `bold 1em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
-	                // dialog box table
-	                ".boxtable": { "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
-	                // dialog box table cell
-                	".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
-	                // dialog box readonly elements css filter
-	                ".readonlyfilter": { "filter": "opacity(50%);", " filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
-	                //------------------------------------------------------------
-	                // dialog box select
-	                ".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;" },
-	                // dialog box select option
-	                ".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
-	                // dialog box select option hover
-	                ".select:not([class*=arrow]) > div:hover": { "background-color": "rgb(211, 222, 192);", "color": "" },
-	                // dialog box select option selected
-	                ".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
-	                // Profile selection additional style
-	                ".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "4px;" },
-	                //------------------------------------------------------------
-	                // dialog box radio
-	                "input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
-	                // dialog box radio checked
-	                "input[type=radio]:checked::after": { "content": "", "color": "white;" },
-	                // dialog box radio checked background
-                	"input[type=radio]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
-	                // dialog box radio label
-	                "input[type=radio] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
-	                //------------------------------------------------------------
-	                // dialog box checkbox
-	                "input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
-                	// dialog box checkbox checked
-	                "input[type=checkbox]:checked::after": { "content": "", "color": "white;" },
-	                // dialog box checkbox checked background
-	                "input[type=checkbox]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
-	                // dialog box checkbox label
-	                "input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": "0px 10px 0px 0px;" },
-	                //------------------------------------------------------------
-                    // dialog box input text
-	                "input[type=text]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
-	                // dialog box input password
-	                "input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
-	                // dialog box input textarea
-	                "textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
-                   },
+       "Sidebar": {
+                   ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
+                   ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
+                   ".sidebar tr:hover": { "background-color": "#25589F;", "cursor": "pointer;", "margin": "100px 100px;" },
+                   ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+	                 ".sidebar_database": { "color": "", "font": "1.6em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+	                 ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
+                   ".searchbar": { "margin": "4px 17px 1px 17px;", "border-radius": "5px;", "background-color": "rgb(32,88,138);", },
+                   ".searchinput": { "color": "", "font": "0.9em Lato, Helvetica;", "paddin": "0;", "margin": "4px;", "outline": "none;", "border": "none;", "background-color": "inherit;", "color": "inherit;", "width": "90%;" },
+                  },
+  "Context menu": {
+	                 ".contextmenu": { "position": "fixed;", "overflow": "hidden;", "background-color": "#F3F3F3;", "border": "solid 1px #dfdfdf;", "padding": "10px 0;", "border-radius": "5px;", "min-width": "200px;", "white-space": "nowrap;" },
+	                 ".contextmenuitem": { "background-color": "transparent;", "color": "#1166aa;", "margin-bottom": "0px;", "font-family": "sans-serif;", "font-size": "16px;", "font-weight": "300;", "line-height": "1.5;", "padding": "5px 15px;" },
+	                 ".greycontextmenuitem": { "background-color": "transparent;", "color": "#CCC;", "margin-bottom": "0px;", "font-family": "sans-serif;", "font-size": "16px;", "font-weight": "300;", "line-height": "1.5;", "padding": "5px 15px;" },
+	                 ".contextmenuitem:hover": { "color": "#1166aa;", "background-color": "#e7e7e7;", "cursor": "pointer;" },
+	                 ".contextmenuitemdivider": { "background-color": "transparent;", "margin": "5px 10px 5px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
+                  },
+    "Dialog box": {
+	                 // dialog box global css props
+	                 ".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
+	                 // dialog box title
+	                 ".title": { "background-color": "rgb(209,209,209);", "color": "#555;", "border": "#000000;", "border-radius": "5px 5px 0 0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "padding": "5px;" },
+	                 // dialog box pad
+	                 ".pad": { "background-color": "rgb(223,223,223);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+	                 // dialog box active pad
+	                 ".activepad": { "background-color": "rgb(209,209,209);", "border-left": "none;", "border-right": "none;", "border-top": "none;", "border-bottom": "none;", "padding": "5px;", "margin": "0;", "font": `bold .9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#57C;", "border-radius": "5px 5px 0 0;" },
+                	 // dialog box pad bar
+	                 ".padbar": { "background-color": "transparent;", "border": "none;", "padding": "4px 4px 0 4px;", "margin": "10px 0 20px 0;" },
+	                 // dialog box divider
+	                 ".divider": { "background-color": "transparent;", "margin": "0px 10px 10px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
+	                 // dialog box button
+	                 ".button": { "background-color": "#13BB72;", "border": "none;", "padding": `${DIALOGBOXMACROSSTYLE.BUTTON_PADDING};`, "margin": "10px 10px 13px 10px;", "border-radius": "5px;", "font": `bold 12px ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "white;" },
+	                 // dialog box button and pad hover
+	                 ".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
+	                 // dialog box element headers
+                   ".element-headers": { "margin": `${DIALOGBOXMACROSSTYLE.HEADER_MARGIN};`, "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "text-shadow": "none;", "user-select": "text;" },
+	                 // dialog box help icon
+	                 ".hint-icon": { "padding": "1px;", "font": `1em Arial Narrow, ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
+	                 // dialog box help icon hover
+	                 ".hint-icon:hover": { "padding": "1px;", "font": `bold 1em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "#E8E800;", "cursor": "help;", "border-radius": "40%;" },
+	                 // dialog box table
+	                 ".boxtable": { "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "black;", "background-color": "transparent;", "margin": "10px;", "table-layout": "fixed;", "width": "auto;", "box-sizing": "border-box;" },
+	                 // dialog box table cell
+	                 ".boxtablecell": { "padding": "7px;", "border": "1px solid #999;", "text-align": "center" },
+	                 // dialog box readonly elements css filter
+	                 ".readonlyfilter": { "filter": "opacity(50%);", " filter": "Dialog box readonly elements css filter property to apply to, see appropriate css documentaion.", "cursor": "not-allowed !important;" },
+	                 //------------------------------------------------------------
+	                 // dialog box select
+	                 ".select": { "background-color": "rgb(243,243,243);", "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "outline": "none;", "border": "1px solid #777;", "padding": "0px 0px 0px 0px;", "overflow": "auto;", "max-height": "150px;", "min-width": "24em;", "width": "auto;", "display": "inline-block;" },
+	                 // dialog box select option
+	                 ".select > div": { "padding": "2px 20px 2px 5px;", "margin": "0px;" },
+	                 // dialog box select option hover
+	                 ".select:not([class*=arrow]) > div:hover": { "background-color": "rgb(211, 222, 192);", "color": "" },
+	                 // dialog box select option selected
+	                 ".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
+	                 // Profile selection additional style
+	                 ".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "4px;" },
+	                 //------------------------------------------------------------
+	                 // dialog box radio
+	                 "input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
+	                 // dialog box radio checked
+	                 "input[type=radio]:checked::after": { "content": "", "color": "white;" },
+	                 // dialog box radio checked background
+	                 "input[type=radio]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
+	                 // dialog box radio label
+	                 "input[type=radio] + label": { "color": "#57C;", "font": ".8em Lato, Helvetica;", "margin": "0px 10px 0px 0px;" },
+	                 //------------------------------------------------------------
+	                 // dialog box checkbox
+	                 "input[type=checkbox]": { "background-color": "#f3f3f3;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "50%;", "width": "1.2em;", "height": "1.2em;" },
+	                 // dialog box checkbox checked
+	                 "input[type=checkbox]:checked::after": { "content": "", "color": "white;" },
+	                 // dialog box checkbox checked background
+	                 "input[type=checkbox]:checked": { "background-color": "#00a0df;", "border": "1px solid #00a0df;" },
+	                 // dialog box checkbox label
+	                 "input[type=checkbox] + label": { "color": "#57C;", "font": `.8em ${DIALOGBOXMACROSSTYLE.FONT};`, "margin": "0px 10px 0px 0px;" },
+	                 //------------------------------------------------------------
+	                 // dialog box input text
+	                 "input[type=text]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none;", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	                 // dialog box input password
+	                 "input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+	                 // dialog box input textarea
+	                 "textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
+                  },
  "Dropdown list": {
-			        // Expanded selection
-				    ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
- 				   },
-    "Application": {
-				    ".modalfilter": { "filter": "opacity(50%);", " filter": "Dialog box modal effect appearance via css filter property (such as opacity, blur and others), see appropriate css documentaion." },
-				    "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
-                    "*": { "scrollbar-width": "thin;", " scrollbar-width": "Set scrollbar thickness, available options are 'auto;', 'thin;' and 'none;'. For FireFox browser only! See appropriate css documentation", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);", " scrollbar-color": "Set space divided scrollbar thumb and track colors. For FireFox browser only! See appropriate css documentation" },
- 				    " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
-                    " Force to use other user customization settings": { "Username": "" }, 
-				    //" Key combination to apply cell text": {},
-				    //" Logon events": { "Log unsuccessful logons": "", },
-				   },
-     "Connection": {
-			        ".connection": { "background-color": "#343e54;" },
- 			       },
-           "View": {
-                    ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
-                    ".ovboxmessage":               { "display": "flex;", "overflow": "auto;", "justify-content": "center;", "align-items": "center;", "width": "100%;", "height": "100%;", "padding": "0 10px 0 10px;", "box-sizing": "border-box;", "t ext-align": "justify;" },
-		                ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
-		                ".gridcontainer":              { "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
-		                ".undefinedcell":              { "padding": "10px;", "background-color": "",                                                                              "border": "1px solid #999;" },
-		                ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "",                 "border": "1px solid #999;" },
-		                ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "",                 "border": "1px solid #999;" },
-		                ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
-		                ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
-		                ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
-                    ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
-                    ".interactivecursorcell":      { "outline": "green solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
-                    ".celleditmode":               { "box-shadow": "rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset; !important;", "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;" },
-                    ".clipboardcell":              { "filter": "blur(1px);" }, 
-		                ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
-                    ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
-		                [`.gridcontainer div:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
-                   }
+			             // Expanded selection
+	                 ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
+ 				          },
+   "Application": {
+	                 ".modalfilter": { "filter": "opacity(50%);", " filter": "Dialog box modal effect appearance via css filter property (such as opacity, blur and others), see appropriate css documentaion." },
+	                 "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
+	                 "*": { "scrollbar-width": "thin;", " scrollbar-width": "Set scrollbar thickness, available options are 'auto;', 'thin;' and 'none;'. For FireFox browser only! See appropriate css documentation", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);", " scrollbar-color": "Set space divided scrollbar thumb and track colors. For FireFox browser only! See appropriate css documentation" },
+	                 " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
+	                  " Force to use other user customization settings": { "Username": "" }, 
+	                 //" Key combination to apply cell text": {},
+	                 //" Logon events": { "Log unsuccessful logons": "", },
+	                },
+    "Connection": {
+	                 ".connection": { "background-color": "#343e54;" },
+	                },
+          "View": {
+	                 ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
+	                 ".ovboxmessage":               { "display": "flex;", "overflow": "auto;", "justify-content": "center;", "align-items": "center;", "width": "100%;", "height": "100%;", "padding": "0 10px 0 10px;", "box-sizing": "border-box;", "t ext-align": "justify;" },
+	                 ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
+	                 ".gridcontainer":              { "display": "grid;", "box-sizing": "border-box;", "overflow": "none;", "margin": "0;", "padding": "0;", "width": "fit-content;", "height": "fit-content;", "border-left": "1px solid #999;", "border-top": "1px solid #999;" },
+	                 ".undefinedcell":              { "padding": "10px;", "background-color": "",                                                                              "border": "1px solid #999;" },
+	                 ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "",                 "border": "1px solid #999;" },
+	                 ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "",                 "border": "1px solid #999;" },
+		               ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
+		               ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+		               ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+                   ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                   ".interactivecursorcell":      { "outline": "green solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                   ".celleditmode":               { "box-shadow": "rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset; !important;", "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;" },
+                   ".clipboardcell":              { "filter": "blur(1px);" }, 
+		               ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
+                   ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
+		               [`.gridcontainer div:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
+                  },
 };
 
 export const CUSTOMIZATIONDIALOG = { section: { type: 'select', head: 'Select customization section', data: {} },
-                                     title: { type: 'title', data: 'Customization' },
+                                     title: { type: 'title', data: 'GUI customization' },
                                      ok: JSON.parse(BUTTONOK),
                                      cancel: JSON.parse(BUTTONCANCEL),
                                    }
@@ -366,6 +420,7 @@ export const MOUSEEVENTS                 = ['DOUBLECLICK'];
 export const MISCEVENTS                  = ['ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE'];
 export const CALLBACKEVENTS              = ['ONEVENT', 'ONTIMER'];
 export const CLIENTEVENTS                = [...KEYBOARDEVENTS, ...MOUSEEVENTS, ...MISCEVENTS, ...CALLBACKEVENTS];
+export const CONTROLLEREVENTS            = ['EMULATE', 'EDIT', 'DIALOG', 'SET', 'WRITE', 'PUT', 'ADJUST', 'RESET', 'UPDATE', 'PUSH', 'COLLECT', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'];
 
 export function SVGUrlHeader(viewwidth = '12', viewheight = '12', url = true, extraattribute = '')
 {
@@ -454,10 +509,9 @@ export function GenerateRandomString(length)
  return randomstring;
 }
 
-// Dialog data has next structure: root-profile -> element1, element2 -> profile1 -> element1 -> profile1, profile2.., so path represents a slash divided string to point needed element or profile:
+// Dialog data has next structure: root-profile -> element1, element2 -> profile1 -> element1 -> profile1, profile2 ->.., so path represents a slash divided string to point needed element or profile:
 // element2/profile1/element1/profile2.. with <dialog> as a root-profile
-// Function search specified element or profile for specified splited path.
-// Undefined <value> just return a found element for a specified <path>, string type <value> set found element data to <value>, other <value> types - data prop of a found element is returned
+// Function search specified element or profile for specified splited path depending on <value> type
 export function GetDialogElement(dialog, path, value)
 {
  if (!dialog || typeof dialog !== 'object') return;
@@ -470,20 +524,22 @@ export function GetDialogElement(dialog, path, value)
 
  switch (typeof value) // Undefined <value> just return a found element (current <dialog> var) for a specified <path>, string type <value> set found element data to <value>, other <value> types - data prop of a found element is returned (for selectable elements with at least one checked option first checked option name is returned instead of whole data prop)
         {
-          case 'undefined':
-               return dialog;
-          case 'string':
+          case 'string': // String type <value> - set element data
                dialog.data = value;
                return;
-          default:
+          case 'boolean': // Boolean type <value> - for non selectable elements and profile selections: return element data of itself. For selectable elements: checked option name (value === true) or object with option names as a key and checked status as their values (value === false)
                if (!('data' in dialog)) return '';
                if (!['select', 'multiple', 'checkbox', 'radio'].includes(dialog.type) || typeof dialog.data !== 'string') return dialog.data;
+               const options = {};
                for (const option of dialog.data.split('/'))
                    {
                     const [name, flag] = option.split(FIELDSDIVIDER, 2);
-                    if (flag && flag.includes('!')) return name;
+                    if (value && (flag || '').includes('!')) return name;
+                    if (!value) options[option] = (flag || '').includes('!');
                   }
-               return ''; // Return false for no any option checked
+               return value ? '' : options; // Return empty string for no any option checked (value === true) or <options> (value === false)
+          default: // Other cases - return whole element
+               return dialog;
         }
 }
 
@@ -1565,7 +1621,7 @@ const ELEMENTPAD = {
                     description: { type: 'textarea', head: 'Description~Element description is displayed as a hint on object view element header navigation for default. Describe here element usage and its possible values', data: '', flag: '*+Enter element description' },
                     type: { type: 'text', head: 'Element column type~', data: 'JSON' },
                     index: { type: 'radio', head: `Element column index~Unique element type defines specified element property 'value' as uniq among all object elements in database, so duplicated values are excluded and cause an error. This behaviour cannot be changed after element creation`, data: 'None~!/btree/UNIQUE btree/hash', flag: '*' },
-                    event: { type: 'textarea', head: `Event profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
+                    event: { type: 'textarea', head: `Event group profile list~Specify event profiles one by line to process client side user events. Each client side incoming event is checked on every event profile one by one until the match. When a match is found the appropriaate handler scheme is applied to process event. See system settings help section`, data: '', flag: '*' },
                    },},},};
 
 const VIEWPAD = {
@@ -1596,8 +1652,8 @@ const VIEWPAD = {
                            i: { type: 'text', data: '', flag: '*', expr: '/^((?!Timer~!).)*$/h', flag: '*' },
                            j: { type: 'text', head: 'Lifetime~OV window lifetime (in seconds) after which the window will be closed automatically. Zero/empty/error value - no action', data: '', flag: '' }, }, 
                  Permissions: {
-                           10: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
-                           20: { type: 'textarea', head: `Restrict write access for next users/groups`, data: '', flag: '*' },
+                           read: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
+                           write: { type: 'textarea', head: `Restrict write access for next users/groups`, data: '', flag: '*' },
                 }, } } }, }, }, };
 
 const RULEPAD = {
@@ -1605,7 +1661,7 @@ const RULEPAD = {
                            message: { type: 'textarea', head: `Rule message~Non empty rule message is displayed as a warning at client side dialog box and logged if appropriate option below is set`, data: '', flag: '*' }, 
                            action: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
                            query: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macros (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
-                           log: { type: 'checkbox', data: 'Log rule message/Client side warning', flag: '*' },
+                           log: { type: 'checkbox', data: 'Log/Warning', flag: '*' },
                 }, }, } };
 
 export const NEWOBJECTDATABASE = {
@@ -1630,13 +1686,6 @@ export function SearchMacrosNames(macronames, ...strings)
  return macronames;
 }
                            
-// Function makes a deep source object merge to target (only non object props are copied, for object type props are new instance are created)
-function ObjectMerge(target, source)
-{
- for (const prop in source) source[prop] && typeof source[prop] === 'object' ? ObjectMerge(prop in target ? target[prop] : (target[prop] = {}), source[prop]) : target[prop] = source[prop];
- return target;
-}
-
 const USERODLAYOUTOLD = `"row":"r < 10", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+3", "s tyle": "color: red;"}
 "row":"r < 9", "col":"id|eid1|datetime::varchar(171)|eid1::json->>'valu'|eid1::json->'value'", "x":"c", "y":"1*(r+2)+4", "s tyle": "color: red;"}
 {"row":"r < 9", "col":"id|ownerid|owner|datetime|eid1", "x":"c", "y":"r+4"}
@@ -1651,7 +1700,7 @@ const USERODLAYOUT = `{"row":"1", "col":"id,ownerid,owner,datetime,${ELEMENTCOLU
 `;
 
 export const USEROBJECTDATABASE = JSON.parse(JSON.stringify(NEWOBJECTDATABASE));
-USEROBJECTDATABASE.padbar.data.Database.settings.data.General.dbname.data = 'Users';
+GetDialogElement(USEROBJECTDATABASE, 'padbar/Database/settings/General/dbname').data = 'Users';
 
 const elementprofileTemplate = JSON.stringify(GetDialogElement(USEROBJECTDATABASE, 'padbar/Element/elements/New element template'));
 const viewprofileTemplate = JSON.stringify(GetDialogElement(USEROBJECTDATABASE, 'padbar/View/views/New view template'));
@@ -1662,7 +1711,6 @@ const enewprofiles = { 'username~*': { name: 'Username', description: 'Username'
                     'password~*': { name: 'Password', description: 'Password', type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash' },
                     'custom~*': { name: 'Custom field', description: 'Custom field', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
                     'policy~*': { name: 'Policy', description: 'Policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                    //'macroses~*': { name: 'Macroses', description: 'Macroses', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
                     'customization~*': { name: 'Customization', description: 'Customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
                     'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' } };
 const vnewprofiles = { 'All~*': { settings: { data: { General: { name: 'All users', description: 'All users list' }, 
@@ -1680,3 +1728,84 @@ for (const profilename in vnewprofiles)
      for (const e in vnewprofiles[profilename].settings.data[p]) 
          views[profilename].settings.data[p][e].data = vnewprofiles[profilename].settings.data[p][e];
     }                                                     
+
+//////////////////////////////    
+const newevent = JSON.stringify({ events: { type: 'select', head: 'Select event type', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
+                           modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', expr: `/${[...CALLBACKEVENTS, ...MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
+                           attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEVENT~\!|ONTIMER~\!)).*$/events' },
+                           handlertype: { type: 'select', head: 'Handler type', data: 'Disabled~!/Fixed output/Command line/Shell command line/Module function' },
+                           handlerdata: { type: 'textarea', head: 'Handler data', data: '', expr: '/Disabled~!/handlertype' },
+                           timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' and 'Eval' handler types only`, data: '30', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
+                           retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', flag: '', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
+                           output: { type: 'checkbox', head: 'Handler result action', data: `Wrap/Debug/Ignore`, expr: '/Disabled~!/handlertype' }, // specfied action for handler any stdout or stderr is applied. Checked 'Ignore' option ignores handler output doing nothing regardless of other option checked. Checked 'Debug' displays clientside info msg with handler output data. No Ignore/Debug options set - handler output data of itself or converted to SET cmd output data for 'Wrap' checked - is applied
+                         });
+const neweventgroup = { evsel: { type: 'select', head: 'Select event profile for event group above', data: { 'New event~+': JSON.parse(newevent) }, flag: '*' } };
+//////////////////////////////    
+const CALLDIALOG = JSON.parse(newevent);
+delete CALLDIALOG.events;
+delete CALLDIALOG.modifier;
+delete CALLDIALOG.attr;
+CALLDIALOG.handlertype.data = 'Disabled/Fixed output~!/Command line/Shell command line/Module function';
+CALLDIALOG.handlerdata.data = '{"type": "DIALOG", "data": { "content": "${}" } }';
+const SETDATA = JSON.parse(newevent);
+delete SETDATA.events;
+delete SETDATA.modifier;
+delete SETDATA.attr;
+SETDATA.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
+SETDATA.handlerdata.data = 'modules.SetData\n${EVENTDATA}\n${EPROP}';
+const EDIT = JSON.parse(newevent);
+delete EDIT.events;
+delete EDIT.modifier;
+delete EDIT.attr;
+EDIT.handlertype.data = 'Disabled/Fixed output~!/Command line/Shell command line/Module function';
+EDIT.handlerdata.data = '{"type": "EDIT"}';
+const SETNODATA = JSON.parse(newevent);
+delete SETNODATA.events;
+delete SETNODATA.modifier;
+delete SETNODATA.attr;
+SETNODATA.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
+SETNODATA.handlerdata.data = 'modules.SetData\n\n${EPROP}';
+//////////////////////////////    
+const system = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'DOUBLECLICK~+': CALLDIALOG, 'CONFIRMEDIT~+': SETDATA, 'CONFIRMDIALOG~+': SETDATA }, flag: '*' } };
+const general = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'KEYF2~+': EDIT, 'DOUBLECLICK~+': EDIT, 'KEYDelete~+': SETNODATA, 'CONFIRMEDIT~+': SETDATA, 'CONFIRMDIALOG~+': SETDATA }, flag: '*' } };
+export const EVENTGROUPDIALOG = {
+                           title: { type: 'title', data: 'Event profiling' },
+                           eventgroups: { type: 'select', head: 'Select event group profile', data: { 'New event group~+': neweventgroup, 'SYSTEM~+': system, 'GENERAL~+': general } },
+                           ok: JSON.parse(BUTTONOK),
+                           cancel: JSON.parse(BUTTONCANCEL),
+                         };
+
+export function SuckInEventGroups(dialog)
+{
+ const egs = {};
+ for (let eg in GetDialogElement(dialog, 'eventgroups', true))
+     {
+      if (CompareOptionInSelectElement('New event group', eg)) continue;
+      eg = eg.split('~', 1)[0];
+      egs[eg] = {};
+      for (let e in GetDialogElement(dialog, `eventgroups/${eg}/evsel`, true))
+          {
+           if (CompareOptionInSelectElement('New event', e)) continue;
+           e = e.split('~', 1)[0];
+           egs[eg][e] = {};
+           for (const prop of ['handlertype', 'handlerdata', 'timeout', 'retry']) egs[eg][e][prop] = GetDialogElement(dialog, `eventgroups/${eg}/evsel/${e}/${prop}`, true);
+           egs[eg][e].output = GetDialogElement(dialog, `eventgroups/${eg}/evsel/${e}/output`).data;
+           for (const prop of ['handlertype', 'handlerdata', 'timeout', 'retry', 'output']) if (typeof egs[eg][e][prop] !== 'string') throw new Error(`User Database is corrupted!`);
+          }
+     }
+ return egs;
+}
+
+export function SuckInUserPolicy(dialog)
+{
+ const policy = {};
+ for (const prop of ['groups', 'instances', 'timeout', 'read', 'write', 'create', 'task'])
+     {
+      policy[prop] = GetDialogElement(dialog, prop, true);
+      if (typeof policy[prop] !== 'string') throw new Error(`User Database is corrupted!`);
+     }
+ return policy;
+}
+
+// Todo0 - change service char like delimiter '*', '!' (see dialog.js) to const var in globals to be used in frontend and backend
+

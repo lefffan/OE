@@ -17,9 +17,8 @@ const TIMEOUTACCESS         = 'Server has closed connection due timeout, please 
 const UNDEFINEDQUERYRES     = 'Database query returned udnefined result!';
 const EMPTYQUERY            = 'OV query is empty!';
 const EMPTYODLIST           = 'OD list is empty!';
-const SYSTEMSTATICMACROS    = ['USERNAME', 'USERID', 'OD', 'OV', 'ODID', 'OVID', 'FIELDS', 'OID', 'EID', 'EPROP', 'ELEMENT', 'EVENTNAME', 'EVENTDATA', 'RANDOM', 'DATE', 'TIME', 'DATETIME', 'NULL', 'DBDATATBLNAME'];
-const SYSTEMDYNAMICMACROS   = ['LAYOUT'];
-const NORMALIZEDMACROS      = { username: 'USERNAME', userid: 'USERID', od: 'OD', ov: 'OV', odid: 'ODID', ovid: 'OVID', fields: 'FIELDS', oid: 'OID', eid: 'EID', eprop: 'EPROP', type: 'EVENTNAME', data: 'EVENTDATA' }; // Macro names for corresponded props in client event object
+const SYSTEMSTATICMACROS    = { USERNAME: 'username', USERID: 'userid', OD: 'od', OV: 'ov', ODID: 'odid', OVID: 'ovid', FIELDS: 'fields', OID: 'oid', EID: 'eid', EPROP: 'eprop', ELEMENT: null, EVENTNAME: 'type', EVENTDATA: 'data', RANDOM: null, DATE: null, TIME: null, DATETIME: null, NULL: null, DBDATATBLNAME: null, TASK: null };
+const SYSTEMDYNAMICMACROS   = { LAYOUT: null };
 const qm                    = new QueryMaker();
 
 export class Controller
@@ -52,7 +51,8 @@ export class Controller
   if (this.DB = DB) this.pool = new Pool(DB.adminconfig);
   this.clientauthcodes = {};
   this.clients = new Map();
-  this.ods = {};
+  this.ods = {}; // Object databases
+  this.ups = {}; // User profiles
   this.modules = {};
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => this.GracefulShutdown(signal)); // Todo1 - should  signal 'uncaughtException' be added for a final app version?
  }
@@ -111,6 +111,7 @@ export class Controller
             const dialog = await this.pool.query(...qm.Make({ method: 'SELECT', table: `head_${odid}`, orderdesc: 'id', limit: '1', fields: ['dialog'] })); // Get OD structure dialog last version from head_id table
             globals.CheckODConfigurationDialogSyntax(dialog?.rows?.[0]?.dialog);                                                        // check its syntax
             await this.SuckInODProps(dialog.rows[0].dialog, odid);                                                                      // and suck it to the memory
+            if (odid === '1') await this.SuckInUserProps();
            }
        catch(error)
            {
@@ -118,7 +119,35 @@ export class Controller
            }
       }
  }
- 
+ // hui here:
+ // - decomposite macros: draw macros roadmap form globals.js/controller.js function 
+ // - SuckInODProps get all OD props to object and move this func to global.js, remove checkODsyntax, check all SuckInODProps calls
+ // - suck user props for all, but not for root "if (odid === '1') await this.SuckInUserProps();", check all SuckInUserProps calls
+
+ // Function sucks in every user permissions and customization, plus super user event group profiles. Todo0 - make this "suck" every time the super user or ordinary user record is changed
+ async SuckInUserProps()
+ {
+  try {
+       const userrows = await this.pool.query(...qm.Make({ method: 'SELECT', table: `data_1`, fields: ['id', 'eid1', 'eid4', 'eid5', 'eid6', { name: 'lastversion', sign: '=', value: 'true' }] }));
+       if (!Array.isArray(userrows?.rows)) return;
+       for (const userrow of userrows.rows)
+           {
+            this.ups[userrow.id] = { name: userrow.eid1,
+                                     tags: [userrow.eid1],
+                                     policy: globals.SuckInUserPolicy(userrow.eid4), // Todo0 - no policy for super user - policy: userrow.eid1 === globals.SUPERUSER ? {} : globals.SuckInUserPolicy(userrow.eid4),
+                                     customization: userrow.eid5,
+                                     eventgroups: userrow.eid1 === globals.SUPERUSER ? globals.SuckInEventGroups(userrow.eid6) : {},
+                                   };
+            for (const group of this.ups[userrow.id].policy.groups.split('\n')) if (group.trim()) this.ups[userrow.id].tags.push(group.trim());
+           }
+      }
+  catch (error)
+      {
+       if (this.ups[userrow.id]) delete this.ups[userrow.id];
+       console.error(error.stack); // Todo0 - user suck-in process exception should crash the app at the start with the msg: 'User database is corrupted!' 
+      }
+ }
+
  HTTPNewConnection(req, res)
  {
   switch(req.method)
@@ -147,7 +176,7 @@ export class Controller
  WSNewConnection(client, req)
  {
   console.log(`Socket is opened with ip ${req.socket.remoteAddress}`);
-  this.clients.set(client, { socket: client, ip: req.socket.remoteAddress }); // { auth: true|false, userid:, }
+  this.clients.set(client, { socket: client, ip: req.socket.remoteAddress, ods: {} }); // { auth: true|false, userid:, username:, idle: }
   client.on('message', msg => { this.Handler(msg, client); });
   client.on('error', error => console.log(error));
   client.on('close', code => console.log(`${this.clients.delete(client) ? 'Client' : 'Undefined client'} socket was closed with code ${code}!`));
@@ -168,7 +197,7 @@ export class Controller
   if (typeof password !== 'string' || !password) return { type: 'LOGINERROR', data: "Password couldn't be empty!" };
 
   try {
-       hash = await this.GetObjectElementData(macroobject); // First get username hash from OD 'Users'. Old version: //hash = await this.MacrosReplace('$' + `{"odid":"1", "ovid":"1", "ename":"${globals.ELEMENTCOLUMNPREFIX}2", "oid":"${globals.ELEMENTCOLUMNPREFIX}1='${username}'"}`, {});
+       hash = await this.GetObjectElementData(macroobject); // First get username hash from OD 'Users'
        if (!hash || !await argon2.verify(hash, password)) return { type: 'LOGINERROR', data: 'Wrong username or password!' }; // then compare it from input password
       }
   catch (error)
@@ -205,7 +234,7 @@ export class Controller
                     this.SetNewODInstance(msg.data.dialog, msg.data.odid, client);
                     break;
                case 'GETDATABASE':
-                    if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'DIALOG', data: { content: UNKNOWNDBID, title: 'Error' } }));
+                    if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) client.send(JSON.stringify({ type: 'INFO', data: { content: UNKNOWNDBID, title: 'Error' } }));
                      else client.send(JSON.stringify({ type: 'CONFIGUREDATABASE', data: { dialog: this.ods[msg.data.odid].dialog, odid: msg.data.odid } }));
                     break;
 	           case 'SIDEBARGET':
@@ -348,8 +377,10 @@ export class Controller
       }
   if (client) await client.end();
 
-  // Creating new User OD
-  this.clients.set(client = { send: function(){} }, { auth: true, userid: globals.PRIMARYKEYSTARTVALUE, username: globals.SUPERUSER, socket: client });
+  // Creating new User OD with emulating user session and user profile (this.ups)
+  this.clients.set(client = { send: function(){} }, { auth: true, userid: globals.PRIMARYKEYSTARTVALUE, username: globals.SUPERUSER, socket: client, ods: { '1': { ovs: { '1': { tblname: 'data_1' } } } } });
+  this.ups[globals.PRIMARYKEYSTARTVALUE] = true;
+
   await this.SetNewODInstance(globals.USEROBJECTDATABASE, undefined, client);
   await this.Start();
   await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { [globals.ELEMENTCOLUMNPREFIX + '1']: globals.SUPERUSER, [globals.ELEMENTCOLUMNPREFIX + '2']: globals.SUPERUSER } }), client);
@@ -419,7 +450,7 @@ export class Controller
 
   // Correct OD dialog title
   const odname = globals.GetDialogElement(dialognew, 'padbar/Database/settings/General/dbname', true); // Get OD name
-  dialognew.title.data = `Database '${globals.CutString(odname.split('/').pop())}' configuration (id${odid})`; // Change OD dialog title 
+  globals.GetDialogElement(dialognew, 'title').data = `Database '${globals.CutString(odname.split('/').pop())}' configuration (id${odid})`; // Change OD dialog title 
 
   // Correct OD dialog 'Element' profile names (id, clone flag remove, +- flags add, column type readonly set)
   maxid = 0;
@@ -525,7 +556,6 @@ export class Controller
       {
        if (transaction) transaction.release();
       }
-  // hui ended here - suck in user root event group and event profiles, but first adjust this event-group dialog
 
   await this.SuckInODProps(dialognew, odid); // The transaction is completed successfully, so suck in to the memory new OD settings and send new OD/OV names to client for sidebar refresh, first - OD settings
   this.SendViewsToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
@@ -538,7 +568,7 @@ export class Controller
   client.socket.send(JSON.stringify(msg));
  }
 
- // Function parses OD dialog structure and store main OD params in memeory for a quick access
+ // Function parses OD dialog structure and store main OD params in memeory for a quick access. Todo0 - wrap this function body to try/catch to throw errors at wrong syntax, so function <globals.CheckODConfigurationDialogSyntax> will no longer be needed
  async SuckInODProps(dialog, odid)
  {
   let id;
@@ -546,8 +576,8 @@ export class Controller
                     dialog: dialog,
                     name: globals.GetDialogElement(dialog, 'padbar/Database/settings/General/dbname', true),
                     replacements: {},
-                    elementprofiles: { /*eid1: { type:, name:, description: }*/},
-                    viewprofiles: { /*layout:, query:, replacements:, dialog:,*/ },
+                    elementprofiles: { /*eid1: { type:, name:, description:, event:,*/},
+                    viewprofiles: { /*layout:, query:, replacements:, dialog:, read:, write:,*/ },
                     ruleprofiles: { /*[profilename]:,*/ },
                    };
 
@@ -559,20 +589,42 @@ export class Controller
   // Go through all 'Element' elements to get its type, name and description
   const elements = globals.GetDialogElement(dialog, 'padbar/Element/elements', true) || {};
   for (const option in elements) if (id = globals.GetOptionNameId(option))
-      this.ods[odid].elementprofiles[globals.ELEMENTCOLUMNPREFIX + id] = { type: elements[option].type.data.trim().toLowerCase(), name: elements[option].name.data, description: elements[option].description.data };
+      this.ods[odid].elementprofiles[globals.ELEMENTCOLUMNPREFIX + id] = { type: elements[option].type.data.trim().toLowerCase(), name: elements[option].name.data, description: elements[option].description.data, event: elements[option].event.data };
 
-  // Go through all 'Rule' rules. Todo0 - sort <this.ods[odid].ruleprofiles> in alphabetical order to easily go through all rules in a future
+  // Go through all 'Rule' rules
   const rulereplacements = {};
   this.ods[odid].rulereplacements = rulereplacements;
-  this.ods[odid].ruleprofiles = globals.GetDialogElement(dialog, 'padbar/Rule/rules', true) || {};
-  for (const rule in this.ods[odid].ruleprofiles)
-      if (!globals.CompareOptionInSelectElement('New rule template', rule)) globals.SearchMacrosNames(rulereplacements, globals.GetDialogElement(this.ods[odid].ruleprofiles[rule], 'message', true), globals.GetDialogElement(this.ods[odid].ruleprofiles[rule], 'query', true));
+  const ruleprofiles = globals.GetDialogElement(dialog, 'padbar/Rule/rules', true) || {};
+  const ruleprofilekeys = Object.keys(ruleprofiles);
+  ruleprofilekeys.sort((a, b) => a.localeCompare(b));	// Alphabetical sorting
+  for (const key of ruleprofilekeys)
+      {
+       if (globals.CompareOptionInSelectElement('New rule template', key)) continue;
+       globals.SearchMacrosNames(rulereplacements, globals.GetDialogElement(ruleprofiles[key], 'message', true), globals.GetDialogElement(ruleprofiles[key], 'query', true));
+       const rule = this.ods[odid].ruleprofiles[key] = { key: key.split(globals.FIELDSDIVIDER)[0] };
+       for (const prop of ['message', 'action', 'query', 'log']) rule[prop] = globals.GetDialogElement(ruleprofiles[key], prop, prop === 'log' ? undefined : true);
+       rule.message = rule.message.trim();
+
+       rule.query = rule.query.trim().split('\n');
+       for (let i = 0; i < rule.query.length; i++)
+           {
+            rule.query[i] = rule.query[i].trim();
+            if (rule.query[i][0] === '#') rule.query.splice(i--, 1);
+           }
+       rule.query = rule.query.join('\n');
+
+       [rule.log, rule.warning] = rule.log.data.split('/');
+       rule.log = (rule.log.split(globals.FIELDSDIVIDER)[1] || '').includes(globals.OPTIONISCHECKED);
+       rule.warning = (rule.warning.split(globals.FIELDSDIVIDER)[1] || '').includes(globals.OPTIONISCHECKED);
+      }
 
   // Go through all 'View' views to get its layout and query
   const views = globals.GetDialogElement(dialog, 'padbar/View/views', true) || {}; // Get view profile list
   for (const option in views) if (id = globals.GetOptionNameId(option))
       {
        const view = this.ods[odid].viewprofiles[id] = {};
+       view.read = globals.GetDialogElement(views[option], 'settings/Permissions/read', true).trim(); // Get read restrictions
+       view.write = globals.GetDialogElement(views[option], 'settings/Permissions/write', true).trim(); // Get write restrictions
        view.layout = globals.GetDialogElement(views[option], 'settings/Selection/layout', true).trim(); // Get view layout
        view.query = globals.GetDialogElement(views[option], 'settings/Selection/query', true).trim(); // Get view query
        view.calldialog = globals.GetDialogElement(views[option], 'settings/Macros/call', true); // Call or not dialog box before OV open
@@ -582,8 +634,8 @@ export class Controller
            const replacements = Object.assign(globals.SearchMacrosNames({}, view.layout, view.query), rulereplacements); // Search for macros in view layout/query and rule message/query
            for (const macro in macros) if (!globals.CompareOptionInSelectElement('New macro', macro)) globals.SearchMacrosNames(replacements, macros[macro].value.data); // Search for nested macros in db macro values, collecting them to <replacements>
            for (const name in replacements)
-               if (!SYSTEMSTATICMACROS.includes(name) && !this.IsSystemDynamicMacro(name) && !(name in this.ods[odid].replacements)) view.dialog += `${view.dialog ? ', ' : ''}"${name}": { "type": "text", "head": "Enter macro '<b>${name}</b>' value", "data": "" }`;
-           if (view.dialog) view.dialog = `{ "${SYSTEMSTATICMACROS[0]}": { "type": "title", "data": "Macros definition dialog" }, "${SYSTEMSTATICMACROS[1]}": ${globals.BUTTONOK}, "${SYSTEMSTATICMACROS[2]}": ${globals.BUTTONCANCEL}, ${view.dialog} }`; // and create macros dialog JSON. Todo0 - appliable flag manual set violates app conception
+               if (!(name in SYSTEMSTATICMACROS) && !this.IsSystemDynamicMacro(name) && !(name in this.ods[odid].replacements)) view.dialog += `${view.dialog ? ', ' : ''}"${name}": { "type": "text", "head": "Enter macro '<b>${name}</b>' value", "data": "" }`;
+           if (view.dialog) view.dialog = `{ "${SYSTEMSTATICMACROS[Object.keys(SYSTEMSTATICMACROS)[0]]}": { "type": "title", "data": "Macros definition dialog" }, "${SYSTEMSTATICMACROS[Object.keys(SYSTEMSTATICMACROS)[1]]}": ${globals.BUTTONOK}, "${SYSTEMSTATICMACROS[Object.keys(SYSTEMSTATICMACROS)[2]]}": ${globals.BUTTONCANCEL}, ${view.dialog} }`; // and create macros dialog JSON. Todo0 - appliable flag manual set violates app conception and go through all available handler data text areas to search all macros (except JSON, system and dynamic)
           }
        try { view.dialog = JSON.parse(view.dialog); } // Parse macro dialog to object and retrieve all macro values from text interface elements below
        catch { view.dialog = view.dialog ? { a: { type: "title", data: 'Info' }, b: { type: "text", head: view.dialog }, c: JSON.parse(globals.BUTTONOK) } : {}; }
@@ -698,6 +750,7 @@ export class Controller
      }
 
   const view = this.ods[msg.data.odid].viewprofiles[msg.data.ovid];
+  const session = this.clients.get(client);
   if (Object.keys(view.dialog).length && view.calldialog && !msg.data.macros) // if macro dialog (<view.dialog>) is not empty and 'call' option (<view.calldialog>) is set - send macro definition dialog to the client side. Note that in case of client side responce with macros already defined (<msg.data.dialog> is set) client-side sending dialog is not needed
      {
       msg.data.dialog = view.dialog;
@@ -706,7 +759,7 @@ export class Controller
      }
   /*1 macro group*/ view.actualreplacements = msg.data.macros || view.replacements; // Fix actual replacements to one of version: from client side input dialog (<msg.data.macros>) or from origin dialog JSON in OV settings
   /*2 macro group*/ //this.ods[msg.data.odid].replacements
-  /*3 macro group*/ const systemmacros = this.DefineSystemMacros(this.clients.get(client), msg.data);
+  /*3 macro group*/ const systemmacros = this.DefineSystemMacros(session, msg.data, { TASK: 'View' });
 
   const selections = [], fields = [], replacements = {};
   let transaction, ress;
@@ -734,10 +787,15 @@ export class Controller
 
   try {
        if (!query) throw new Error(EMPTYQUERY);
+       if (!session.ods[msg.data.odid]) session.ods[msg.data.odid] = { ovs: {} };
+       session.ods[msg.data.odid].ovs[msg.data.ovid] = { query: query, tblname: '' };
        transaction = await this.pool.connect();
        await transaction.query(...qm.Make({ method: 'BEGIN', role: `rouserodid${msg.data.odid}` }));
        ress = await transaction.query(...qm.Make({ query: query }, { rowMode: 'array' }));
        if (!ress) throw new Error(UNDEFINEDQUERYRES);
+       /**/let tblname = ress.fields[0]?.tableID;
+       /**/if (tblname) tblname = await transaction.query(...qm.Make({ method: 'GETQUERYTABLENAME', table: tblname }));
+       /**/if (tblname?.rows[0]?.tblname) session.ods[msg.data.odid].ovs[msg.data.ovid].tblname = tblname.rows[0].tblname;
        await transaction.query(...qm.Make({ method: 'COMMIT' }));
       }
   catch(error)
@@ -766,47 +824,48 @@ export class Controller
 
  // Macros names is replaced by appropriate macros values. Undefined macros names are replaced by empty strings. User defined empty macros name is correct, but is not recomended
  // Macros types:
- //     System (General): ${RANDOM} ${DATE} ${DATETIME} ${TIME} ${NULL} ${USERNAME} ${USERID} ${DBDATATBLNAME}
- //     System (View):    ${OD} ${OV} ${ODID} ${OVID} ${FIELDS} ${LAYOUT H,N,id,1,2,3} 
+ //     System (General): ${RANDOM} ${DATE} ${DATETIME} ${TIME} ${NULL} ${USERNAME} ${USERID} ${TASK}
+ //     System (View):    ${OD} ${OV} ${ODID} ${OVID} ${FIELDS} ${LAYOUT H,N,id,1,2,3} ${DBDATATBLNAME}
  //     System (Event):   ${EVENTNAME} ${OID} ${EID} ${EPROP} ${EVENTDATA} ${ELEMENT}
- //     Element:          ${"odid": "6", "oid": "id=7 AND lastversion=true", "ename": "edi2", "eprop": "value", "limit": "1" }, all macros names in parentheses are interpreted as usual macros names, except ones in JSON format. Once the string inside is any correct JSON, it becomes 'element' type macros and defines object element to retreive the data from
+ //     Element:          ${"odid": "6", "ovid": "6", "oid": "id=7 AND lastversion=true", "ename": "edi2", "eprop": "value", "limit": "1" }, all macros names in parentheses are interpreted as usual macros names, except ones in JSON format. Once the string inside is any correct JSON, it becomes 'element' type macros and defines object element to retreive the data from
  //     Dialog:           OV args in OD settings
  //     Database:         macros in general OD settings
  // Application processes with macros types order to apply:
  //     Selection 'layout'/'query' fields at OV calls:             dialog, database, system (view-general)
  //     Rule 'message'/'query' fields at client/handler events:    dialog, database, system (view-general-event)
- //     Handler data at client/controller events:                  dialog, database, system (view-general-event), element
+ //     Handler data at client/controller events:                  dialog, database, system (view-general-event), element (element is last for dialog macroses can overwrite element ones for debug purpoese)
  //     User customization apply at user login:                    system(general)
  //
  // The function determines whether the macro name is dynamic or not. And returns macro name if it is
  IsSystemDynamicMacro(macroname)
  {
-  for (const name of SYSTEMDYNAMICMACROS)
+  for (const name in SYSTEMDYNAMICMACROS)
       if (name === macroname.substring(0, name.length)) return name;
  }
 
+ // Incoming <args> is an array of macro objects with macro names as a keys for corresponded macro values
  DefineSystemMacros(...args)
  {
   const now = new Date();
-  const ELEMENT = {};
-  for (const arg of args) // Var <arg> is an object with macro names as a keys and so corresponded macro values
-      {
-       if ('eid' in arg) ELEMENT.EID = arg.eid;
-       if ('eprop' in arg) ELEMENT.PROP = arg.prop;
-      }
-  const systemmacros = { RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}', ELEMENT: JSON.stringify(ELEMENT) }; // Another macros that should be defined right now. Todo0 - check ELEMENT macro replacement
+  const systemmacros = {};
 
-  for (const prop in NORMALIZEDMACROS) // Iterate all macros to retrieve its values from args list
-  for (const arg of args) // Var <arg> is an object with macro names as a keys and so corresponded macro values
+  // First add macro object wich macros should be defined just right at initialization
+  args.push({ RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}' });
+
+  // Then go through all macro objects to get all macros in SYSTEMSTATICMACROS
+  for (let macroname in SYSTEMSTATICMACROS)
       {
-       if (!(prop in arg)) continue; // Go to below for the macros name exists in <arg>
-       if (typeof arg[prop] === 'string') systemmacros[NORMALIZEDMACROS[prop]] = arg[prop]; // and retrieve its string value
-       if (!arg[prop] || typeof arg[prop] !== 'object') continue;
-       try { systemmacros[NORMALIZEDMACROS[prop]] = JSON.stringify(arg[prop]); } // or its stringified 'object' type value
-       catch {}
+       if (SYSTEMSTATICMACROS[macroname] !== null) macroname = SYSTEMSTATICMACROS[macroname];
+       for (const macroobject of args)
+           {
+            if (typeof macroobject[macroname] !== 'string' && (!macroobject[macroname] || typeof macroobject[macroname] !== 'object')) continue;
+            try { systemmacros[macroname] = typeof macroobject[macroname] === 'string' ? macroobject[macroname] : JSON.stringify(macroobject[macroname]); }
+            catch {}
+           }
       }
 
-  return systemmacros;
+  // And return inited system macros adding 'ELEMENT' macro that is used to represent element id and its prop. Key feature is to define whether element prop exists or just empty
+  return Object.assign(systemmacros, { ELEMENT: JSON.stringify(Object.assign('EID' in systemmacros ? { id: systemmacros.EID } : {}, 'EPROP' in systemmacros ? { prop: systemmacros.EPROP } : {})) });
  }
 
  // Function list (DefineMacro${DYNAMICMACRONAME}()) that defines dynamic macro values. Dynamic macro is a macro that starts with macro name of itself and then some user defined comma separated args. Dynamic macro 'LAYOUT' example: ${LAYOUT H,N}
@@ -859,7 +918,7 @@ export class Controller
             }
           else // Macro doesn't exist, so check it for JSON format
             {
-             try { if (globals.CLIENTEVENTS.includes(replacements.EVENTNAME)) macrovalue = JSON.parse(`{${macroname}}`); } // JSON macros are parsed for client/controller events only
+             try { if (replacements.TASK === 'Element') macrovalue = JSON.parse(`{${macroname}}`); } // JSON macros are parsed for client/controller events only
              catch {}
              if (macrovalue) macrovalue = await this.GetObjectElementData(macrovalue); // Macro name is a JSON, so try to retrieve OD/OV JSON specified object element data
               else if (this.IsSystemDynamicMacro(macroname)) macrovalue = this[`DefineMacro${this.IsSystemDynamicMacro(macroname)}`](macroname);// Macro name is not JSON, so check if it is dynamic and call appropriate function in case
@@ -897,9 +956,109 @@ export class Controller
   return typeof elementdata === 'string' ? elementdata : ''; // Return empty string for all non string types
  }
 
+ // Function returns true result rule object or undefined
+ async CheckRules(msg, session, replacements)
+ {
+  let result, transaction, query;
+  try {
+       for (const key in this.ods[msg.odid].ruleprofiles) // Go through all rule profiles
+           {
+            const rule = this.ods[msg.odid].ruleprofiles[key]; // and fix current one
+            if (!(query = rule.query)) continue; // Skip empty rule query
+            if (!transaction) // Create transaction for the first non empty query
+               {
+                transaction = await this.pool.connect();
+                await transaction.query(...qm.Make({ method: 'BEGIN', role: `rwuserodid${msg.odid}` }));
+               }
+            try {
+                 if (/\$\{.*\}/.test(query))
+                    {
+                     if (!Object.keys(replacements).length) replacements = Object.assign(replacements, this.ods[msg.odid].viewprofiles[msg.ovid].actualreplacements, this.ods[msg.odid].replacements, this.DefineSystemMacros(session, msg, { TASK: 'Rule' }));
+                     query = await this.MacrosReplace(query, replacements); 
+                    }
+                 query = await transaction.query(...qm.Make({ query: query }, { rowMode: 'array' })); // Execute rule query
+                 if (rule.action === 'Pass') continue; // Todo0 - log message for 'Pass' action if log is set. Client message for 'Pass' action is ignored
+                 if (query?.rows?.[0]?.[0] && (result = rule)) break; // Break cycle fixing result to return
+                }
+            catch {}
+           }
+       if (transaction) await transaction.query(...qm.Make({ method: 'COMMIT' }));
+      }
+  catch (error)
+      {
+       if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
+      }
+  finally
+      {
+       if (transaction) transaction.release();
+      }
+  return result;
+ }
+
+ // Function searchs incoming event name <msg.type> among element event groups with events in
+ GetEventProfile(msg)
+ {
+  const eventgrouplist = this.ods[msg.odid].elementprofiles[msg.eid].event; // Get event group name list for specified OD and eid
+  for (let eventgroup in eventgrouplist.split('\n'))
+      {
+       if (!(eventgroup = this.ups[globals.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exits in SUPERUSER (id <globals.PRIMARYKEYSTARTVALUE>) event groups
+       let event = msg.type; // Fix event name and add modifier string '+CTRL+ALT+SHIFT+META' for mouse/keyboard events below if needed
+       if (globals.KEYBOARDEVENTS.includes(event) || globals.MOUSEEVENTS.includes(event)) event += `${msg.data & 0b1000 ? '+CTRL' : ''}${msg.data & 0b0100 ? '+ALT' : ''}${msg.data & 0b0010 ? '+SHIFT' : ''}${msg.data & 0b0001 ? '+META' : ''}`;
+       if (!(event = eventgroup[event])) continue; // Continue for no event in a current event group
+       if (event.handlertype !== 'Disabled' && (event.handlertype !== 'Fixed output' || event.action !== 'Ignore')) return event; // Return matched and enebled event profile, except fixed result handler with 'ignore' action
+      }
+ }
+
+ // Input args: msg.odid, msg.ovid, msg.oid, msg.eid, msg.prop, session.userid, session.username, session.ods
  async ElementHandlerExec(client, msg, session)
  {
-  switch (msg.type)
+  let transaction;
+  try {
+       // Phase 1 - check user auth and client event name correctness. And OD id with OV id exist and interactive
+       if (!session.auth || !this.ups[session.userid]) throw new Error(`Authentication required, please log in!`);
+       if (!globals.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
+       if (!this.ods[msg.odid]) throw new Error(`Unknown Object Database id ${msg.odid})!`);
+       if (!this.ods[msg.odid].viewprofiles[msg.ovid]) throw new Error(`Unknown Object View id ${msg.ovid})!`);
+       const tblname = session.ods[msg.odid]?.ovs[msg.ovid]?.tblname;
+       if (!tblname || tblname !== `data_${msg.odid}`) return; // Todo0 - multiple queries may generate multiple table data retreives, so these views are not interactive, fix it in help doc
+
+       // Phase 2 - user permission check
+       if (session.username !== globals.SUPERUSER)
+          {
+           if (globals.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.read)) throw new Error(`This 'Object View' read access denied by user restrictions!`);
+           if (globals.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.write)) throw new Error(`This 'Object View' write access denied by user restrictions!`);
+          }
+       
+       // Phase 3 - OV permission check
+       if (session.username !== globals.SUPERUSER)
+          {
+           if (globals.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].viewprofiles[msg.ovid].read)) throw new Error(`This 'Object View' read access denied by view restrictions!`);
+           if (globals.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].viewprofiles[msg.ovid].write)) throw new Error(`This 'Object View' write access denied by view restrictions!`);
+          }
+      
+       // Phase 4 - Check if the element event exists and is enabled (for all client events except 'ADDOBJECT' and 'DELETEOBJECT')
+       let eventprofile;
+       if (msg.type !== 'ADDOBJECT' && msg.type !== 'DELETEOBJECT' && !(eventprofile = GetEventProfile(msg))) return;
+
+       // Phase 5 - Check if object id, the event is on, does exist (for all client events except 'ADDOBJECT'). Check actual object existence after handler exec also
+       if (msg.type !== 'ADDOBJECT')
+          {
+           let res = await this.pool.query(...qm.Make({ method: 'EXISTS', query: session.ods[msg.odid].ovs[msg.ovid].query, fields: [ { name: 'id', sign: '=', value: msg.oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
+           if (!res?.rows[0]?.exists) throw new Error(`Actual object (id '${msg.oid}') doesn't exist in the current OV!`);
+          }
+
+       // Phase 6 - Rule check. Every rule has message, query, action and log props. Check every rule query on successful result to apply rule action with message logged
+       const replacements = {};
+       let rule = await this.CheckRules(msg, session, replacements);
+       if (rule) // The rule <rule> result is true, so perform rule action
+          {
+           if (/\$\{.*\}/.test(rule.message)) rule.message = await this.MacrosReplace(rule.message, replacements);
+           if (rule.action === 'Reject')
+              if (rule.warning) throw new Error(`Rule '${rule.key}' reject: ` + rule.message);
+                 else return;
+          }
+          
+       switch (msg.type)
          {
           case 'ADDOBJECT': //
                if (!msg.data) msg.data = {}; // Zero msg data if not exist
@@ -915,15 +1074,29 @@ export class Controller
                     if (typeof json.data !== 'string') continue;
                     fields.push({ name: eid, value: json.data, escape: true });
                    }
+               console.log({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields });
                await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields }));
                break;
           case 'KEYF2':
             if (msg.eid === 'eid7' && msg.data.modifier === '0')
                break;
          }
+      }
+  catch (error)
+      {
+       console.error(error.stack);
+       session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error', msg: msg.odid, msg: msg.ovid } }));
+       return;
+      }
  }
 }
 
+// Controller functions roadmap:
+// Start() -> ReadAllDatabase() -> CheckODConfigurationDialogSyntax()
+//                              -> SuckInODProps() [odid] -> { dialog: <dialog>, name: <dbname>, replacements: {}, elementprofiles: { 'eid1': { type:, name:, description:, event: } }, viewprofiles: { '1': { layout:, query:, replacements:, dialog:, read:, write: } }, ruleprofiles: { [profilename]: }, rulereplacements: {} }
+//                              -> SuckInUserProps() -> [userid] = { name: <username>, tags: <username + group list>, policy: <user policy dialog data>, customization: <customization>, eventgroups: { [eventgroup]: { [event]: {} } },
+// SetNewODInstance() -> SuckInODProps()
+ 
 // Todo0 - Incoming client/handler events check:
 //      1. User permissions check
 //      2. View permissions check
@@ -934,27 +1107,20 @@ export class Controller
 //               FROM (
 //                     -- Вставьте сюда ВЕСЬ ваш сложный запрос БЕЗ изменений
 //                     SELECT * FROM data1 WHERE <ваши_условия>
-//                    ) AS subquery WHERE id = 1);
+//                    ) AS subquery WHERE id = 1 and lastversion=true);
 //      5. Rule check
-//      6. Event handler exec (for element to be callable: explicit 'id'/'lastversion' columns should be queried). In case of eidN->>prop extra style/hint props may be added to the selection to customize cell element
-// Todo0 - wsuser -> session
-// Todo2 - change '*', '!' to const var and others
-// Todo0 - all DB dialog settings workable
-// Todo0 - Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
+//      6. Event handler exec (for element to be callable (interactive): explicit 'id'/'lastversion' columns should be queried). In case of eidN->>prop extra style/hint props may be added to the selection to customize cell element
+//         Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
 //         At any client/server side element event occur - incoming event is checked on all event groups until the match. Once the match is found - the specified event with its handler is called to process event and its data. 
-//         Every event may have 'none' action to explicitly set no call-handler, may be usefull to cancel through-profiles event search with no action
-//         Event profiles of themselves are defined in 'root' user settings pad 'Event profiles':
-//         event profile: add/remove
-//                  event name + modifier keys: KEYPRESS/DBLCLICK/KEYA (act as a profile name together with modifier keys, event profile names are set automatically by controller)
-//                        Step1 profile (step profile names are added/removed automatically by controller in case of 'Redirect to next step' set/unset)
-//                            handler type(data): Command line(command line text area)/Custom stdout(custom stdout text area)/Modules(module function args text area)/None
-//                            Handler stdout correct JSON/Handler stdout incorrect JSON/Handler stderr: Apply/Message/Ignore/Redirect to next step/+Log
-//                            timeout in sec, retries
-//         Event profile consists of user added events only (not all). After user adds new event - all its builtin handlers reset their handler data to default. Handler data for SCHEDULE event has crontab file syntax (for all except sandbox/none handler types)
-//         Command line/user defined plain text are not single line, but multiple. Controller runs first line handler, may be used as a comments
+//         Every event may have 'disabled' handler type to explicitly set no call-handler, may be usefull to cancel through-profiles event search with no action
+//         Command line handler data are not single line, but multiple. Controller runs first line handler, may be used as a comments
 //         Negative queue value (the scheduler sleep for) in msec on crontab line
-// Todo0 - Restrict element handler call, so user double clicked on any object element is unable generate another double click event on other (or same) object element, 
-// Todo0 - EDIT event autocomplete feature of predefined values (for a example company clients) and allowed chars
-// Todo0 - Native handler that get user online/offline status with datetime timestamp and current instances number logged in
-// Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'
-// Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example: query - SELECT id FROM, layout - col=id, OV restrictions not viewable for any, event handler with element macro - {"ename": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}, result - based on input arg (macro ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"
+// Todo0 - all DB dialog settings workable
+// Todo0 - all user dialog settings workable (GUI customization and event profiler)
+// Todo0 - Handler-call element policy on backend - user double clicked on any object element is unable generate another double click event on other (or same) object element
+// Todo0 - System MACROS that get user online/offline status with datetime timestamp and current instances number logged in, RULEQUERY macro to use in a rule message
+// Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'. Log format: datetime, user, process, log message
+// Todo0 - Remove cancel btn timer for a new OD creation
+// Todo0 - Change pass or user delete - force user logout, and natively restrict root user delete
+// Todo0 - shoud OD/OV versions should be stored and where
+// Todo0 - check function is async: async function Test(){} console.log(Test?.constructor?.name === 'AsyncFunction');

@@ -1,0 +1,31 @@
+const view = this.ods[msg.odid].viewprofiles[msg.ovid].actualreplacements
+
+this.ods[msg.data.odid].replacements
+
+const systemmacros = this.DefineSystemMacros(session, msg.data);
+
+
+
+if (/\$\{.*\}/.test(msg + query)
+
+
+Object.assign(replacements, systemmacros, this.ods[msg.data.odid].replacements, view.actualreplacements); // Collect all macro groups for 'GETVIEW' client event (except FIELDS macro)
+      layout = await this.MacrosReplace(layout, replacements); 
+
+
+Аббасова Жанна abba@mega-com.ru
+Алексеева Наталья alekseeva.n.v@mega-com.ru
+ama@mega-com.ru
+
+pya@mega-com.ru
+
+2899400 / 3000000
+2880850
+
+       let query = 'a\nb\n #c'.split('\n');
+       for (let i = 0; i < query.length; i++)
+           {
+            query[i] = query[i].trim();
+            if (query[i][0] === '#') query.splice(i--, 1);
+           }
+console.log( query.join('\n'));

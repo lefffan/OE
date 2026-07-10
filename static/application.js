@@ -61,7 +61,7 @@ export class Application extends Interface
 	      case 'HELP':
 		  	   //new DialogBox(globals.HELPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS), 'Help', undefined, '   OK   ');
 			   //new DialogBox(globals.CUSTOMIZATIONDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS));
-			   new DialogBox(EVENTGROUPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS));
+			   new DialogBox(globals.EVENTGROUPDIALOG, event.source, JSON.parse(globals.MODALBOXPROPS));
 			   break;
 	      case 'CONTEXTMENU':
 			   switch (event.data[0])	// Switch context item name (event data zero index)
@@ -142,68 +142,73 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //  scrypt from openssl (passwords hashing)
 //  auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
 //  https://node-postgres.com/apis/pool
-
-// Megacom appliance information systems:
-// Todo - discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
-// Todo - add startel nodes
-// Todo - discuss wich tabs to create as they are in our current mrtg. Left/right/N-Z/Fiziki?
-// Todo - Discuss megacom user/groups and their rights
-// Todo - Megacon MRTG System
-//		  Link names for usual uplink, mpls uplink, switchport/vlps uplink, rezerv uplink..
-// 		  Create MRTG OD with at least one view that shows nodes with zero clients, one client, etc..
-// 		  Host/node elements: 1-100 ports (type uplink,downlink,free,service,client), 101 hostname or/and description, 102 hardware, 103 location, 104 ip, 105 Status(up/down).
-//		  Should hardware-mac, node-number and checked-by-soa element be added?
-// 		  diagnostic (pings, grafiki, port config, port errors, asr speed, mac, mac-vendor, cable diag, checkhost, name from billing), in node tree create mac search function for every switch in a tree
-//		  For client port type display client name from billing
-//		  Button to destruct client conf,int et 1/0/2,shut, no fl c, no band c,  sw mode acc,  sw acc vl 666,  speed aut, end,wr
-//		  ping <switch ip>, on port ping <client ip>
-//		  Ctrl+F12 - uplink tree from current object (any element)
-//		  Alt+F12 - downlink tree from current object (any element)
-//		  Shift+Ctrl+F12 - Map tree up from current object (any element)
-//		  Shift+Alt+F12 - Map tree down from current object (any element)
-//		  ALT+S - point to point tree (any element)
-//		  ALT+H - history (any element)
-//		  ALT+L - downlink tree client list (any element)
-//		  F2, KEYPRESS - edit value for L2 only (any element)
-//		  DEL - delete content via confirmation (any element)
-//		  DBLCLICK - edit card dialog box for tehuchet, info, contacts, names, loaction.. (location element)
-//		  DBLCLICK with ctrl|alt|shift for UPLOAD, DOWNLOAD, UNLOAD and ctrl+alt for GALLERY (location element)
-//		  F12 port diagnostic - client grafic in realtime, and mrtg grafics (port element)
-//		  INS edit hint, style and snmpindex (port element)
-//		  DBLCLICK - edit card dialog box (port type selection[free|client|service|uplink|downlink]: free[description becpmes empty], client[zayavka-ip-speed-licevoi-name-address], service[description only], up|down[description+link property]) (port element)
-//		  F12 host diagnostic - switch with port list with their links up or down (non-port element)
-//		  INS hint, style + snmpgroup, for hardware element only (non-port element)
-// Todo - Create corp chat with source code pass, image pass and some popular messanges features to make comfortable user dialogs. Apply emodzi pass also and see new features of mattermost (or other corp chat) new version
-// Todo - Create corp addrbook, stuff list with foto, tel, dolzhnost. Tabel. Stuff vacations (otpusk). Grafik raboty
-// Todo - Setki.xls (ip, name from TABELS, name from BILLING, mac for buhgalters and FSB, comment), every ip - comment, name from billing, name from mrtg, type, arp history[for FSB and buhgalters], ping) vendor, iz_zokii (ЗОКИИ - это значимый объект критической информационной инфраструктуры)
-// Todo - tech uchet, Wiki
-// Todo - Union some request apps (like Helpdesk or CRM) where one zayavka for helpdesk, podkluchenie, otkl, expluataciya.
-//	      Develop helpdesk - how does object selection should calculate expired orders/requests? Versions date difference is more than three days?
-//		  Group some orders to one parent to have opportunity to close/change(status) all childs orders via one parent order. Or one order may have multiple clients?
-//		  Order/requests reassignment to one person/department(otdel)
-//		  Client order/requests history
-//		  Automatic preload client data (switch, port, ip, geo addr, contacts) at order/request creation
-// Todo - Alse some view examples to be released: request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
-//										          arp table history for one ip/mac
-//                                                FSB request about our system ips perimetr, so every ip should have next types: client, service (web site, mail), system (ups, switch ip), net number, broadcast, free (if net number and broadcast are set correctly we can calc free nets)
-//                                                ask Slava what reports he does to Megacom Bosses (on HD or other systems) and ask Rozbah what we do need for FSB and others
-//                                                BTV asked to parse all wifi-sms clients, or all Sberbank (or all clients) активные подключения
-//                                                switches (nodes) with specified in dialog clients number (0,1,2, or more), nodes with two or more 8port swithes
-// Todo - See some systems for new app functional: metabase/apache, superset, statsbot, looker, periscopedata, Paraga mail functional, Zabbix, Grafana, ACS, any accounting system (may be billing), any statistic/analitycs, Slavina adminka
-
-const newevent         = { events: { type: 'select', head: 'Select event type', data: globals.CLIENTEVENTS.join(globals.OPTIONSDIVIDER) },
-                           modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', expr: `/${[...globals.CALLBACKEVENTS, ...globals.MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
-                           attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEVENT~\!|ONTIMER~\!)).*$/events' },
-                           handlertype: { type: 'select', head: 'Handler type', data: 'Disabled~!/Fixed output/Command line/Shell command line/Module function' },
-                           handlerdata: { type: 'textarea', head: 'Handler specific data', data: '', expr: '/Disabled~!/handlertype' },
-                           timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' and 'Eval' handler types only`, data: '30', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
-                           retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', flag: '', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
-                           //output: { type: 'checkbox', head: 'Output types to process', data: 'stdout correct JSON~!/other stdout/stderr', expr: '/Disabled~!/handlertype' }, // any stdout or stderr is checked for 'Process' apply action - this type of output is wrapped to { type: 'SET', data: <stdout/stderr>}. For 'Message' apply action any stdout/stderr is displayed as an info msg at client side
-                           //action: { type: 'radio', head: 'Output apply action', data: 'Process~!/Message/Ignore', flag: '*', expr: '/Disabled~!/handlertype' },
-                           output: { type: 'radio', head: 'Handler result action', data: `Apply~!/Wrap/Debug/Ignore`, expr: '/Disabled~!/handlertype' }, // any stdout or stderr is checked for 'Process' apply action - this type of output is wrapped to { type: 'SET', data: <stdout/stderr>}. For 'Message' apply action any stdout/stderr is displayed as an info msg at client side
-                         };
-const neweventgroup    = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': newevent }, flag: '*' } };
-const EVENTGROUPDIALOG = { title: { type: 'title', data: 'Event profiling' },
-                           eventprofiles: { type: 'select', head: 'Select event group profile', data: { 'New event group~+': neweventgroup } },
-                           ok: JSON.parse(globals.BUTTONOK),
-                           cancel: JSON.parse(globals.BUTTONCANCEL),};
+// Todo0 - Megacom appliance information systems:
+//          discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
+//          add startel nodes
+//          discuss wich tabs to create as they are in our current mrtg. Left/right/N-Z/Fiziki?
+//          Discuss megacom user/groups and their rights
+//          Megacon MRTG System
+//		        Link names for usual uplink, mpls uplink, switchport/vlps uplink, rezerv uplink..
+// 		        Create MRTG OD with at least one view that shows nodes with zero clients, one client, etc..
+// 		        Host/node elements: 1-100 ports (type uplink,downlink,free,service,client), 101 hostname or/and description, 102 hardware, 103 location, 104 ip, 105 Status(up/down).
+//		        Should hardware-mac, node-number and checked-by-soa element be added?
+// 		        diagnostic (pings, grafiki, port config, port errors, asr speed, mac, mac-vendor, cable diag, checkhost, name from billing), in node tree create mac search function for every switch in a tree
+//		        For client port type display client name from billing
+//		        Button to destruct client conf,int et 1/0/2,shut, no fl c, no band c,  sw mode acc,  sw acc vl 666,  speed aut, end,wr
+//		        ping <switch ip>, on port ping <client ip>
+//		        Ctrl+F12 - uplink tree from current object (any element)
+//		        Alt+F12 - downlink tree from current object (any element)
+//		        Shift+Ctrl+F12 - Map tree up from current object (any element)
+//		        Shift+Alt+F12 - Map tree down from current object (any element)
+//		        ALT+S - point to point tree (any element)
+//		        ALT+H - history (any element)
+//		        ALT+L - downlink tree client list (any element)
+//		        F2, KEYPRESS - edit value for L2 only (any element)
+//		        DEL - delete content via confirmation (any element)
+//		        DBLCLICK - edit card dialog box for tehuchet, info, contacts, names, loaction.. (location element)
+//		        DBLCLICK with ctrl|alt|shift for UPLOAD, DOWNLOAD, UNLOAD and ctrl+alt for GALLERY (location element)
+//		        F12 port diagnostic - client grafic in realtime, and mrtg grafics (port element)
+//		        INS edit hint, style and snmpindex (port element)
+//		        DBLCLICK - edit card dialog box (port type selection[free|client|service|uplink|downlink]: free[description becpmes empty], client[zayavka-ip-speed-licevoi-name-address], service[description only], up|down[description+link property]) (port element)
+//		        F12 host diagnostic - switch with port list with their links up or down (non-port element)
+//		        INS hint, style + snmpgroup, for hardware element only (non-port element)
+// Todo0 - Create corp chat with source code pass, image pass and some popular messanges features to make comfortable user dialogs. Apply emodzi pass also and see new features of mattermost (or other corp chat) new version
+// Todo0 - Create corp addrbook, stuff list with foto, tel, dolzhnost. Tabel. Stuff vacations (otpusk). Grafik raboty.
+// Todo0 - Setki.xls - ip, name from TABELS, name from BILLING, mac for buhgalters and FSB, comment, type (free, netnum, broadcast, gw, client, service(ups, switch ip, server)), ping, vendor, iz_zokii (ЗОКИИ - это значимый объект критической информационной инфраструктуры), host util output
+// Todo0 - tech uchet, Wiki
+// Todo0 - Union some request apps (like Helpdesk or CRM) where one zayavka for helpdesk, podkluchenie, otkl, expluataciya.
+//	        Develop helpdesk - how does object selection should calculate expired orders/requests? Versions date difference is more than three days?
+//		    Group some orders to one parent to have opportunity to close/change(status) all childs orders via one parent order. Or one order may have multiple clients?
+//		    Order/requests reassignment to one person/department(otdel)
+//		    Client order/requests history
+//		    Automatic preload client data (switch, port, ip, geo addr, contacts) at order/request creation
+//          request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
+//          search for free subnets
+// Todo0 - Arp base like in SLAVINA ADMINKA with mac moved 
+// Todo0 - Another functional to be released: 
+//              ask Slava what reports he does to Megacom Bosses (on HD or other systems) and ask Rozbah what we do need for FSB and others
+//              BTV asked to parse all wifi-sms clients, or all Sberbank (or all clients) активные подключения
+//              switches (nodes) with specified in dialog clients number (0,1,2, or more), nodes with two or more 8port swithes
+//              metabase/apache, superset, statsbot, looker, periscopedata
+//              Paraga mail functional
+//              Zabbix, Grafana
+//              ACS
+//              any accounting system (may be billing)
+//              Slavina adminka
+//              Krestiki-noliki or calculator
+//              Traffic counting based on tsdb data (example - megacom downlinks operators traffic should be counted for a period of kvartal)
+//              Voting view example (multiple choices(with limit number), number and owners for all choices, anonymous voting, vote from other user (for root), summary votes)
+//      		      layout: {"oid":"3", "eid":"element id number for every voting", "y":"0", "x":"0", "value":"Голосовать"}
+//		            object selection: empty
+//	  	            Rule reject:
+//					  CHANGE select count(version) > 1 from :odtable where id=3 and owner=':user'
+//					  INIT select 1 (add object first (only once))
+//					  DELETE select 1
+//		            Event DOUBLECLICK handler: php /usr/local/src/tabels/handlers/_.php SELECT 'Путин|Зюганов|Медведев'
+//		            Event CONFIRMDIALOG handler:  php /usr/local/src/tabels/handlers/_.php <event> <data>
+//		            Display selected cells sum for 'number' cell type
+// Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example:
+//                  query - SELECT id FROM
+//                  layout - col=id, OV restrictions not viewable for any
+//                  event handler with element macro - {"ename": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}
+//                  result - based on input arg (macro ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"

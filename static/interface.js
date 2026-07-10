@@ -734,3 +734,4 @@ const CHILDCONTROLTEMPLATES		 = {
 // Todo2 - Dragging child with right btn hold moves neighbor childs
 // Todo2 - Change box minimize icon from low line to upper line
 // Todo1 - https://dgrm.net - nice GUI:) some nice features may be used
+// Todo0 - hints for child controls (exit, minimize, maximaize and so on)

@@ -91,7 +91,8 @@ export class Connection extends Interface
 
 	     case 'INFO':
 	     case 'WARNING':
-               new DialogBox(event.data?.content, this, JSON.parse(globals.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
+               if (event.data.odid || event.data.ovid) this.EventManager(Object.assign(event, { destination: null }));
+                else new DialogBox(event.data?.content, this, JSON.parse(globals.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
 	          break;
 	     case 'DIALOG':
                const callback = Object.assign({ type: 'CONFIRMDIALOG', odid: event.odid, ovid: event.ovid, oid: event.oid, eid: event.eid }, 'eprop' in event ? { eprop: event.eprop } : {});
@@ -137,6 +138,7 @@ export class Connection extends Interface
                break;
           default:
                if (globals.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
+               //if (globals.CONTROLLEREVENTS.includes(event.type)) return Object
 	    }
  }
 
@@ -222,7 +224,7 @@ export class Connection extends Interface
 /* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other events - modifier keys value
    +--------+                                                                                            +------------+                                   +---------+                                     
    |        | KEYF2:LOCAL[odid,ovid,oid,eid,eprop,data] - > KEYF2:WS[odid,ovid,oid,eid,eprop,data] -> 	|            |                                   |         |                
-   | Client |                                											     | Controller |                                   | Handler |                
+   | Client |                                      <- WARNING:WS[content,title, odid, ovid] | Controller |                                   | Handler |                
    |        |                        		    		                                                  |            |                                   |         |                
    |        |                        		    		                                                  |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
@@ -237,7 +239,7 @@ export class Connection extends Interface
    +--------+       +------------+                                                                             +---------+                                     
 */
 
-/* Handler EMULATION(ADDOBJECT,DELETEOBJECT,SETVIEW),EDIT,WARNING|INFO,DIALOG,SET|WRITE|PUT|ADJUST,RESET,UPDATE(set if obj change),PUSH|COLLECT(tsdb),UPLOAD,DOWNLOAD,UNLOAD,GALLERY,NULL,COPY(buffer),NEWPAGE(url) events
+/* Handler EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW),EDIT,DIALOG,SET|WRITE|PUT|ADJUST,RESET,UPDATE(set if obj change),PUSH|COLLECT(tsdb),UPLOAD,DOWNLOAD,UNLOAD,GALLERY,NULL,COPY(buffer),NEWPAGE(url) events
    +--------+       +------------+                                                                             +---------+                                     
    |        | 	     |            |                                                                             |         |                
    | Client |       | Controller |                                                                             | Handler |                

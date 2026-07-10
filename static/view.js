@@ -239,7 +239,11 @@ export class View extends Interface
 
   switch (event.type)
          {
-	       case 'CONFIRMDIALOG':
+          case 'INFO':
+          case 'WARNING':
+               if (event.data.odid === this.data.odid && event.data.ovid === this.data.ovid) new DialogBox(event.data?.content, this, JSON.parse(globals.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
+               break;
+          case 'CONFIRMDIALOG':
                switch (event.source.props.callback.type)
                       {
                        case 'SETVIEW':
@@ -247,7 +251,7 @@ export class View extends Interface
                             return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, od: od, ov: ov, childid: childid, macros: globals.GetDialogMacrosValues(event.source.data) } };
                       }
                return;
-	       case 'CANCELDIALOG':
+	     case 'CANCELDIALOG':
                switch (event.source.props.callback.type)
                       {
                        case 'SETVIEW':
@@ -408,10 +412,10 @@ export class View extends Interface
                {
                 if (row) for (const prop in globals.SYSTEMELEMENTNAMES) if (row[index[prop]]) cell[prop] = row[index[prop]]; // Store object meta data for non system elements (eid1, eid2..)
                 cell.id = cell.id && !isNaN(cell.id) && Number(cell.id) >= globals.PRIMARYKEYSTARTVALUE ? Number(cell.id) : undefined; // Adjust 'id' system element to real object id or undefined
-                [cell.oid, cell.eprop, cell.epropkey, cell.interactive] = [i < 0 ? i : cell.id, column.elementprop, column.elementprop ?? NULLPROP, cell.lastversion && cell.id !== undefined];
+                [cell.oid, cell.eprop, cell.epropkey, cell.interactive] = [i < 0 ? i : cell.id, column.elementprop, column.elementprop ?? NULLPROP, cell.lastversion && cell.id !== undefined]; // Cell is interactive while its object id does exist and lastversion is true, every object change generates its new version lastversion set to true and previous object version lastversion set to false. Object delete generates its new version with lastversion=false and version=0
                }
             // Todo0 - fix in help: columns with data type set explicitly via '::' should be used with alias notation via ' as ', cause "eid1::json->'valu'" is truncated to "eid1"
-            // Todo0 - how db non string values are appeared in back-prased-to object serialized db data - such as numbers, JSON, datetime. Check it
+            // Todo0 - how db non string values are appeared in back-parsed-to object serialized db data - such as numbers, JSON, datetime. Check it
             if (typeof cell.value !== 'string')
                {
                 let value = row?.[c];
@@ -518,7 +522,7 @@ export class View extends Interface
        dispx = 0; // Process current row all columns for 'collapsing' below
        for (let x = 0; x < this.valuetableWidth - dispx; x++) // if (this.collapsedcols[x + dispx] && this.valuetable[y].splice(x--, 1)) dispx++;
         if (this.layout.collapsedcols[x + dispx]) // Collapse the column 'x' for row 'y'
-	        {
+	      {
             this.valuetable[y].splice(x, 1); // splicing all elements to the left
             x--; // decreasing current column number <x>
             dispx++; // and increasing <dispx>
@@ -887,7 +891,6 @@ export class View extends Interface
  }
 }
 
-// View
 // Todo0 - Should the view be closed after its OD have been removed? No, but status 'removed' is displayed
 // Todo2 - Text area color customization, example - query text - SELECT statement is blue color highlighted
 // Todo0 - Emulate user client events binded on context menu. Events are defined in OV proflie settings
@@ -899,57 +902,40 @@ export class View extends Interface
 //         Controller passes all changed data to all clients that has this view opened, so that clients apply all changes right now (not forgetting to check oid presense, cause of possible random or non-actual selection).
 //         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar against the sent view
 // Todo0 - regexp search should be implemented to all types of view including tree and map. Should js range be used instead of span highlighting in regexp search? Not only regexp search but search on mask with only one asterisk as a special char or just plain text
-// Todo0 - Voting view example (multiple choices(with limit number), number and owners for all choices, anonymous voting, vote from other user (for root), summary votes)
-//		     layout: {"oid":"3", "eid":"element id number for every voting", "y":"0", "x":"0", "value":"Голосовать"}
-//		     object selection: empty
-//	  	     Rule reject:
-//					  CHANGE select count(version) > 1 from :odtable where id=3 and owner=':user'
-//					  INIT select 1 (add object first (only once))
-//					  DELETE select 1
-//		     Event DOUBLECLICK handler: php /usr/local/src/tabels/handlers/_.php SELECT 'Путин|Зюганов|Медведев'
-//		     Event CONFIRMDIALOG handler:  php /usr/local/src/tabels/handlers/_.php <event> <data>
-//		     Display selected cells sum for 'number' cell type
 // Todo0 - Emodzi symbols as an element text causes db sql error. Should it be fixed?
 // Todo0 - Setka via css https://dbmast.ru/fon-v-vide-diagonalnoj-setki-na-css
 //         View area specific style with background, border radius and so on
 // Todo1 - keep input view parameters in a view history navigating, so open last viewed OV with input parameters used before. Access history of opened views via context menu or hot keys?
 // Todo2 - scale OV content (table/tree/map) via child management icon +-
 // Todo0 - OV icon in a sidebar depend on template, so displaay table/tree/map little icons inside rounded square icon
-// Todo0 - for error view status is not loaded 100%
-
-// Tree view
 // Todo0 - Tree selection: SELECT <layout elements> FROM <actual data> WHERE <clause1 /n clause2>, other exoressions are unavailable. Clause2 points to the second point of the tree. No second point (clause2) - until the end of the tree. Point to point tree may be multipath.
 // Todo0 - Tree element layout style:
 //		     for example to see what nodes are down by seeing them via red background
 //  	     Tree wire name (arrow name) to mark fiber cooper radio..
 //		     Node color or wire type should depend on some current object element values to mark nodes and its links status (node down, line down, etc..)
-// Todo0 - Every object has its content defined via table element layout, so you can output any object elements (including images) in a tree node, but be aware and place only nessesary data due to possible page overload. Also all tree nodes have its uplinked/downlinked elmenents displayed with specified wire between
-// Todo0 - context menu: expand/hide uplink and downlink subtrees, description for tree view (object number, object selection parameteres..)
-// Todo0 - loop element - show real looped object instead of read message
-// Todo1 - nested level input (nodes depth) to display may be defined. For example, nested level 2 diaplys main switch with its direct downlink nodes and no more deeper levels of nodes
-
-// Table view
-// Todo - all table cells have their allowed html tags - <div>, <table>, <stream> or/and <tsdb> to draw graph from tsdb
-//        Every user defined element (eid1, eid2..) has its external data - files (documents, audio, video, image)
-//		    App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props.. files
-//		    Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
-//        GALLERY command shows all object element files for default, otherwise - foto/audio/video. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
-//		    Make external source data settings via these kinds of systme calls UPLOAD, DOWNLOAD, UNLOAD for files, another cmd for TSDB (duration, unit of measurement) and another cmd for streams (timeshift, source, qulity)
-// Todo - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
-// Todo - table cells selection should fade cell background color, not just shadow it. Also selected area rectangle should be highlighted via bold line
-// Todo - Don't call eval function in case of constants x,y values also, check it on million cycles
-// Todo - only 'table' type of view allows new object creation. Release object creation via dialog to input all elements values
-// Todo - Export OV data to xls(via csv) or txt file
-// Todo - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
-// Todo - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
-// Todo - macros like in joe
-// Todo - Context menu Graph
-//        Table selection of this strings and values (dlink space, snr space, eltex space..) displays pie chart with dlink - 100%, and 0% for other values, is it right?
-// Todo - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event or PASTE to specific object element
-//        One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
-// Todo - Fetch progress indicator for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
-// Todo - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711. Apply white list (allowed chars) and black list (disallowed chars)
+// Todo0 - Tree view: every object has its content defined via table element layout, so you can output any object elements (including images) in a tree node, but be aware and place only nessesary data due to possible page overload. Also all tree nodes have its uplinked/downlinked elmenents displayed with specified wire between
+// Todo0 - Tree view: context menu: expand/hide uplink and downlink subtrees, description for tree view (object number, object selection parameteres..)
+// Todo0 - Tree view: loop element - show real looped object instead of read message
+// Todo1 - Tree view: nested level input (nodes depth) to display may be defined. For example, nested level 2 diaplys main switch with its direct downlink nodes and no more deeper levels of nodes
+// Todo0 - all table cells have their allowed html tags - <div>, <table>, <stream> or/and <tsdb> to draw graph from tsdb
+//             Every user defined element (eid1, eid2..) has its external data - files (documents, audio, video, image)
+//		         App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props.. files
+//		         Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
+//             GALLERY command shows all object element files for default, otherwise - foto/audio/video. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
+//		         Make external source data settings via these kinds of systme calls UPLOAD, DOWNLOAD, UNLOAD for files, another cmd for TSDB (duration, unit of measurement) and another cmd for streams (timeshift, source, qulity)
+// Todo0 - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
+// Todo0 - table cells selection should fade cell background color, not just shadow it. Also selected area rectangle should be highlighted via bold line
+// Todo0 - Don't call eval function in case of constants x,y values also, check it on million cycles
+// Todo0 - only 'table' type of view allows new object creation. Release object creation via dialog to input all elements values, or no new object creation if new-object-cells are not present?
+// Todo0 - Export OV data to xls(via csv), export to txt file should be via copy-paste
+// Todo0 - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
+// Todo0 - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
+// Todo0 - macros like in joe
+// Todo0 - Context menu Graph -tTable selection of this strings and values (dlink space, snr space, eltex space..) displays pie chart with dlink - 100%, and 0% for other values, is it right?
+// Todo0 - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event or PASTE to specific object element
+//             One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
+// Todo0 - Fetch progress indicator for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
+// Todo0 - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711. Apply white list (allowed chars) and black list (disallowed chars). And autocomplete feature of predefined values (for a example company clients)
 // Todo2 - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo1 - Always develop table functional to some needful excel functions!
-// Todo0 - warning message (or just complete dialog?) and regexp search (emulates ctrl+shift+f at OV open) as a start event. Also emulate via start event 'select all objects and then delete them'
-// 	   - Chart as a start OV event to display graphic instead of a table
+// Todo0 - Start event in OV layout is any client event whth no event data (that is no where to place). Emulataion of 'select all objects and then delete them', 'charts', 'regexp search' (emulates ctrl+shift+f at OV open) is deprecated
