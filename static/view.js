@@ -340,13 +340,37 @@ export class View extends Interface
                             this.MoveCursor(CURSOROFFSETS[event.code], event.shiftKey, true); // and move cursor to the specified offset
                       }
                return;
-          case 'SETVIEW':
+          case 'SETVIEW': // { type: 'SETVIEW', data: { elements: { 1:, 2:, }, selections: [ { rows:, fields: }, { rows:, fields: }, ], layout:, query:, macros: {}, } }
                // Step 1 - init OV params and handle some errors, such as incoming event 'error' property or undefined selection (which is impossible cause undefined selection may be in a try-catch exception only and generates an 'error' in event)
                this.InitView(event);
                this.EventManager({ type: 'KILL', destination: null }); // Kill all view childs (dialogs)
                if (event.data.dialog) return this.DisplayView('', 'Pending..', event);
                if (event.data.error) return this.DisplayView(event.data.error);
                if (!event.data.selections || !event.data.selections.length) return this.DisplayView(UNDEFINEDSELECTION);
+
+               // Step 2 - 
+               // Vars in a layout jsons: i,j (current cursor x,y zero based position), r,c (current selection row/column zero based position), selection (current selection data array), l,w,q (current selection length/width, all selection summary length), x/y (current cell table x/y coordianates), table (client side table array with cell of string/undefined data types)
+               const maxcolumns = Math.max(...selections.map(obj => obj.fields.length));
+               // hui ended here, read about reduce and get <q>
+               let i,j;
+               for (let m = 0; m < event.selections.length; m++) // Go through all selections
+                   {
+                    const selection = event.selections[m]; // Select selection
+                    const l = selection.length; // then its length
+                    const w = selection[0].length; // and width
+                    j = 0;
+                    for (let r = m === 0 ? TITLEVIRTUALROWID : 0; r < l; r++) // Go through all selection rows
+                        {
+                         i = 0;
+                         const row = r >= 0 ? selection[r] : undefined; // Select current selection row or (in case of new/header object) undefined
+                         for (let c = 0; c < w; c++) // Go through all columns
+                             {
+                              row[c]
+                              i++;
+                             }
+                         j++;
+                        }
+                   }
 
                // Step 2 - handle db selection rows with two virtual rows ('title' and 'new') before
                let r = TITLEVIRTUALROWID;
@@ -365,6 +389,43 @@ export class View extends Interface
          }
  }
 
+ // Vars in a layout jsons: i,j (current cursor x,y zero based position), r,c (current selection row/column zero based position), selection (current selection data array), l,w,q (current selection length/width, all selection summary length), x/y (current cell table x/y coordianates), table (client side table array with cell of string/undefined data types)
+ // +------------------------------------------------------------+
+ // |  exp: boolean expression of all vars except table          | indicates a selection array element match expression, empty property is a faulsy case, so no any selection data is matched. True expression places selection element string to x/y table coordinates. Jsons with no 'exp' property defines virtual cells
+ // |  x, y: number expression of i, j, r, c, l, q               | table cell x/y coordinates to place selection data. Vars r, c are undefined for virtual cells. Empty/undefined x/y - cursor placement
+ // |  value: string [expression of table, x, y]                 | Plain text for usual cells or [expression for virtual cells]
+ // |  title, style: plain text                                  | Cell div html element title/style attributes
+ // |  collapserow, collapsecol: any                             | These props any value does collapse whole table rows/columns for specified x/y table coordinates or undefined rows/columns for undefined x/y
+ // |  event: event_name[event_data]                             | Event name (ADDOBJECT/DELETEOBJECT/CONFIRMEDIT/PASTE/DOUBLECLICK/keyboard_events) to emulate at OV open to the cursor cell. Event data is for CONFIRMEDIT/PASTE/KEYPRESS events only. Event is applied to the cursor cell. Unsupport event name or non interactive cell - no emulation, but cursor is set to the position specified by x/y (with x=0, y=0 values for default) coordinates anyway, so JSON '{"event":"", "x":"2", "y":"q-1"}' sets cursor to the last row third column
+ // +------------------------------------------------------------+
+ ParseLayout(jsons, maxcolumns)
+ {
+  const layout = { actual: [], virtual: [], incorrect: '' };
+
+  for (let json of jsons.split('\n'))
+      {
+       try {
+            // First step - convert json to object, clear it from unnecessary props, trim them all except "value" and check json correctness
+            json = JSON.parse(json);
+            for (const prop in json)
+                if (!LAYOUTJSONPROPS.includes(prop) || typeof json[prop] !== 'string') delete json[prop];
+                 else if (prop !== 'value') json[prop] =  json[prop].trim();
+ 
+            // Second step - layout jsons have two types: with 'row' property in, selecting db data and no 'row' in, selecting custom non db data from "value" property and placing to the table cell with x/y coordinates
+            if ('row' in json && 'col' in json && /[^\d-, ]/.test(json.col)) throw new Error(); // Props 'row' and 'col' are in, but 'col' consists of ilegal chars
+            if (!Object.keys(json).length || ('row' in json && Object.keys(json).length === 1) || ('row' in json && 'col' in json && Object.keys(json).length === 2)) throw new Error(); // No props at all, single prop 'row' or two 'row' and 'col' props only - this is an error
+            layout[`${'row' in json ? 'actual' : 'virtual'}`].push(json);
+           }
+       catch
+           {
+            if (typeof json === 'object') json = JSON.stringify(json);
+            if (json.trim()) layout.incorrect += json + '\n';
+           }
+      }
+ 
+  return layout;
+ }
+ 
  // Parse SELECT fields from the controller
  ParseField(layout, field)
  {
