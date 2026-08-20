@@ -3,6 +3,7 @@ import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
 import * as globals from './globals.js';
+import * as suckin from './suckin.js';
 
 const LOGINDIALOG = { username: { type: 'text', head: 'Username', data: 'root' },
                       password: { type: 'password', head: 'Password', data: 'root' },
@@ -86,7 +87,7 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(globals.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { type: 'SETDATABASE' } }));
+               new DialogBox(JSON.parse(JSON.stringify(suckin.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { type: 'SETDATABASE' } }));
                break;
 
 	     case 'INFO':
@@ -137,8 +138,8 @@ export class Connection extends Interface
 	     case 'BRINGTOTOP':
                break;
           default:
-               if (globals.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
-               //if (globals.CONTROLLEREVENTS.includes(event.type)) return Object
+               if (suckin.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
+               //if (suckin.CONTROLLEREVENTS.includes(event.type)) return Object
 	    }
  }
 

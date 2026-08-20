@@ -8,6 +8,7 @@ import { WebSocketServer } from 'ws';
 import * as globals from './globals.js';
 import * as macro from './macro.js';
 import * as qm from './querymaker.js';
+import * as suckin from './suckin.js';
 
 const { Pool, Client }      = pg;
 const UNKNOWNDBID           = 'Incorrect or nonexistent database id!';
@@ -111,7 +112,7 @@ export class Controller
  
        try {
             const dialog = await this.pool.query(...qm.Make({ method: 'SELECT', table: `head_${odid}`, orderdesc: 'id', limit: '1', fields: ['dialog'] })); // Get OD structure dialog last version from head_id table
-            const databaseprops = globals.SuckInDatabaseProps(dialog.rows[0].dialog, odid); // and suck it to the memory
+            const databaseprops = suckin.SuckInDatabaseProps(dialog.rows[0].dialog, odid); // and suck it to the memory
             if (!databaseprops) throw new Error(INCORRECTDBCONFDIALOG + ` in table head_${odid}`);
             this.ods[odid] = databaseprops;
             if (odid === '1')
@@ -120,7 +121,7 @@ export class Controller
                 if (!Array.isArray(userrows?.rows)) throw new Error(INCORRECTUSERSOD);
                 for (const userrow of userrows.rows)
                     {
-                     const userprops = globals.SuckInUserProps(userrow);
+                     const userprops = suckin.SuckInUserProps(userrow);
                      if (!userprops) throw new Error(`Incorrect user id ${userrow?.id} data!`);
                      this.ups[userrow.id] = userprops;
                     }
@@ -178,7 +179,7 @@ export class Controller
  async Authenticate(username, password)
  {
   let hash;
-  const macroobject = { odid: "1", ename: `${globals.ELEMENTCOLUMNPREFIX}2`, oid: `${globals.ELEMENTCOLUMNPREFIX}1='${username}'` };
+  const macroobject = { odid: "1", eid: `2`, oid: `${globals.ELEMENTCOLUMNPREFIX}1='${username}'` };
   if (typeof username !== 'string' || !username) return { type: 'LOGINERROR', data: "User name couldn't be empty!" };
   if (typeof password !== 'string' || !password) return { type: 'LOGINERROR', data: "Password couldn't be empty!" };
 
@@ -192,7 +193,7 @@ export class Controller
        return { type: 'LOGINERROR', data: 'Argon2 error: ' + error.message };
       }
 
-  const userid = await macro.GetObjectElementData(Object.assign(macroobject, { ename: 'id' }), this, {}); // Change retrieving element name to 'id' and get element data (user id)
+  const userid = await macro.GetObjectElementData(Object.assign(macroobject, { eid: 'id' }), this, {}); // Change retrieving element name to 'id' and get element data (user id)
   const authcode = this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: userid, username: username });
   return { type: 'LOGINACK', data: { username: username, userid: userid, protocol: 'ws', ip: this.WS.ip, port: this.WS.port, authcode: authcode } };
  }
@@ -368,7 +369,7 @@ export class Controller
   this.sessions.set(session.socket, session);
   this.ups[globals.PRIMARYKEYSTARTVALUE] = { tags: [globals.SUPERUSER] };
 
-  await this.SetNewODInstance(globals.USEROBJECTDATABASE, undefined, session);
+  await this.SetNewODInstance(suckin.USEROBJECTDATABASE, undefined, session);
   await this.Start();
   await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { '1': globals.SUPERUSER, '2': globals.SUPERUSER } }), session);
   await this.ClosePool();
@@ -390,7 +391,7 @@ export class Controller
                                                                                         { name: 'lastversion', value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
                                                                                         { name: 'mask', value: 'TEXT' },
                                                                                         { name: 'ownerid', value: 'INTEGER' },
-                                                                                        { name: 'owner', value: `VARCHAR(${globals.USERNAMEMAXCHAR})` },
+                                                                                        { name: 'owner', value: `VARCHAR(${suckin.USERNAMEMAXCHAR})` },
                                                                                         { name: 'datetime', value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
                                                                                         { name: 'date', value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
                                                                                         { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
@@ -425,8 +426,8 @@ export class Controller
        if (odid)
           {
            if (!(oldodprops = this.ods[odid])) throw new Error(UNKNOWNDBID);
-           neweid = Math.max(...Object.keys(oldodprops.elements), 0);
-           newovid = Math.max(...Object.keys(oldodprops.views), 0);
+           neweid = Math.max(...Object.keys(oldodprops.elements).map(id => +id), 0) + 1;
+           newovid = Math.max(...Object.keys(oldodprops.views).map(id => +id), 0) + 1;
           }
         else
           {
@@ -439,7 +440,7 @@ export class Controller
                }
            await this.CreateOD(odid, transaction);
           }
-       newodprops = globals.SuckInDatabaseProps(dialog, odid, neweid, newovid);
+       newodprops = suckin.SuckInDatabaseProps(dialog, odid, neweid, newovid);
        if (!newodprops) throw new Error(INCORRECTDBCONFDIALOG);
 
        // Check new OD instance for restricted pads change. Todo0 - exclude superuser
@@ -501,7 +502,7 @@ export class Controller
   if (columnaction && columnaction !== 'DROP')
      {
       await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${eid}`, value: columnaction } })); // Create new element column
-      await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${eid}`, value: `VARCHAR(${globals.USERNAMEMAXCHAR})` } })); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
+      await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${eid}`, value: `VARCHAR(${suckin.USERNAMEMAXCHAR})` } })); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
      }
 
   if (indexaction)
@@ -527,17 +528,18 @@ export class Controller
   
   for (const id in odid ? { [odid]: '' } : this.ods)
   if (odprops = this.ods[id])
-  for (const session of sessions ? [sessions] : this.sessions)
+  for (const session of sessions ? [sessions] : this.sessions.values())
   if (session.auth) // Also go through all clients for selected OD above
      {
       const msg = { type: sessionremoving ? 'SIDEBARDELETE' : 'SIDEBARSET', data: { odid: id, path: odprops.od.name, ov: {} } }; // Create message for OD 'id' with its path (e.data) and views defined below
       if (!sessionremoving) for (const ovid in odprops.views) msg.data.ov[ovid] = odprops.views[ovid].general.name.split('\n'); 
+      console.log('hui2', msg);
       session.socket.send(JSON.stringify(msg));
       if (session === sessionremoving) session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: `Object Database (id '${id}') is successfully removed!`, title: 'Info' } }));
      }
  }
 
- // Function result: { type: 'SETVIEW', data: { elements: { 1:, 2:, }, selections: [ { rows:, fields: }, { rows:, fields: }, ], layout:, query:, macros: {}, } }
+ // Function result: { type: 'SETVIEW', data: { selections: [ { rows:, fields: }, { rows:, fields: }, ], layout:, query:, macros: {}, } }
  // Each client OV request performs an OV specific data stored in a user session: { socket:, ip:, ods: { [odid]: { ovs: { [ovid]: { query:, replacements: } } } }, auth:, userid:, username:, idle: }
  async SendView(msg, session)
  {
@@ -587,12 +589,16 @@ export class Controller
        if (!Array.isArray(selections)) selections = [selections];
 
        // Parse element ids from all fields for each selection
-       msg.data.elements = {};
-       selections.forEach(selection => selection.fields.forEach(field => {
-                                                                          if (!globals.ELEMENTCOLUMNREGEXP.test(field.name)) return; // Field name is eid<1|2|3..>?
-                                                                          let eid = parseInt(field.name.substring(globals.ELEMENTCOLUMNPREFIX.length)); // Parse numeric id after 'eid' string followed
-                                                                          if (database.elements[eid]) msg.data.elements[eid] = { name: database.elements[eid].name, description: database.elements[eid].description }; // and get database element profile based on that id
-                                                                         }));
+       for (const selection of selections)
+           selection.fields = selection.fields.map(field => {
+                                                             if (field.name in globals.SYSTEMELEMENTNAMES) return { name: field.name, eid: field.name, header: field.name, description: globals.SYSTEMELEMENTNAMES[field.name] };
+                                                             const newfield = { name: field.name }, eid = parseInt(field.name.substring(globals.ELEMENTCOLUMNPREFIX.length)); // Parse numeric id after 'eid' string followed;
+                                                             if (!globals.ELEMENTCOLUMNREGEXP.test(field.name) || !database.elements[eid]) return newfield; // Field name is eid<1|2|3..[_<prop>]> and id does exist?
+                                                             [newfield.eid, newfield.header, newfield.description] = [eid, database.elements[eid].name, database.elements[eid].description];
+                                                             const pos = field.name.indexOf('_');
+                                                             if (pos > 0) newfield.eprop = field.name.substring(pos + 1);
+                                                             return newfield; // return adjusted field ({ name:, eid:, eprop:, header:, description: }) for every field of <selection.fields> array
+                                                            });
 
        // Exlude selections with no rows and put selection rows together with each selection fields to client message data. Plus query, layout and replacements. Todo0 - let macros prop should be named 'replacements' (instead of 'macros') at both client/server side
        msg.data.selections = selections.filter(selection => selection?.rows && selection.fields).map(selection => ({ rows: selection.rows, fields: selection.fields }));
@@ -684,7 +690,7 @@ export class Controller
       {
        if (!(eventgroup = this.ups[globals.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exits in SUPERUSER (id <globals.PRIMARYKEYSTARTVALUE>) event groups
        let event = msg.type; // Fix event name and add modifier string '+CTRL+ALT+SHIFT+META' for mouse/keyboard events below if needed
-       if (globals.KEYBOARDEVENTS.includes(event) || globals.MOUSEEVENTS.includes(event)) event += `${msg.data & 0b1000 ? '+CTRL' : ''}${msg.data & 0b0100 ? '+ALT' : ''}${msg.data & 0b0010 ? '+SHIFT' : ''}${msg.data & 0b0001 ? '+META' : ''}`;
+       if (suckin.KEYBOARDEVENTS.includes(event) || suckin.MOUSEEVENTS.includes(event)) event += `${msg.data & 0b1000 ? '+CTRL' : ''}${msg.data & 0b0100 ? '+ALT' : ''}${msg.data & 0b0010 ? '+SHIFT' : ''}${msg.data & 0b0001 ? '+META' : ''}`;
        if (!(event = eventgroup[event])) continue; // Continue for no event in a current event group
        if (event.handlertype !== 'Disabled' && (event.handlertype !== 'Fixed output' || event.action !== 'Ignore')) return event; // Return matched and enebled event profile, except fixed result handler with 'ignore' action
       }
@@ -697,7 +703,7 @@ export class Controller
   try {
        // Phase 1 - check user auth and client event name correctness. And OD id with OV id exist and interactive
        if (!session.auth || !this.ups[session.userid]) throw new Error(`Authentication required, please log in!`);
-       if (!globals.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
+       if (!suckin.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
        if (!this.ods[msg.odid]) throw new Error(`Unknown Object Database id ${msg.odid})!`);
        if (!this.ods[msg.odid].views[msg.ovid]) throw new Error(`Unknown Object View id ${msg.ovid})!`);
        const tblname = session.ods[msg.odid]?.ovs[msg.ovid]?.tblname;

@@ -145,7 +145,7 @@ export class Interface
 	   if (typeof control.area !== 'object' || typeof control.icon !== 'string') continue;		// For controls with icons only
 	   let element = Array.isArray(control.elements) ? control.elements[0] : this.elementDOM;	// Set current control DOM element to control.elements 1st array val or to child main DOM element
 	   if (Array.isArray(element)) element = element[0];										// In case of 1st val is array set it to 1st val of its array
-	   if (!element) continue;																	// and continue for faulsy element
+	   if (!element) continue;																	// and continue for falsy element
 	   if (!elements.has(element)) elements.set(element, {iconimage: '', iconposition: ''});	// Add map element with DOM element as a key
 	   const area = elements.get(element).area;													// Get previous control area if exist
 
@@ -553,9 +553,16 @@ export class Interface
  
  static EventListener(event)
  {
-  // First step - vars init, global event counter increment and preventDefault() call for all except keyboard and mouse 'down|click' (to keep native textarea[mousedown]/radio[click]/checkbox[click] elements working) events
+  // First step - vars init, wheel event handle and preventDefault() call for all except keyboard and mouse 'down|click' (to keep native textarea[mousedown]/radio[click]/checkbox[click] elements working) events
   let child, childclientrect, modalchild, parent, id = '0';
-  if (['keydown', 'keyup', 'mousedown', 'click'].indexOf(event.type) === -1) event.preventDefault();
+  if (event.type === 'wheel') // Process 'wheel' event for mouse wheel horizontal scroll with shift key hold
+  	 {
+  	  if (event.shiftKey) return;
+	  child = GetFirstRegisteredDOMElement(event.target);
+      if (child) child.scrollLeft += event.deltaY;
+	  return;
+  	 }
+  if (!['keydown', 'keyup', 'mousedown', 'click'].includes(event.type)) event.preventDefault();
 
   // Second step - get event targeted child (and its rectangle) via event.target DOM element for mouse events. In case of keyboard events - lowest active child is used to pass them to
   if (['keydown', 'keyup'].indexOf(event.type) === -1)

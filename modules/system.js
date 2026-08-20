@@ -1,5 +1,6 @@
 import argon2 from 'argon2';
-import { SUPERUSER, CUSTOMIZATIONDIALOG, EVENTGROUPDIALOG, WARNINGDIALOG, BUTTONOK, BUTTONCANCEL } from '../globals.js';
+import { SUPERUSER, CUSTOMIZATIONDIALOG, WARNINGDIALOG, BUTTONOK, BUTTONCANCEL } from '../globals.js';
+import { EVENTGROUPDIALOG } from '../suckin.js';
 
 const USERPOLICYDIALOG = { title: { type: 'title', data: 'Policy settings' },
                            groups: { type: 'textarea', head: 'Groups~Enter group names one by line the user belongs to. User groups are defined here only and act as kind of user tags in any user specific permission/restriction settings. Any names in that kind of settings are interpreted as user names, in case of no user name found - as a group name', data: '' },

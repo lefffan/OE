@@ -28,8 +28,8 @@ export function Make(props, config)
  // Each field of fields array represents a column object for 'SELECT', 'ADD COLUMN' and 'CREATE INDEX' statements with next props: <column name>:
  //    {
  //     name:,         /**/ Column name
- //     value:,        /**/ Column value
- //     type:,         /**/ Column type: bigserial (from 1 to 9223372036854775807), integer (from -2147483648 to +2147483647), bigint (from -9223372036854775808 to +9223372036854775807), varchar(n) ('n' length string), timestamp (date and time), boolean (TRUE|FALSE), json. See https://metanit.com/sql/postgresql/2.3.php for other types
+ //     prop:,         /**/ Column prop in case of JSON type column
+ //     value:,        /**/ Column value or type: bigserial (from 1 to 9223372036854775807), integer (from -2147483648 to +2147483647), bigint (from -9223372036854775808 to +9223372036854775807), varchar(n) ('n' length string), timestamp (date and time), boolean (TRUE|FALSE), json. See https://metanit.com/sql/postgresql/2.3.php for other types
  //     constraint:,   /**/ Column constraint: PRIMARY <primary key options are inserted automatically>|UNIQUE|DEFAULT <user specified value>. See https://postgrespro.ru/docs/postgresql/14/sql-altertable for details
  //     escape:,       /**/ Column true or false value escaping
  //     sign:,         /**/ Column comapre signs =|<>|>|< for WHERE clause
@@ -40,9 +40,10 @@ export function Make(props, config)
  if (!Array.isArray(props.fields)) props.fields = [props.fields];
  for (const i in props.fields) // Adjust 'fields' props
      {
-      let field = props.fields[i];                                                                         // Fix current field
-      if (typeof field === 'string') { props.fields[i] = { name: field }; field = props.fields[i]; }       // Bring string type field to object
+      props.fields[i] = typeof props.fields[i] === 'string' ? { name: props.fields[i] } : props.fields[i]; // Bring string type field to object if needed
+      const field = props.fields[i];                                                                       // Set field object to <field>
       if ((!field || typeof field !== 'object') && props.fields.splice(i, 1)) continue;                    // Continue for non-object field with it removing
+      if ('prop' in field) field.name = `${field.name}->'${field.prop}'`;                                  // Modify field name in case if JSON type field specified property
       if (!('value' in field)) continue;                                                                   // Adjust field value below
       if (['boolean', 'number'].includes(typeof field.value)) field.value += '';                           // Bring boolean/number field value to string type
       if (typeof field.constraint === 'string' && field.constraint) field.value += ` ${field.constraint}`; // Field constraint does exist? Add it to the field value
@@ -103,8 +104,6 @@ export function BuildQuery(props)
               return `SELECT EXISTS (SELECT 1 FROM (${props.query}) AS subquery ${this.Join(props, ' AND ')})`;
          case 'GETQUERYTABLENAME':
               return `SELECT ${props.table}::regclass::text`; // Get table oid first: const tableOid = result.fields[0]?[0]; Then table name via that tbl oid: const tableName = resTable.rows[0][0];
-         case 'JSONEXTRACT':
-              return 'value' in props.fields ? `${props.fields.name}->'${props.fields.value}'` : props.fields.name;
          default:
               return props.query;
         }

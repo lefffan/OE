@@ -1054,6 +1054,7 @@ export class Application extends Interface
   document.addEventListener('mouseup', Interface.EventListener);
   document.addEventListener('mousemove', Interface.EventListener);
   document.addEventListener('click', Interface.EventListener);
+  document.addEventListener('wheel', Interface.EventListener);
   document.addEventListener('contextmenu', (event) => event.preventDefault());
  }
 
@@ -1222,5 +1223,5 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example:
 //                  query - SELECT id FROM
 //                  layout - col=id, OV restrictions not viewable for any
-//                  event handler with element macro - {"ename": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}
+//                  event handler with element macro - {"eid": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}
 //                  result - based on input arg (macro ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"
