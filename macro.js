@@ -1,10 +1,10 @@
-import * as globals from './globals.js';
 import * as qm from './querymaker.js';
+import * as consts from './static/consts.js';
 
 // The function determines whether the macro name is dynamic or not. And returns macro name if it is
 function IsSystemDynamicMacro(macroname)
 {
- for (const name in globals.SYSTEMDYNAMICMACROS)
+ for (const name in consts.SYSTEMDYNAMICMACROS)
      if (name === macroname.substring(0, name.length)) return name;
 }
 
@@ -15,12 +15,12 @@ export function DefineSystemMacros(...macroobjects)
  const systemmacros = {};
 
  // First add macro object wich macros should be defined just right at initialization
- macroobjects.push({ RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}', ELEMENTCOLUMNPREFIX: globals.ELEMENTCOLUMNPREFIX });
+ macroobjects.push({ RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}', ELEMENTCOLUMNPREFIX: consts.ELEMENTCOLUMNPREFIX });
 
  // Then go through all macro names in SYSTEMSTATICMACROS
- for (const macroname in globals.SYSTEMSTATICMACROS)
+ for (const macroname in consts.SYSTEMSTATICMACROS)
      {
-      const searchmacroname = globals.SYSTEMSTATICMACROS[macroname] === null ? macroname : globals.SYSTEMSTATICMACROS[macroname]; // and define macro name to search in macro objects - macro name is untouched for null or is <SYSTEMSTATICMACROS[macroname]> for not null
+      const searchmacroname = consts.SYSTEMSTATICMACROS[macroname] === null ? macroname : consts.SYSTEMSTATICMACROS[macroname]; // and define macro name to search in macro objects - macro name is untouched for null or is <SYSTEMSTATICMACROS[macroname]> for not null
       for (const macroobject of macroobjects) //  Macro name is defined, so go through all macro objects to search it
           {
            if (typeof macroobject[searchmacroname] !== 'string' && (!macroobject[searchmacroname] || typeof macroobject[searchmacroname] !== 'object')) continue; // Continue for non string/object types
@@ -33,12 +33,45 @@ export function DefineSystemMacros(...macroobjects)
  return Object.assign(systemmacros, { ELEMENT: JSON.stringify(Object.assign('EID' in systemmacros ? { id: systemmacros.EID } : {}, 'EPROP' in systemmacros ? { prop: systemmacros.EPROP } : {})) });
 }
 
+// Function sorts/unions ranges in a range string, example: '6-,4-5,1' => '1,4-' or '6-,4-5, 10-9, 1-' => '1-';
+export function GetColumnIndexesRangeExp(string)
+{
+ let ranges = new Set();
+ const DIGITS = /^\d*$/;
+
+ if (typeof string !== 'string') string = '';
+ for (let range of string.trim().split(',')) if (range = range.trim())
+     {
+      range = range.split('-');
+      if (range.length > 2) continue; // Multiple '-' is incorrect
+      let [start, end] = range;
+      if (!DIGITS.test(start = start || '0') || !DIGITS.test(end = end === undefined ? start : end)) continue; // Non digit chars is incorrect
+      if (!end || +start <= +end) ranges.add(`${start}-${end}`); // Var <start> is not bigger than <end>? Add current range
+     }
+
+ ranges = [...ranges].map(range => range.split('-')).sort((a, b) => (+a[0]) - (+b[0])); // Split every range string and sort array on range start number
+ for (let i = 0; i < ranges.length - 1; i++)
+     {
+      const [start, end] = ranges[i];
+      const [nextstart, nextend] = ranges[i + 1];
+      if (end && +end < +nextstart - 1) continue; // No intersection
+      ranges[i][1] = !end || !nextend ? '' : Math.max(+end, +nextend) + ''; // Current element intersects next one, so union both elements to current
+      ranges.splice(i + 1, 1); // and remove next
+      i--; // Move current index to previous position to start work with current element at next iteration
+     }
+
+ return ranges.map(range => {
+                             if (!range[1]) return `(c>=${range[0]})`;
+                             return range[0] === range[1] ? `(c===${range[0]})` : `(c>=${range[0]} && c<=${range[1]})`;
+                            }).join(' || ');
+}
+
 // Dynamic function names <DefineMacro${DYNAMICMACRONAME}()> define dynamic macro values for appropriate dynamic macros
 // Dynamic macro is a macro that starts with macro name of itself and then some user defined comma separated args
 // Dynamic macro 'LAYOUT' example: ${LAYOUT H,N,1-,2-2,3,-4,-}, where H/h and N/n are header and new objects, and numbers are column position (1st column is 0, second column is 1..), char '-' indicates range, missed number ina range is zero (left side) or last column position (right side)
 export function DefineMacroLAYOUT(macro)
 {
- let colexp = globals.GetColumnIndexesRangeExp(macro.substring('LAYOUT'.length)); // Adjust range, all unnecessary string (just like 'LAYOUT', 'N' or 'H') will be cut off
+ let colexp = GetColumnIndexesRangeExp(macro.substring('LAYOUT'.length)); // Adjust range, all unnecessary string (just like 'LAYOUT', 'N' or 'H') will be cut off
  if (!colexp) return ''; // Return empty layout for no columns defined
  let layout = '', y = {};
  colexp = ` && (${colexp})`; // Adjust column expression with prefix AND to add it to row expression, see below
@@ -57,9 +90,9 @@ export function DefineMacroLAYOUT(macro)
      }
 
  for (const prop in y) // Add layout jsons in a creating-time order for every header/new/data objects, 'y' props are defined, 'x' is undefined as it points to cursor 'x' coordinate
-     if (prop === 'header') layout += `{ "exp": "r===${globals.TITLEVIRTUALROWID}${colexp}", "y": "${y[prop]}" }\n`;
-      else if (prop === 'new') layout += `{ "exp": "r===${globals.NEWVIRTUALROWID}${colexp}", "y": "${y[prop]}" }\n`;
-      else if (prop === 'data') layout += `{ "exp": "r > ${Math.max(globals.TITLEVIRTUALROWID, globals.NEWVIRTUALROWID)}${colexp}", "y": "${y[prop]}" }\n`;
+     if (prop === 'header') layout += `{ "exp": "r===${consts.TITLEVIRTUALROWID}${colexp}", "y": "${y[prop]}" }\n`;
+      else if (prop === 'new') layout += `{ "exp": "r===${consts.NEWVIRTUALROWID}${colexp}", "y": "${y[prop]}" }\n`;
+      else if (prop === 'data') layout += `{ "exp": "r > ${Math.max(consts.TITLEVIRTUALROWID, consts.NEWVIRTUALROWID)}${colexp}", "y": "${y[prop]}" }\n`;
 
  return layout;
 }
@@ -72,8 +105,8 @@ export async function GetObjectElementData(macroobject, controller, replacements
  if (!('oid' in macroobject)) macroobject.oid = `id={replacements.OID}`;
  if (!('eid' in macroobject)) macroobject.eid = replacements.EID;
  if (!('eprop' in macroobject) && 'EPROP' in replacements) macroobject.eprop = replacements.EPROP;
- if (macroobject.eid in globals.SYSTEMELEMENTNAMES) delete macroobject.eprop;
-  else macroobject.eid = globals.ELEMENTCOLUMNPREFIX + macroobject.eid;
+ if (macroobject.eid in consts.SYSTEMELEMENTNAMES) delete macroobject.eprop;
+  else macroobject.eid = consts.ELEMENTCOLUMNPREFIX + macroobject.eid;
 
  try {
       transaction = await controller.pool.connect();

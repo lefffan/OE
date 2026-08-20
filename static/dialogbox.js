@@ -1,7 +1,7 @@
 import { Interface } from './interface.js';
 import { DropDownList } from './dropdownlist.js';
-import * as globals from './globals.js';
-import { DialogProfileElementsAdjust } from './suckin.js';
+import * as consts from './consts.js';
+import * as funcs from './funcs.js';
 
 const EMPTYOPTIONTEXT					= '&nbsp;';
 const DIALOGSELECTABLEELEMENTMAXOPTIONS	= 10240;
@@ -10,12 +10,6 @@ const ELEMENTUSERPROPS					= { type: undefined, flag: '', head: undefined, data:
 const ELEMENTSELECTABLETYPES			= ['select', 'multiple', 'checkbox', 'radio'];
 const ELEMENTTEXTTYPES					= ['textarea', 'text', 'password'];
 const ELEMENTALLTYPES					= ['title', ...ELEMENTSELECTABLETYPES, ...ELEMENTTEXTTYPES, 'table', 'button'];
-const OPTIONISCHECKED					= '!';
-const OPTIONISCLONED					= '*';
-const OPTIONISCLONABLE					= '+';
-const OPTIONISREMOVABLE					= '-';
-const OPTIONSDIVIDER					= '/';
-const FIELDSDIVIDER						= '~';
 const EXPRPROPDISALLOWEDCHARSREGEXP		= /[^&|( )!]/;
 const EXPRISREGEXP						= /\/.*?[^\\]\//g;
 const CHECKSYNTAX						= 0b10000; 
@@ -34,7 +28,7 @@ function SetFlag(e, name, value)
  if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
 	{
 	 flag = e.flag.substring(0, placeholder);
-	 placeholder = globals.EscapeString(e.flag.substring(placeholder));
+	 placeholder = funcs.EscapeString(e.flag.substring(placeholder));
 	}
   else
 	{
@@ -82,7 +76,7 @@ function SetFlag(e, name, value)
 			   		  case 'button':
 						   if (!this.Nodes.buttons[e.id]) return;
 						   target = this.Nodes.buttons[e.id];
-						   if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(globals.ALLOWEDINNERTAGSSTRING)])); // Set btn element (with all childs in) pushable for no readonly button
+						   if (!readonly) this.props.control.push.elements.push([target].concat([...target.querySelectorAll(consts.ALLOWEDINNERTAGSSTRING)])); // Set btn element (with all childs in) pushable for no readonly button
 						    else for (const i in this.props.control.push.elements) if (this.props.control.push.elements[i][0] === target && delete this.props.control.push.elements[i]) break; // The button is readonly, so delete button pushable feature via removing btn DOM element from 'push' control.elements array
 						   break;
 			   		 }
@@ -125,7 +119,7 @@ function CreateSelectableElementOptions(e)
  // First step - init vars, for 'string'/'object' types only
  if (e.data === null || !['string', 'object'].includes(typeof e.data)) return e.options = [];	// Element with non string data is considered as element with one header/hint only. With empty data ('') - as element with one empty option. With single divider data='/' - as element with two empty option.
  if (typeof e.data ==='object' && e.type !== 'select') return e.options = [];					// Profile selection (data prop is 'object' type) is for 'select' type only
- const list = typeof e.data === 'string' ? e.data.split(OPTIONSDIVIDER) : e.data;
+ const list = typeof e.data === 'string' ? e.data.split(consts.OPTIONSDIVIDER) : e.data;
  const names = new Set();
  let name, flag, style;
  e.options = [];																	// Array of selectable options. Each array element, in turn - is an option object with origin profile name, checked status, order id (to keep default appearance), clonable/removable flag, etc..
@@ -134,7 +128,7 @@ function CreateSelectableElementOptions(e)
  for (let origin in list)
      {
 	  origin = Array.isArray(list) ? list[origin] : origin;				// Get full option name with flags and style joined via divider
-	  [name, flag, ...style] = origin.split(FIELDSDIVIDER);			// Split it to get option name without flags, flag and style
+	  [name, flag, ...style] = origin.split(consts.FIELDSDIVIDER);			// Split it to get option name without flags, flag and style
 	  if (typeof e.data === 'object')
 		 {
 		  if (names.has(name)) delete e.data[origin];		// Option name (profile) without flags has already exist in e.data profile list? Delete it and continue
@@ -144,13 +138,13 @@ function CreateSelectableElementOptions(e)
 	  const option = { id: e.options.length + '',					// Push option object with all its values and flags
 					   origin: origin,
 					   name: name,
-					   inner: name.trim() ? globals.EscapeString(name).replaceAll(' ', '&nbsp;') : EMPTYOPTIONTEXT,
-					   checked: (flag || '').includes(OPTIONISCHECKED),
-					   clonable: (flag || '').includes(OPTIONISCLONABLE) && typeof e.data === 'object',
-					   removable: (flag || '').includes(OPTIONISREMOVABLE) && typeof e.data === 'object',
-					   cloned: (flag || '').includes(OPTIONISCLONED) && typeof e.data === 'object',
-					   style: style.length ? style.join(FIELDSDIVIDER) : '',
-					   styleattribute: style.length ? ` style="${style.join(FIELDSDIVIDER)}"` : `` };
+					   inner: name.trim() ? funcs.EscapeString(name).replaceAll(' ', '&nbsp;') : EMPTYOPTIONTEXT,
+					   checked: (flag || '').includes(consts.OPTIONISCHECKED),
+					   clonable: (flag || '').includes(consts.OPTIONISCLONABLE) && typeof e.data === 'object',
+					   removable: (flag || '').includes(consts.OPTIONISREMOVABLE) && typeof e.data === 'object',
+					   cloned: (flag || '').includes(consts.OPTIONISCLONED) && typeof e.data === 'object',
+					   style: style.length ? style.join(consts.FIELDSDIVIDER) : '',
+					   styleattribute: style.length ? ` style="${style.join(consts.FIELDSDIVIDER)}"` : `` };
 	  if (e.options.push(option) > DIALOGSELECTABLEELEMENTMAXOPTIONS) return;	// Options number exceeds max allowed? Return falsy result to delete element as an error one
      }
  return true;
@@ -164,12 +158,12 @@ function CreateSelectableElementData(e)
 	 {
 	  const option = e.options[i];
 	  const origin = `${option.name}` + 						// Retreive option with all flags from options array
-	  				 `${option.checked || option.clonable || option.removable || option.cloned || option.style ? FIELDSDIVIDER : '' }` + 
-	  				 `${option.checked ? OPTIONISCHECKED : '' }` + 
-	  				 `${option.clonable ? OPTIONISCLONABLE : '' }` + 
-	  				 `${option.removable ? OPTIONISREMOVABLE : '' }` + 
-	  				 `${option.cloned ? OPTIONISCLONED : '' }` + 
-	  				 `${option.style ? FIELDSDIVIDER + option.style : '' }`;
+	  				 `${option.checked || option.clonable || option.removable || option.cloned || option.style ? consts.FIELDSDIVIDER : '' }` + 
+	  				 `${option.checked ? consts.OPTIONISCHECKED : '' }` + 
+	  				 `${option.clonable ? consts.OPTIONISCLONABLE : '' }` + 
+	  				 `${option.removable ? consts.OPTIONISREMOVABLE : '' }` + 
+	  				 `${option.cloned ? consts.OPTIONISCLONED : '' }` + 
+	  				 `${option.style ? consts.FIELDSDIVIDER + option.style : '' }`;
       if (typeof e.data === 'object')
 		 {
 	  	  const originoption = e.data[option.origin];			// Save origin option object
@@ -178,7 +172,7 @@ function CreateSelectableElementData(e)
 	  	  option.origin = origin;								// and change <origin> name (option name) to new one regardless of whether it has changed or not
 		  continue;
 		 }
-	  e.data += i === '0' ? origin : OPTIONSDIVIDER + origin; 	// Collect data (/name~flags~style/) for each option for usual selectable element with e.data string type
+	  e.data += i === '0' ? origin : consts.OPTIONSDIVIDER + origin; 	// Collect data (/name~flags~style/) for each option for usual selectable element with e.data string type
 	 } 
  return e;
 }
@@ -318,19 +312,19 @@ export class DialogBox extends Interface
   args[2]['attributes']['data-element'] = '_-1';
   // Curstom title/buttons
   let spaces = 0;
-  DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (ename.length > spaces) spaces = ename.length; }); // Calc prop max length and fill it by spaces
+  funcs.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (ename.length > spaces) spaces = ename.length; }); // Calc prop max length and fill it by spaces
   spaces = ' '.repeat(spaces);
   // title
-  if (typeof args[3] === 'string' || args[3] === null) DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'title') delete profile[ename]; });
+  if (typeof args[3] === 'string' || args[3] === null) funcs.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'title') delete profile[ename]; });
   if (typeof args[3] === 'string') args[0][spaces + 'title'] = { type: 'title', data: args[3] };
   // ok btn
-  if (typeof args[4] === 'string' || args[4] === null) DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && SetFlag(profile[ename], 'appliable') && !SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
+  if (typeof args[4] === 'string' || args[4] === null) funcs.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && SetFlag(profile[ename], 'appliable') && !SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
   if (typeof args[4] === 'string') args[0][spaces + 'ok'] = SetFlag({ type: 'button', data: args[4] }, 'appliable', true);
   // cancel btn
-  if (typeof args[5] === 'string' || args[5] === null) DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && !SetFlag(profile[ename], 'appliable') && !SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
+  if (typeof args[5] === 'string' || args[5] === null) funcs.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && !SetFlag(profile[ename], 'appliable') && !SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
   if (typeof args[5] === 'string') args[0][spaces + 'cancel'] = { type: 'button', data: args[5] };
   // apply btn
-  if (typeof args[6] === 'string' || args[6] === null) DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && SetFlag(profile[ename], 'appliable') && SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
+  if (typeof args[6] === 'string' || args[6] === null) funcs.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (profile[ename].type === 'button' && SetFlag(profile[ename], 'appliable') && SetFlag(profile[ename], 'interactive')) delete profile[ename]; });
   if (typeof args[6] === 'string') args[0][spaces + 'apply'] = SetFlag(SetFlag({ type: 'button', data: args[6] }, 'interactive', true), 'appliable', true);
 
   super(...args);
@@ -343,13 +337,13 @@ export class DialogBox extends Interface
   if (e.type === 'title' || e.type === 'button' || !e.head || e.padbar) return ''; // No header for title, button, empty head string and padbar
 
   let head, hint;
-  [head, ...hint] = e.head.split(FIELDSDIVIDER);
-  head = globals.EscapeString(head, true);
-  if (hint.length) head += `&nbsp<span title="${globals.EscapeString(hint.join(FIELDSDIVIDER))}" class="hint-icon">?</span>&nbsp;`;
+  [head, ...hint] = e.head.split(consts.FIELDSDIVIDER);
+  head = funcs.EscapeString(head, true);
+  if (hint.length) head += `&nbsp<span title="${funcs.EscapeString(hint.join(consts.FIELDSDIVIDER))}" class="hint-icon">?</span>&nbsp;`;
   return head ? `<div class="element-headers">${head}</div>` : '';
  }
 
- // Get interface element divider line inner html for non title/button/padbar element types only. Depends on element flag '*' presence
+ // Get interface element divider line inner html for non title/button/padbar element types only. Depends on element 'underline' flag presence
  GetElementFooterHTML(e)
  {
   return (e.type === 'title' || e.type === 'button' || e.padbar) ? '' : `<div${SetFlag(e, 'underline') ? ' class="divider"' : ''}></div>`;
@@ -362,7 +356,7 @@ export class DialogBox extends Interface
   const readonly = this.SetFlag(e, 'readonly');
   const uniqeid = `${this.id + '_' + e.id}`;																										// Set element uniq identificator (in context of of all global boxes with its elements) based on its parent dialog box id and element id of itself
   const dataattribute = `data-element="${uniqeid}"`;																								// Set html attribute to access this uniq id
-  const styleattribute = e.style ? ` style="${globals.EscapeString(e.style)}"` : ``;
+  const styleattribute = e.style ? ` style="${funcs.EscapeString(e.style)}"` : ``;
   let classlist = readonly ? 'readonlyfilter' : '';
   let content = '';																																	// Element some content var
 
@@ -370,7 +364,7 @@ export class DialogBox extends Interface
          {
           case 'title':
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? The title is hidden, so return empty
-	    	   return `<div class="title" ${dataattribute}${styleattribute}>${globals.EscapeString(e.data, true)}</div>`;// Empty title string? Whole title element is invisible
+	    	   return `<div class="title" ${dataattribute}${styleattribute}>${funcs.EscapeString(e.data, true)}</div>`;// Empty title string? Whole title element is invisible
 
 		  case 'select':
 			   if (!e.options.length) return '';																										// No options for selectable element? Return empty
@@ -412,23 +406,23 @@ export class DialogBox extends Interface
 		  case 'password':
 			   if (typeof e.data !== 'string') return ''; // Text data is undefined (non string)? Return empty
 			   let placeholder = SetFlag(e, 'placeholder'); // Get placeholder string
-			   if (placeholder) placeholder = ` placeholder="${globals.EscapeString(placeholder)}"`;	// Placholder attribute for text elements
-			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${globals.EscapeString(e.data)}</textarea>`;	// For textarea element type return textarea tag
-			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${globals.EscapeString(e.data)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
+			   if (placeholder) placeholder = ` placeholder="${funcs.EscapeString(placeholder)}"`;	// Placholder attribute for text elements
+			   if (e.type === 'textarea') return `<textarea type="textarea" class="textarea ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''}${placeholder}${styleattribute}>${funcs.EscapeString(e.data)}</textarea>`;	// For textarea element type return textarea tag
+			    else return `<input type="${e.type}" class="${e.type} ${classlist}" ${dataattribute}${readonly ? ' readonly' : ''} value="${funcs.EscapeString(e.data)}"${placeholder}${styleattribute}>`; // For text/password element types return input tag with appropriate type
 
 		  case 'table':
 			   if (e.data && typeof e.data === 'object') for (const row in e.data)
 				  {
 				   if (!e.data[row] || typeof e.data[row] !== 'object') continue;
 				   content += '<tr>';
-				   for (const cell in e.data[row]) content += `<td class="boxtablecell${cell[0] === '_' ? ' cursorpointer" data-id="' + globals.EscapeString(cell) + '"' : '"'}>${globals.EscapeString(e.data[row][cell])}</td>`;
+				   for (const cell in e.data[row]) content += `<td class="boxtablecell${cell[0] === '_' ? ' cursorpointer" data-id="' + funcs.EscapeString(cell) + '"' : '"'}>${funcs.EscapeString(e.data[row][cell])}</td>`;
 				   content += '</tr>';
 				  }
 			   return content ? `<table class="boxtable" ${dataattribute}${styleattribute}><tbody>${content}</tbody></table>` : '';
 
 	 	  case 'button':
 			   if (typeof e.data !== 'string') return '';																		// Button is hidden? Return empty
-			   content = `${globals.EscapeString(e.data)} ${GetTimerString(e, this.Nodes.autoapplybuttons.get(e))}`;
+			   content = `${funcs.EscapeString(e.data)} ${GetTimerString(e, this.Nodes.autoapplybuttons.get(e))}`;
 	      	   return inner ? content : `<div class="button ${classlist}" ${dataattribute}${styleattribute}>${content}</div>`;
 		 }
  }
@@ -466,7 +460,7 @@ export class DialogBox extends Interface
  RefreshControlElements()
  {
   if (!this.props.control.fullscreendblclick && !this.props.control.fullscreenicon && !this.props.control.drag && !this.props.control.closeicon && !this.props.control.push) return;
-  const elements = this.Nodes.title ? [this.Nodes.title].concat([...this.Nodes.title.querySelectorAll(globals.ALLOWEDINNERTAGSSTRING)]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
+  const elements = this.Nodes.title ? [this.Nodes.title].concat([...this.Nodes.title.querySelectorAll(consts.ALLOWEDINNERTAGSSTRING)]) : [this.elementDOM];// Calculate title (if exist) with all its children elements. Or child main DOM element
   if (this.props.control.fullscreenicon) this.props.control.fullscreenicon.elements = [elements[0]];															// and set 1st element for fullscreen icon,
   if (this.props.control.closeicon) this.props.control.closeicon.elements = [elements[0]];																		// set 1st element for close icon,
   if (this.props.control.fullscreendblclick) this.props.control.fullscreendblclick.elements = elements;															// set <elements> array clickable for 'full screen'	feature
@@ -475,7 +469,7 @@ export class DialogBox extends Interface
 	 {
 	  this.props.control.push.elements = [];
   	  for (const i in this.Nodes.buttons)
-		  if (this.Nodes.buttons[i] && !this.SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(globals.ALLOWEDINNERTAGSSTRING)])); 
+		  if (this.Nodes.buttons[i] && !this.SetFlag(this.elements[i], 'readonly')) this.props.control.push.elements.push([this.Nodes.buttons[i]].concat([...this.Nodes.buttons[i].querySelectorAll(consts.ALLOWEDINNERTAGSSTRING)])); 
 	 }
   this.RefreshControlIcons();
  }
@@ -500,12 +494,12 @@ export class DialogBox extends Interface
  {
   if (this.Nodes.CloneInput.esc) return; // Pressed Esc btn caused blur event, so profile cloning is not needed
   let name, flags, style;
-  [name, flags, ...style] = this.Nodes.CloneInput.input.value.split(FIELDSDIVIDER); // Split new profile string to name and flags via divider
-  for (const option of e.options) if (option.name === name)  return new DialogBox(`Profile name '${name}' already exists!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Clone error', null, 'OK'); // Check name exist in e.data profile list and return warning msg in success
-  if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) return new DialogBox(`The number of options exceeds the limit of ${DIALOGSELECTABLEELEMENTMAXOPTIONS}!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Clone error', null, 'OK'); // Check option number limit
-  flags = FIELDSDIVIDER + (flags || '');
-  if (!flags.includes(OPTIONISCLONED)) flags += OPTIONISCLONED; // and add 'option is cloned' flag
-  style = style.length ? FIELDSDIVIDER + style.join(FIELDSDIVIDER) : ''; // Join back flag string
+  [name, flags, ...style] = this.Nodes.CloneInput.input.value.split(consts.FIELDSDIVIDER); // Split new profile string to name and flags via divider
+  for (const option of e.options) if (option.name === name) return new DialogBox(`Profile name '${name}' already exists!`, this.parentchild, JSON.parse(consts.MODALBOXPROPS), 'Clone error', undefined, 'OK'); // Check name exist in e.data profile list and return warning msg in success
+  if (e.options.length >= DIALOGSELECTABLEELEMENTMAXOPTIONS) return new DialogBox(`The number of options exceeds the limit of ${DIALOGSELECTABLEELEMENTMAXOPTIONS}!`, this.parentchild, JSON.parse(consts.MODALBOXPROPS), 'Clone error', undefined, 'OK'); // Check option number limit
+  flags = consts.FIELDSDIVIDER + (flags || '');
+  if (!flags.includes(consts.OPTIONISCLONED)) flags += consts.OPTIONISCLONED; // and add 'option is cloned' flag
+  style = style.length ? consts.FIELDSDIVIDER + style.join(consts.FIELDSDIVIDER) : ''; // Join back flag string
   
   e.data[name + flags + style] = JSON.parse(JSON.stringify( e.data[GetElementOption(e).origin] )); // Create new profile in e.data via cloning current active
   e.options.push({origin: name + flags + style});
@@ -578,7 +572,7 @@ export class DialogBox extends Interface
 				  {
 			   	   if (['text', 'textarea'].includes(e.type)) 									// Bring on dialog of element text data json formatted data to change it
 					  {
-					   try { new DialogBox(JSON.parse(e.data), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { target: target, e: e } })); }
+					   try { new DialogBox(JSON.parse(e.data), this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: { target: target, e: e } })); }
 					   catch {} // Content example: { "title":{"type":"title", "data":"Title"}, "input":{"type":"textarea", "head":"Input text", "data":""}, "btn":{"type":"button", "data":"  OK  ", "flag":"a"} }
 					   break;
 					  }
@@ -623,7 +617,7 @@ export class DialogBox extends Interface
 						  }
 					   if (event.target.classList.contains('itemremove'))								// Mouse down on profile clone/remove icon? Do nothing, process it at mouse up event
 						  {
-						   if (e.options.length === 1 && new DialogBox(`Profile cannot be removed, at least one must exist!`, this.parentchild, JSON.parse(globals.MODALBOXPROPS), 'Remove profile error')) break;
+						   if (e.options.length === 1 && new DialogBox(`Profile cannot be removed, at least one must exist!`, this.parentchild, JSON.parse(consts.MODALBOXPROPS), 'Remove profile error', undefined, 'OK')) break;
 						   delete e.data[GetElementOption(e).origin];									// Removing current profile
 						   this.RefreshDialog(SETSERVICEDATA | SHOWDIALOGDATA);
 						   break;
@@ -686,7 +680,7 @@ export class DialogBox extends Interface
 
  ButtonApply(e, target)
  {
-  let event, elementname = DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id);
+  let event, elementname = funcs.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementGetName, e.id);
   if (!['button', 'table'].includes(e.type) || this.SetFlag(e, 'readonly')) return;																		// Return for disabled (or non button/table type) element
   if (e.type === 'table' && (!SetFlag(e, 'appliable') || !target.attributes['data-id'])) return;														// Return for non-appliable table element
   if (e.type === 'button' && !SetFlag(e, 'appliable')) return { type: 'KILL', destination: this, data: { type: 'CANCELDIALOG', data: elementname } };	// Return dialog kill for non-appliable button
@@ -706,13 +700,13 @@ export class DialogBox extends Interface
  // Refresh specified dialog entities
  RefreshDialog(flag)
  {
-  if (flag & CHECKSYNTAX) DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
-  if (flag & RESTOREINITIALORDER) DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
+  if (flag & CHECKSYNTAX) funcs.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
+  if (flag & RESTOREINITIALORDER) funcs.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
   if (flag & SETSERVICEDATA) this.InitDialogData();																				// Init dialog data for SETSERVICEDATA flag set
-  if (flag & SETSERVICEDATA) DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this));	// Set every element service data (id, option array, padbar..)
-  if (flag & SETSERVICEDATA) DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);							// Create element expression to pass to eval func from original 'expr' element property
+  if (flag & SETSERVICEDATA) funcs.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this));	// Set every element service data (id, option array, padbar..)
+  if (flag & SETSERVICEDATA) funcs.DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);							// Create element expression to pass to eval func from original 'expr' element property
   if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																				// Show dialog box creating html from dialog data initial source (this.data)
-  if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);	// Clear element from unnecessary props
+  if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) funcs.DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);	// Clear element from unnecessary props
  }
 
  // Init <elements> (element list)

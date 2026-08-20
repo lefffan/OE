@@ -2,8 +2,8 @@ import { Interface } from './interface.js';
 import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import { Sidebar } from './sidebar.js';
-import * as globals from './globals.js';
-import * as suckin from './suckin.js';
+import * as consts from './consts.js';
+import * as funcs from './funcs.js';
 
 const LOGINDIALOG = { username: { type: 'text', head: 'Username', data: 'root' },
                       password: { type: 'password', head: 'Password', data: 'root' },
@@ -26,7 +26,7 @@ export class Connection extends Interface
  {
   this.EventManager({ type: 'KILL', destination: null }); // Kill all connection childs
   const dialog = JSON.parse(JSON.stringify(LOGINDIALOG)); // Create login dialog from the template
-  new DialogBox(dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { type: 'LOGIN' }, control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} } }), typeof this.logintitle === 'string' ? this.logintitle : 'Login', 'LOGIN'); // Create login dialog box with no-close option
+  new DialogBox(dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: { type: 'LOGIN' }, control: { fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {} } }), typeof this.logintitle === 'string' ? this.logintitle : 'Login', 'LOGIN'); // Create login dialog box with no-close option
   delete this.logintitle; // Clear all disconnected-user data
   delete this.username; // Clear all disconnected-user data
   delete this.userid; // Clear all disconnected-user data
@@ -74,7 +74,7 @@ export class Connection extends Interface
 	          return { type: event.type, data: event.data, destination: null };
 
 	     case 'mouseup':
-	          new ContextMenu(this.username ? [['Help'], ['Logout ' + globals.CutString(this.username)]] : [['Help']], this, event);
+	          new ContextMenu(this.username ? [['Help'], ['Logout ' + funcs.CutString(this.username)]] : [['Help']], this, event);
                break;
 	     case 'CONTEXTMENU':
 			switch (event.data[0])	// Switch context item name (event data zero index)
@@ -87,17 +87,17 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(suckin.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: { type: 'SETDATABASE' } }));
+               new DialogBox(JSON.parse(JSON.stringify(consts.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: { type: 'SETDATABASE' } }));
                break;
 
 	     case 'INFO':
 	     case 'WARNING':
                if (event.data.odid || event.data.ovid) this.EventManager(Object.assign(event, { destination: null }));
-                else new DialogBox(event.data?.content, this, JSON.parse(globals.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
+                else new DialogBox(event.data?.content, this, JSON.parse(consts.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
 	          break;
 	     case 'DIALOG':
                const callback = Object.assign({ type: 'CONFIRMDIALOG', odid: event.odid, ovid: event.ovid, oid: event.oid, eid: event.eid }, 'eprop' in event ? { eprop: event.eprop } : {});
-               new DialogBox(event.data?.content, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { callback: callback }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
+               new DialogBox(event.data?.content, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: callback }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
 	          break;
 	     case 'CONFIRMDIALOG':
                switch (event.source.props.callback?.type)
@@ -120,7 +120,7 @@ export class Connection extends Interface
                this.WebsocketSend(event);
                break;
 	     case 'CONFIGUREDATABASE':
-               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', odid: event.data.odid } }));
+               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', odid: event.data.odid } }));
                break;
 
 	     case 'GETVIEW':
@@ -138,8 +138,8 @@ export class Connection extends Interface
 	     case 'BRINGTOTOP':
                break;
           default:
-               if (suckin.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
-               //if (suckin.CONTROLLEREVENTS.includes(event.type)) return Object
+               if (consts.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
+               //if (consts.CONTROLLEREVENTS.includes(event.type)) return Object
 	    }
  }
 

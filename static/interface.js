@@ -1,5 +1,6 @@
 import { app } from './application.js';
-import * as globals from './globals.js';
+import * as consts from './consts.js';
+import * as funcs from './funcs.js';
 
 // Function calculates pixels number the element is scrolled from the left
 function ElementScrollX(element)
@@ -242,7 +243,7 @@ export class Interface
   if (this.IsNonsticky()) Interface.nonstickychild = this;
 		 
   // Child display
-  if (globals.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
+  if (consts.ANIMATIONS.includes(this.props.animation)) this.elementDOM.addEventListener('transitionend', () => this.TransitionEnd());
   this.Show();
   this.parentchild.elementDOM.appendChild(this.elementDOM);
 
@@ -362,14 +363,14 @@ export class Interface
  // Hide the child with animation this.props.animation
  Hide()
  {
-  if (!globals.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
+  if (!consts.ANIMATIONS.includes(this.props.animation)) return this.elementDOM.remove();	// No animation? Just remove child DOM element
   this.SetVisibility(); // Animation does exist, so add corresponded class. DOM element child will be removed at 'transition-end' event
  }
 
  // Show child with animation
  Show()
  {
-  if (!globals.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
+  if (!consts.ANIMATIONS.includes(this.props.animation)) return;		// No animation? Just style DOM element visibility and return
   requestAnimationFrame(this.SetVisibility.bind(this, true));	// and then set element visible (after it is hidden via line below) via requestAnimationFrame()
   this.SetVisibility();
  }
@@ -713,10 +714,10 @@ export class Interface
 const DOMELEMENTMINWIDTH		 = 50;
 const DOMELEMENTMINHEIGHT		 = 50;
 const DOMELEMENTCASCADEPOSITIONS = [['7%', '7%'], ['14%', '14%'], ['21%', '21%'], ['28%', '28%'], ['35%', '35%'], ['42%', '42%'], ['49%', '49%'], ['56%', '56%'], ['63%', '63%'], ['70%', '70%']];
-const ICONURLMINIMIZESCREEN 	 = globals.SVGUrlHeader() + globals.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + globals.SVGUrlFooter();
-const ICONURLFULLSCREENTURNON 	 = globals.SVGUrlHeader() + globals.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
-const ICONURLFULLSCREENTURNOFF	 = globals.SVGUrlHeader() + globals.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + globals.SVGUrlFooter();
-const ICONURLCLOSE               = globals.SVGUrlHeader() + globals.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + globals.SVGUrlFooter();
+const ICONURLMINIMIZESCREEN 	 = funcs.SVGUrlHeader() + funcs.SVGPath('M1 10L9 10', 'RGB(139,188,122)', '2') + ' ' + funcs.SVGUrlFooter();
+const ICONURLFULLSCREENTURNON 	 = funcs.SVGUrlHeader() + funcs.SVGRect(1, 1, 10, 10, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + funcs.SVGUrlFooter();
+const ICONURLFULLSCREENTURNOFF	 = funcs.SVGUrlHeader() + funcs.SVGRect(1, 1, 8, 8, 2, 105, 'RGB(139,188,122)', 'none', '1') + ' ' + funcs.SVGRect(3, 3, 9, 9, 1, '0 15 65', 'RGB(139,188,122)', 'none', '1') + ' ' + funcs.SVGUrlFooter();
+const ICONURLCLOSE               = funcs.SVGUrlHeader() + funcs.SVGPath('M3 3L9 9M9 3L3 9', 'RGB(227,125,87)', '3') + ' ' + funcs.SVGUrlFooter();
 const ACTIVECHILDSHADOW			 = '4px 4px 5px #111';
 const BLINKCHILDACTIVESTATUS	 = 200;
 const CHILDCONTROLTEMPLATES		 = {

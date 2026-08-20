@@ -1,8 +1,8 @@
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 import { DialogBox } from './dialogbox.js';
-import * as globals from './globals.js';
-import { GetDialogMacrosValues, NATIVEKEYBOARDEVENTS, KEYBOARDEVENTS } from './suckin.js';
+import * as consts from './consts.js';
+import * as funcs from './funcs.js';
 
 const UNDEFINEDSELECTION   = 'Undefined database object selection!';
 const EMPTYSELECTION       = 'Object View table is empty, no any data matched its object selection and/or element layout!';
@@ -18,7 +18,6 @@ const RIGHTSIDE            = 0b0010;
 const BOTTOMSIDE           = 0b0001; 
 const CURSOROFFSETS        = { ArrowUp: { y: -1 }, ArrowDown: { y: 1 }, ArrowLeft: { x: -1 }, ArrowRight: { x: 1 } };
 const LAYOUTJSONPROPS      = ['exp', 'x', 'y', 'value', 'style', 'hint', 'collapsecol', 'collapserow', 'event'];
-
 
 export class View extends Interface
 {
@@ -53,7 +52,7 @@ export class View extends Interface
   const ov = `View '${this.data.ov ? this.data.ov : ''}' (id${this.data.ovid})`;
   const i = this.data.status === undefined ? -3 : this.data.status;
   const status = 'status: ' + ['undefined', 'client pending..', 'server pending..', `loaded ${i}%`][i + 3 > 3 ? 3 : i + 3];
-  this.props.control.text.icon = globals.SVGUrlHeader(768, 18) + globals.SVGText(3, 14, `${od}, ${ov}, ${status}`) + globals.SVGUrlFooter();
+  this.props.control.text.icon = funcs.SVGUrlHeader(768, 18) + funcs.SVGText(3, 14, `${od}, ${ov}, ${status}`) + funcs.SVGUrlFooter();
   this.RefreshControlIcons();
  }
 
@@ -65,7 +64,7 @@ export class View extends Interface
   const target = this.GetGridCoordinatesElement(cell?.x, cell?.y); // Get x,y coordinates table cell target
   if (!target) return;
   target.focus(); // and focus
-  try { target.contentEditable = globals.EDITABLE; } // Set DOM element contentEditable property to 'plaintext' or 'true'
+  try { target.contentEditable = consts.EDITABLE; } // Set DOM element contentEditable property to 'plaintext' or 'true'
   catch { target.contentEditable = 'true'; } // Fucking FF doesn't support 'plaintext' contentEditable type on 2020 year
   target.textContent = typeof data === 'string' ? data : cell.value; // Set editable content substituting cell value or <data> if exist
   this.range.selectNodeContents(target); // Set cursor at the end of the content
@@ -91,9 +90,9 @@ export class View extends Interface
   const editablecell = this.contentEditableCell; // Fix editable cell
   const editabletarget = this.GetGridCoordinatesElement(editablecell.x, editablecell.y); // and its html element
   if (!editabletarget) return; // Element is unknown or removed? Do nothing and return
-  editabletarget.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> attribute
+  editabletarget.contentEditable = consts.NOTEDITABLE; // Turn off target <contentEditable> attribute
   editabletarget.classList.remove('celleditmode');
-  editabletarget.innerHTML = globals.EscapeString(editablecell.value, true); // Roll back cell text content
+  editabletarget.innerHTML = funcs.EscapeString(editablecell.value, true); // Roll back cell text content
   this.contentEditableCell = null; // Turn off content editable feature to allow other cells to have this feature turned on
  }
 
@@ -130,12 +129,12 @@ export class View extends Interface
   if (editablecell === clickedcell && !keyboardapply) return; // User clicked/pressed event is on editable cell, and event is not CTRL+ENTER? Return or apply cell content below
 
   this.contentEditableCell = null; // Turn off content editable feature to allow other cells to have this feature turned on
-  editabletarget.contentEditable = globals.NOTEDITABLE; // Turn off target <contentEditable> var
+  editabletarget.contentEditable = consts.NOTEDITABLE; // Turn off target <contentEditable> var
   editabletarget.classList.remove('celleditmode'); // Remove 'edit mode' class
   editablecell.value = editabletarget.textContent; // Get text as it is to the cell value
-  editabletarget.innerHTML = globals.EscapeString(editablecell.value, true); // and set it pre-escaped to the innerHTML
+  editabletarget.innerHTML = funcs.EscapeString(editablecell.value, true); // and set it pre-escaped to the innerHTML
 
-  if (+editablecell.oid !== globals.NEWVIRTUALROWID) return Object.assign({ type: 'CONFIRMEDIT', destination: this.parentchild, data: editablecell.value }, this.GetCellMetaData(editablecell)); // Apply cell text content via CONFIRMEDIT client event to the controller
+  if (+editablecell.oid !== consts.NEWVIRTUALROWID) return Object.assign({ type: 'CONFIRMEDIT', destination: this.parentchild, data: editablecell.value }, this.GetCellMetaData(editablecell)); // Apply cell text content via CONFIRMEDIT client event to the controller
   this.SetCellInstances(editablecell.oid, editablecell.eid, editablecell, this.SetCellInstancesInner.bind(this), editabletarget.innerHTML); // Editable cell is a new object? Refresh element instances (innerHTML), going through all element jsonprops and then all json prop cells
   this.SetCellInstances(editablecell.oid, editablecell.eid, editablecell, (cell, editablecell) => (cell.value = editablecell.value) || true, editablecell); // Editable cell which content should be confirmed is a new object, so refresh this object specfified <eid> all cell instances
   return editablecell === clickedcell ? Object.assign({ type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() }, this.GetCellMetaData()) : undefined; // For mouse click out of editable cell no content confirm (so no new object apply, that is  for CTRL+ENTER or context menu), otherwise apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller
@@ -145,7 +144,7 @@ export class View extends Interface
  GetNewObjectElementData()
  {
   const data = {};
-  this.SetCellInstances(globals.NEWVIRTUALROWID, undefined, undefined, (cell, data) => cell.eid in globals.SYSTEMELEMENTNAMES ? false : (data[cell.eid] = cell.value) && false, data); 
+  this.SetCellInstances(consts.NEWVIRTUALROWID, undefined, undefined, (cell, data) => cell.eid in consts.SYSTEMELEMENTNAMES ? false : (data[cell.eid] = cell.value) && false, data); 
   return data;
  }
 
@@ -158,12 +157,12 @@ export class View extends Interface
  {
   let eventpos;
   if (!this.cursor) return;
-  if (event.type !== 'dblclick' && (eventpos = NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
+  if (event.type !== 'dblclick' && (eventpos = consts.NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
   const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x];
   if (!cell?.interactive) return;
   const modifier = String(event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1);
   if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell));
-  const events = [Object.assign({ type: KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell))];
+  const events = [Object.assign({ type: consts.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell))];
   if (event.key && event.key.length === 1 && modifier === '0') events.push(Object.assign({ type: 'KEYPRESS', destination: this.parentchild, data: event.key }, this.GetCellMetaData(cell)));
   return events;
  }
@@ -212,14 +211,14 @@ export class View extends Interface
          {
           case 'INFO':
           case 'WARNING':
-               if (event.data.odid === this.data.odid && event.data.ovid === this.data.ovid) new DialogBox(event.data?.content, this, JSON.parse(globals.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
+               if (event.data.odid === this.data.odid && event.data.ovid === this.data.ovid) new DialogBox(event.data?.content, this, JSON.parse(consts.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
                break;
           case 'CONFIRMDIALOG':
                switch (event.source.props.callback.type)
                       {
                        case 'SETVIEW':
                             const { odid, ovid, od, ov, childid } = event.source.props.callback.data;
-                            return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, od: od, ov: ov, childid: childid, macros: GetDialogMacrosValues(event.source.data) } };
+                            return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, od: od, ov: ov, childid: childid, macros: funcs.GetDialogMacrosValues(event.source.data) } };
                       }
                return;
 	     case 'CANCELDIALOG':
@@ -267,7 +266,7 @@ export class View extends Interface
                    const areas = this.ItemInAreas(this.cursor.areas, x, y) ? this.cursor.areas : [{ x1: x, y1: y, x2: x, y2: y }];
                    const objectids = this.ForEachCell(areas, false, {}, (area, x, y, accumulator) => { const cell = this.valuetable[y][x]; if (cell?.interactive) accumulator[cell.oid] = ''; return accumulator; });
                    const length = Object.keys(objectids).length;
-                   contextmenuitems.push(this.objecttable[globals.NEWVIRTUALROWID] ? ['Add object'] : 'Add object');
+                   contextmenuitems.push(this.objecttable[consts.NEWVIRTUALROWID] ? ['Add object'] : 'Add object');
                    contextmenuitems.push([ 'Delete object', [`Delete object`, objectids], [`Delete ${length} objects`, objectids] ][length < 2 ? length : 2]);
                    contextmenuitems.push(x === undefined ? 'Copy' : ['Copy', areas]);
                    contextmenuitems.push(cell?.interactive ? ['Paste', cell] : 'Paste');
@@ -275,7 +274,7 @@ export class View extends Interface
                    if (x !== undefined && areas !== this.cursor.areas) this.MoveCursor({ x: x - this.cursor.x, y: y - this.cursor.y }, false, true);
                   }
                contextmenuitems.push(['Help']);
-               contextmenuitems.push(['Logout ' + globals.CutString(this.data.username)]);
+               contextmenuitems.push(['Logout ' + funcs.CutString(this.data.username)]);
                new ContextMenu(contextmenuitems, this, event);
                return confirmevent;
           case 'dblclick':
@@ -321,7 +320,7 @@ export class View extends Interface
 
                // Step 2 - Parse selection data
                this.layout = this.ParseLayout(event.data.layout);
-               let i = 0, j = Math.min(globals.TITLEVIRTUALROWID, globals.NEWVIRTUALROWID);
+               let i = 0, j = Math.min(consts.TITLEVIRTUALROWID, consts.NEWVIRTUALROWID);
                const q = event.data.selections.reduce((sum, selection) => sum + selection.rows.length, 0);
                if (this.layout.actual.length) for (let s = 0; s < event.data.selections.length; s++) // Go through all selections
                   {
@@ -329,7 +328,7 @@ export class View extends Interface
                    const fields = event.data.selections[s].fields; // Select fields
                    const l = selection.length; // then its length
                    const w = selection[0].length; // and width
-                   for (let r = s === 0 ? globals.TITLEVIRTUALROWID : 0; r < l; r++) // Go through all selection rows
+                   for (let r = s === 0 ? consts.TITLEVIRTUALROWID : 0; r < l; r++) // Go through all selection rows
                        {
                         const row = r >= 0 ? selection[r] : undefined; // Select current selection row or (in case of new/header object) undefined
                         for (let c = 0; c < w; c++) // Go through all columns
@@ -367,14 +366,14 @@ export class View extends Interface
                                  }
                              catch { continue; }
                              // Process value prop
-                             if (r === globals.TITLEVIRTUALROWID && !('value' in newcell) && fields?.[c]?.header) newcell.value = fields[c].header; // For title row and absent value suck in field header if exist
+                             if (r === consts.TITLEVIRTUALROWID && !('value' in newcell) && fields?.[c]?.header) newcell.value = fields[c].header; // For title row and absent value suck in field header if exist
                              if (!('value' in newcell)) newcell.value = row?.[c]; // For still no 'value' prop suck it from selection
                              if (typeof newcell.value !== 'string') // For non-string 'value' prop do to-string conversion
                              if (newcell.value && typeof newcell.value === 'object') newcell.value = JSON.stringify(newcell.value); // Bring newcell.value to string type
                               else newcell.value = newcell.value === undefined ? '' : String(newcell.value);
                              // Process hint prop
-                             if (!('hint' in newcell) && r !== globals.NEWVIRTUALROWID) // Procee hint absent cells for all rows except 'new'
-                             if (r === globals.TITLEVIRTUALROWID) // For title rows suck hint from element description
+                             if (!('hint' in newcell) && r !== consts.NEWVIRTUALROWID) // Procee hint absent cells for all rows except 'new'
+                             if (r === consts.TITLEVIRTUALROWID) // For title rows suck hint from element description
                                 {
                                  if (fields?.[c]?.description)
                                     newcell.hint = fields[c].description;
@@ -384,14 +383,14 @@ export class View extends Interface
                                  if (fields[c].eid) for (let fieldindex = 0; fieldindex < fields.length; fieldindex++)
                                     if (fields[c].eid === fields[fieldindex].eid && fields[fieldindex].eprop === 'hint' && ((newcell.hint = String(row[fieldindex])) || true)) break;
                                 }
-                             if (newcell.hint) newcell.hint = globals.EscapeString(newcell.hint).trim();
+                             if (newcell.hint) newcell.hint = funcs.EscapeString(newcell.hint).trim();
                              // Process style prop
                              if (row) // For selection rows with absent 'style' prop - suck in from other element->style extraction fields
                                 {
                                  if (fields[c].eid) for (let fieldindex = 0; fieldindex < fields.length; fieldindex++)
                                     if (fields[c].eid === fields[fieldindex].eid && fields[fieldindex].eprop === 'style' && ((newcell.style = String(row[fieldindex]) + (newcell.style || '')) || true)) break; // Todo0 - check every field on eid->hint/style data just to set it quickly for every element - first seach fields like eidN->hint/style, then search fields for found eidN and fix it
                                 }
-                             if (newcell.style) newcell.style = globals.EscapeString(newcell.style).trim();
+                             if (newcell.style) newcell.style = funcs.EscapeString(newcell.style).trim();
                              // Process 'event' prop once again with actual x,y values fixing last matched event
                              if ('event' in newcell) this.layout.event = newcell;
                              // Process cell meta data for an actual element. Cell is interactive in case of 'id(oid)/eid' does exist (actual element) and 'lastversion' is true. For 'new' virtual row 'eid' should exist only
@@ -399,7 +398,7 @@ export class View extends Interface
                              if (fields[c].eid)
                                 {
                                  if (row)
-                                 for (const name in globals.SYSTEMELEMENTNAMES)
+                                 for (const name in consts.SYSTEMELEMENTNAMES)
                                  for (let fieldindex = 0; fieldindex < fields.length; fieldindex++)
                                      if (fields[fieldindex].name === name) newcell[name] = String(row[fieldindex]);
                                  newcell.eid = String(fields[c].eid);
@@ -410,8 +409,8 @@ export class View extends Interface
                              newcell.name = fields[c].name; // Set <newcell> sql column name
                              // Process cell interactive prop - it is true in case of 'id(oid)/eid' does exist (actual element) and 'lastversion' is true. For 'new' virtual row - 'eid' should exist only
                              newcell.interactive = false;
-                             if (newcell.eid && !(newcell.eid in globals.SYSTEMELEMENTNAMES))
-                                if (+newcell.oid === globals.NEWVIRTUALROWID || ('id' in newcell && 'lastversion' in newcell && +newcell.id >= globals.PRIMARYKEYSTARTVALUE && newcell.lastversion[0] === 't'))
+                             if (newcell.eid && !(newcell.eid in consts.SYSTEMELEMENTNAMES))
+                                if (+newcell.oid === consts.NEWVIRTUALROWID || ('id' in newcell && 'lastversion' in newcell && +newcell.id >= consts.PRIMARYKEYSTARTVALUE && newcell.lastversion[0] === 't'))
                                    newcell.interactive = true;
                              // Process class prop
                              newcell.class = ['titlecell', 'newobjectcell', 'interactivecell', 'noninteractivecell'].at(r < 0 ? r + 2 : newcell.interactive ? 2 : 3); 
@@ -446,8 +445,8 @@ export class View extends Interface
                          if (typeof newcell.y !== 'number' || isNaN(newcell.y)) throw new Error(); // Not a number type or NaN? Continue
                          newcell.y = Math.round(newcell.y); // Fix it to nearest integer
                          if ((newcell.y < 0 || newcell.y >= MAXVIEWTABLEHEIGHT) && (this.layout.cellsoutofrange++)) throw new Error(); // Check 'y' prop out of range and increase <cellsoutofrange> in case
-                         if (newcell.hint) newcell.hint = globals.EscapeString(newcell.hint).trim();
-                         if (newcell.style) newcell.style = globals.EscapeString(newcell.style).trim();
+                         if (newcell.hint) newcell.hint = funcs.EscapeString(newcell.hint).trim();
+                         if (newcell.style) newcell.style = funcs.EscapeString(newcell.style).trim();
                          newcell.originalvalue = newcell.value; // Store original value to eval it at all next table data refresh 
                          newcell.originalhint = newcell.hint; // Store original hint to be able to restore it in case of a exception
                          newcell.class = 'virtualcell';
@@ -539,7 +538,7 @@ export class View extends Interface
      {
       if (errormsg || warningmsg) this.elementDOM.innerHTML = `<div class="ovboxmessage" style="color: ${errormsg ? 'RGB(251,179,179)' : '#9FBDDF'};"><div  style="text-align: justify;"><h1>${errormsg ? errormsg : warningmsg}</h1></div></div>`;
       this.ChangeHeader();
-      if (dialogmsg) new DialogBox(dialogmsg.data.dialog, this, Object.assign(JSON.parse(globals.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: dialogmsg }), undefined, undefined, undefined, null); // Create macros definition dialog with null as a last arg to remove interactive btns
+      if (dialogmsg) new DialogBox(dialogmsg.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: dialogmsg }), undefined, undefined, undefined, null); // Create macros definition dialog with null as a last arg to remove interactive btns
       return event;
      }
 
@@ -585,8 +584,8 @@ export class View extends Interface
   this.layout.valuetableWidth  -= dispx;
   this.columnWidths.length = this.layout.valuetableWidth; // Limit row/columns sizes arrays to the table height/width
   this.rowHeights.length = this.layout.valuetableHeight;
-  this.columnWidths.fill(globals.CELLMINWIDTH); // and fill these arrays by cell pixel min width/height
-  this.rowHeights.fill(globals.CELLMINHEIGHT);
+  this.columnWidths.fill(consts.CELLMINWIDTH); // and fill these arrays by cell pixel min width/height
+  this.rowHeights.fill(consts.CELLMINHEIGHT);
   if (!this.layout.valuetableWidth || !this.layout.valuetableHeight) return this.DisplayView(null, COLLAPSEDSELECTION); // Display warning for colapsed table
 
   // Step 4 - Assign table specific vars and set cursor to initial position
@@ -623,7 +622,7 @@ export class View extends Interface
       if (this.cursor.alignment.sides & LEFTSIDE || this.cursor.alignment.sides & RIGHTSIDE)
          {
           this.itemArea.x1 = this.itemArea.x2 = this.cursor.alignment.x;
-          const itemwidth = Math.ceil((visiblearea.x2 - visiblearea.x1 + 1) / globals.CELLMINWIDTH);
+          const itemwidth = Math.ceil((visiblearea.x2 - visiblearea.x1 + 1) / consts.CELLMINWIDTH);
           if (this.cursor.alignment.sides & LEFTSIDE) { this.itemArea.x2 += itemwidth; this.itemArea.x1--; }
            else { this.itemArea.x1 -= itemwidth; this.itemArea.x2++; }
           if (this.itemArea.x1 < 0) { this.itemArea.x2 = Math.min(this.itemArea.x2 - this.itemArea.x1, this.layout.valuetableWidth - 1); this.itemArea.x1 = 0; }
@@ -632,7 +631,7 @@ export class View extends Interface
       if (this.cursor.alignment.sides & TOPSIDE || this.cursor.alignment.sides & BOTTOMSIDE)
          {
           this.itemArea.y1 = this.itemArea.y2 = this.cursor.alignment.y;
-          const itemheight = Math.ceil((visiblearea.y2 - visiblearea.y1 + 1) / globals.CELLMINHEIGHT);
+          const itemheight = Math.ceil((visiblearea.y2 - visiblearea.y1 + 1) / consts.CELLMINHEIGHT);
           if (this.cursor.alignment.sides & TOPSIDE) { this.itemArea.y2 += itemheight; this.itemArea.y1--; }
            else { this.itemArea.y1 -= itemheight; this.itemArea.y2++; }
           if (this.itemArea.y1 < 0) { this.itemArea.y2 = Math.min(this.itemArea.y2 - this.itemArea.y1, this.layout.valuetableHeight - 1); this.itemArea.y1 = 0; }
@@ -649,10 +648,10 @@ export class View extends Interface
   // Step 3 - grid container doesn't intersects (or doesn't exist) visible area, so calculate item area based on scrolling offset values
   if (expandsides === undefined)
      {
-      this.itemArea =  { x1: Math.floor(this.scrollingcontainer.scrollLeft / globals.CELLMINWIDTH), // For visible area define item area due to default item pixel min width/height 
-                         x2: Math.ceil((this.scrollingcontainer.scrollLeft + this.scrollingcontainer.clientWidth - 1) / globals.CELLMINWIDTH),
-                         y1: Math.floor(this.scrollingcontainer.scrollTop / globals.CELLMINHEIGHT),
-                         y2: Math.ceil((this.scrollingcontainer.scrollTop + this.scrollingcontainer.clientHeight - 1) / globals.CELLMINHEIGHT)
+      this.itemArea =  { x1: Math.floor(this.scrollingcontainer.scrollLeft / consts.CELLMINWIDTH), // For visible area define item area due to default item pixel min width/height 
+                         x2: Math.ceil((this.scrollingcontainer.scrollLeft + this.scrollingcontainer.clientWidth - 1) / consts.CELLMINWIDTH),
+                         y1: Math.floor(this.scrollingcontainer.scrollTop / consts.CELLMINHEIGHT),
+                         y2: Math.ceil((this.scrollingcontainer.scrollTop + this.scrollingcontainer.clientHeight - 1) / consts.CELLMINHEIGHT)
                        };
       this.DisplayGridContainer();
       return;
@@ -670,7 +669,7 @@ export class View extends Interface
      {
       const item = this.GetGridCoordinatesElement(i, this.itemArea.y1);
       if (!item || item.offsetLeft > visiblearea.x2) continue;
-      this.itemArea.x1 -= Math.ceil((gridcontainerarea.x1 - visiblearea.x1) / globals.CELLMINWIDTH); // Prefer max possible items to expand, so use CELLMINWIDTH/CELLMINHEIGHT instead of actual item widths/heights like in old version: this.itemArea.x1 -= this.GetItemNumber(this.columnWidths, i, 0, gridcontainerarea.x1 - visiblearea.x1);
+      this.itemArea.x1 -= Math.ceil((gridcontainerarea.x1 - visiblearea.x1) / consts.CELLMINWIDTH); // Prefer max possible items to expand, so use CELLMINWIDTH/CELLMINHEIGHT instead of actual item widths/heights like in old version: this.itemArea.x1 -= this.GetItemNumber(this.columnWidths, i, 0, gridcontainerarea.x1 - visiblearea.x1);
       this.itemArea.x2 = i;
       break;
      } 
@@ -679,14 +678,14 @@ export class View extends Interface
       const item = this.GetGridCoordinatesElement(i, this.itemArea.y1);
       if (!item || item.offsetLeft + item.offsetWidth < visiblearea.x1) continue;
       this.itemArea.x1 = i;
-      this.itemArea.x2 += Math.ceil((visiblearea.x2 - gridcontainerarea.x2) / globals.CELLMINWIDTH); // Old version: this.GetItemNumber(this.columnWidths, i, this.layout.valuetableWidth - 1, visiblearea.x2 - gridcontainerarea.x2);
+      this.itemArea.x2 += Math.ceil((visiblearea.x2 - gridcontainerarea.x2) / consts.CELLMINWIDTH); // Old version: this.GetItemNumber(this.columnWidths, i, this.layout.valuetableWidth - 1, visiblearea.x2 - gridcontainerarea.x2);
       break;
      }
   if (expandsides & TOPSIDE) for (let i = this.itemArea.y2; i >= this.itemArea.y1; i--)
      {
       const item = this.GetGridCoordinatesElement(this.itemArea.x1, i);
       if (!item || item.offsetTop > visiblearea.y2) continue;
-      this.itemArea.y1 -= Math.ceil((gridcontainerarea.y1 - visiblearea.y1) / globals.CELLMINHEIGHT); // Old version: this.GetItemNumber(this.columnHeights, i, 0, gridcontainerarea.y1 - visiblearea.y1);
+      this.itemArea.y1 -= Math.ceil((gridcontainerarea.y1 - visiblearea.y1) / consts.CELLMINHEIGHT); // Old version: this.GetItemNumber(this.columnHeights, i, 0, gridcontainerarea.y1 - visiblearea.y1);
       this.itemArea.y2 = i;
       break;
      } 
@@ -695,7 +694,7 @@ export class View extends Interface
       const item = this.GetGridCoordinatesElement(this.itemArea.x1, i);
       if (!item || item.offsetTop + item.offsetHeight < visiblearea.y1) continue;
       this.itemArea.y1 = i;
-      this.itemArea.y2 += Math.ceil((visiblearea.y2 - gridcontainerarea.y2) / globals.CELLMINHEIGHT); // Old version: this.GetItemNumber(this.columnHeights, i, this.layout.valuetableHeight - 1, visiblearea.y2 - gridcontainerarea.y2);
+      this.itemArea.y2 += Math.ceil((visiblearea.y2 - gridcontainerarea.y2) / consts.CELLMINHEIGHT); // Old version: this.GetItemNumber(this.columnHeights, i, this.layout.valuetableHeight - 1, visiblearea.y2 - gridcontainerarea.y2);
       break;
      }
 
@@ -729,7 +728,7 @@ export class View extends Interface
                                                                                          if (!cell) return accumulator + `<div class="undefinedcell defaultcell${addclass}" id="${id}"></div>`;
                                                                                          const title = cell.hint ? ` title="${cell.hint}"` : ``;
                                                                                          const style = cell.style ? ` style="${cell.style}"` : ``;
-                                                                                         return accumulator + `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${globals.EscapeString(cell.value, true)}</div>`;
+                                                                                         return accumulator + `<div class="${cell.class} defaultcell${addclass}" id="${id}"${style}${title}>${funcs.EscapeString(cell.value, true)}</div>`;
                                                                                        });
   const style = `grid-template-columns: repeat(${this.itemArea.x2 - this.itemArea.x1 + 1}, min-content); grid-template-rows: repeat(${this.itemArea.y2 - this.itemArea.y1 + 1}, min-content); margin: ${mtop}px ${mright}px ${mbottom}px ${mleft}px;`;
   this.scrollingcontainer.innerHTML = `<div class="gridcontainer" style="${style}">${inner}</div>`;
@@ -740,10 +739,10 @@ export class View extends Interface
      { 
       this.cursor.noscrollredraw = true;
       item = this.GetGridCoordinatesElement(this.cursor.alignment.x, this.cursor.alignment.y);
-      if (this.cursor.alignment.sides & RIGHTSIDE) this.scrollingcontainer.scrollLeft = item.offsetLeft + item.offsetWidth - (this.cursor.alignment.visiblearea.x2 - this.cursor.alignment.visiblearea.x1 + 1) - this.scrollingcontainer.offsetLeft + Math.floor(globals.CELLMINWIDTH / 2);
-       else if (this.cursor.alignment.sides & LEFTSIDE) this.scrollingcontainer.scrollLeft = item.offsetLeft - this.scrollingcontainer.offsetLeft - Math.floor(globals.CELLMINWIDTH / 2);
-      if (this.cursor.alignment.sides & BOTTOMSIDE) this.scrollingcontainer.scrollTop = item.offsetTop + item.offsetHeight - (this.cursor.alignment.visiblearea.y2 - this.cursor.alignment.visiblearea.y1 + 1) - this.scrollingcontainer.offsetTop + Math.floor(globals.CELLMINHEIGHT / 2);
-       else if (this.cursor.alignment.sides & TOPSIDE) this.scrollingcontainer.scrollTop = item.offsetTop - this.scrollingcontainer.offsetTop - Math.floor(globals.CELLMINHEIGHT / 2);
+      if (this.cursor.alignment.sides & RIGHTSIDE) this.scrollingcontainer.scrollLeft = item.offsetLeft + item.offsetWidth - (this.cursor.alignment.visiblearea.x2 - this.cursor.alignment.visiblearea.x1 + 1) - this.scrollingcontainer.offsetLeft + Math.floor(consts.CELLMINWIDTH / 2);
+       else if (this.cursor.alignment.sides & LEFTSIDE) this.scrollingcontainer.scrollLeft = item.offsetLeft - this.scrollingcontainer.offsetLeft - Math.floor(consts.CELLMINWIDTH / 2);
+      if (this.cursor.alignment.sides & BOTTOMSIDE) this.scrollingcontainer.scrollTop = item.offsetTop + item.offsetHeight - (this.cursor.alignment.visiblearea.y2 - this.cursor.alignment.visiblearea.y1 + 1) - this.scrollingcontainer.offsetTop + Math.floor(consts.CELLMINHEIGHT / 2);
+       else if (this.cursor.alignment.sides & TOPSIDE) this.scrollingcontainer.scrollTop = item.offsetTop - this.scrollingcontainer.offsetTop - Math.floor(consts.CELLMINHEIGHT / 2);
       delete this.cursor.alignment;
      }
   // Todo0 - set min width/height style props for every item of first row/column of virtual grid to max width/height item values (of whole grid):
@@ -809,13 +808,11 @@ export class View extends Interface
       if (Math.abs(userevent.clientX - control.child.cursor.mousex) > 5)
          {
           sides += userevent.clientX - control.child.cursor.mousex > 0 ? RIGHTSIDE : LEFTSIDE;
-          console.log('hui', userevent.clientX - control.child.cursor.mousex >0 ? 'RIGHTSIDE' : 'LEFTSIDE');
           control.child.cursor.mousex = userevent.clientX;
          } 
       if (Math.abs(userevent.clientY - control.child.cursor.mousey) > 5)
          {
           sides += userevent.clientX - control.child.cursor.mousey > 0 ? BOTTOMSIDE : TOPSIDE;
-          console.log('hui', userevent.clientY - control.child.cursor.mousey >0 ? 'BOTTOMSIDE' : 'TOPSIDE');
           control.child.cursor.mousey = userevent.clientY;
          }
       if (x !== undefined && !control.child.contentEditableCell) control.child.MoveCursor({ x: x - control.child.cursor.areas.at(-1).x2, y: y - control.child.cursor.areas.at(-1).y2 }, true, false, sides); // Selection phase 'process' with no any editable cell - grid mouse move - modify selection area to x,y position
@@ -907,7 +904,7 @@ export class View extends Interface
       this.CutItemCoordinates(newcursor, newcursor.areas.at(-1));
 
       const cell = this.valuetable?.[newcursor.y]?.[newcursor.x];
-      if (+cell?.oid === globals.NEWVIRTUALROWID && cell.interactive) this.MakeCellContentEditable(cell);
+      if (+cell?.oid === consts.NEWVIRTUALROWID && cell.interactive) this.MakeCellContentEditable(cell);
 
       if (newcursor.x === this.cursor.x && newcursor.y === this.cursor.y && newcursor.areas.length === this.cursor.areas.length)
       if (newcursor.areas.at(-1).x1 === this.cursor.areas.at(-1).x1 && newcursor.areas.at(-1).y1 === this.cursor.areas.at(-1).y1)

@@ -5,10 +5,10 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
-import * as globals from './globals.js';
 import * as macro from './macro.js';
 import * as qm from './querymaker.js';
-import * as suckin from './suckin.js';
+import * as consts from './static/consts.js';
+import * as funcs from './static/funcs.js';
 
 const { Pool, Client }      = pg;
 const UNKNOWNDBID           = 'Incorrect or nonexistent database id!';
@@ -102,7 +102,7 @@ export class Controller
  
   for (const table of tables)
       {
-       const odid = globals.GetTableNameId(table);                                                                                      // Get table id
+       const odid = funcs.GetTableNameId(table);                                                                                      // Get table id
        if (!odid || !tables.includes(`head_${odid}`) || !tables.includes(`data_${odid}`) || !tables.includes(`metr_${odid}`))
           {
            console.log(`Undefined id '${odid}' in table name or required SQL tables (head_${odid}, data_${odid} or metr_${odid}) are missing!`);
@@ -112,7 +112,7 @@ export class Controller
  
        try {
             const dialog = await this.pool.query(...qm.Make({ method: 'SELECT', table: `head_${odid}`, orderdesc: 'id', limit: '1', fields: ['dialog'] })); // Get OD structure dialog last version from head_id table
-            const databaseprops = suckin.SuckInDatabaseProps(dialog.rows[0].dialog, odid); // and suck it to the memory
+            const databaseprops = funcs.SuckInDatabaseProps(dialog.rows[0].dialog, odid); // and suck it to the memory
             if (!databaseprops) throw new Error(INCORRECTDBCONFDIALOG + ` in table head_${odid}`);
             this.ods[odid] = databaseprops;
             if (odid === '1')
@@ -121,7 +121,7 @@ export class Controller
                 if (!Array.isArray(userrows?.rows)) throw new Error(INCORRECTUSERSOD);
                 for (const userrow of userrows.rows)
                     {
-                     const userprops = suckin.SuckInUserProps(userrow);
+                     const userprops = funcs.SuckInUserProps(userrow);
                      if (!userprops) throw new Error(`Incorrect user id ${userrow?.id} data!`);
                      this.ups[userrow.id] = userprops;
                     }
@@ -179,7 +179,7 @@ export class Controller
  async Authenticate(username, password)
  {
   let hash;
-  const macroobject = { odid: "1", eid: `2`, oid: `${globals.ELEMENTCOLUMNPREFIX}1='${username}'` };
+  const macroobject = { odid: "1", eid: `2`, oid: `${consts.ELEMENTCOLUMNPREFIX}1='${username}'` };
   if (typeof username !== 'string' || !username) return { type: 'LOGINERROR', data: "User name couldn't be empty!" };
   if (typeof password !== 'string' || !password) return { type: 'LOGINERROR', data: "Password couldn't be empty!" };
 
@@ -194,7 +194,7 @@ export class Controller
       }
 
   const userid = await macro.GetObjectElementData(Object.assign(macroobject, { eid: 'id' }), this, {}); // Change retrieving element name to 'id' and get element data (user id)
-  const authcode = this.AddClientAuthCode(globals.GenerateRandomString(12), { userid: userid, username: username });
+  const authcode = this.AddClientAuthCode(funcs.GenerateRandomString(12), { userid: userid, username: username });
   return { type: 'LOGINACK', data: { username: username, userid: userid, protocol: 'ws', ip: this.WS.ip, port: this.WS.port, authcode: authcode } };
  }
 
@@ -365,13 +365,13 @@ export class Controller
   if (client) await client.end();
 
   // Creating new User OD with emulating user session and user profile (this.ups)
-  const session = { socket: { send: function(){} }, auth: true, userid: globals.PRIMARYKEYSTARTVALUE, username: globals.SUPERUSER, ods: { '1': { ovs: { '1': { tblname: 'data_1', replacements: {} } } } } };
+  const session = { socket: { send: function(){} }, auth: true, userid: consts.PRIMARYKEYSTARTVALUE, username: consts.SUPERUSER, ods: { '1': { ovs: { '1': { tblname: 'data_1', replacements: {} } } } } };
   this.sessions.set(session.socket, session);
-  this.ups[globals.PRIMARYKEYSTARTVALUE] = { tags: [globals.SUPERUSER] };
+  this.ups[consts.PRIMARYKEYSTARTVALUE] = { tags: [consts.SUPERUSER] };
 
-  await this.SetNewODInstance(suckin.USEROBJECTDATABASE, undefined, session);
+  await this.SetNewODInstance(consts.USEROBJECTDATABASE, undefined, session);
   await this.Start();
-  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { '1': globals.SUPERUSER, '2': globals.SUPERUSER } }), session);
+  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { '1': consts.SUPERUSER, '2': consts.SUPERUSER } }), session);
   await this.ClosePool();
  }
 
@@ -386,12 +386,12 @@ export class Controller
                                                                                          { name: 'dialog', value: 'JSON' }] }));
   // Second - data_ table
   await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}` }));
-  await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields:[{ name: 'id', value: 'INTEGER', constraint: `GENERATED BY DEFAULT AS IDENTITY (START WITH ${globals.PRIMARYKEYSTARTVALUE})` },
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields:[{ name: 'id', value: 'INTEGER', constraint: `GENERATED BY DEFAULT AS IDENTITY (START WITH ${consts.PRIMARYKEYSTARTVALUE})` },
                                                                                         { name: 'version', value: 'INTEGER', constraint: 'DEFAULT 1' },
                                                                                         { name: 'lastversion', value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
                                                                                         { name: 'mask', value: 'TEXT' },
                                                                                         { name: 'ownerid', value: 'INTEGER' },
-                                                                                        { name: 'owner', value: `VARCHAR(${suckin.USERNAMEMAXCHAR})` },
+                                                                                        { name: 'owner', value: `VARCHAR(${consts.USERNAMEMAXCHAR})` },
                                                                                         { name: 'datetime', value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
                                                                                         { name: 'date', value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
                                                                                         { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
@@ -435,20 +435,20 @@ export class Controller
            const tablelist = await transaction.query(...qm.Make({ method: 'SHOWTABLES' })); // Todo0 - Dont forget to keep limited database versions, it is impossible to keep all database changes history from it creation
            for (const row of tablelist.rows) // Calculate current OD max id plus 1
                {
-                const id = globals.GetTableNameId(row.tablename);
+                const id = funcs.GetTableNameId(row.tablename);
                 if (id && +id >= odid) odid = +id + 1;
                }
            await this.CreateOD(odid, transaction);
           }
-       newodprops = suckin.SuckInDatabaseProps(dialog, odid, neweid, newovid);
+       newodprops = funcs.SuckInDatabaseProps(dialog, odid, neweid, newovid);
        if (!newodprops) throw new Error(INCORRECTDBCONFDIALOG);
 
        // Check new OD instance for restricted pads change. Todo0 - exclude superuser
        if (oldodprops)
           {
-           if (globals.CheckUsersToMatchTheList(tags, oldodprops.od.od)) throw new Error(CONFIGURATENOTALLOWED); // Tags (array of user and its tags/groups) match OD read restrictions
+           if (funcs.CheckUsersToMatchTheList(tags, oldodprops.od.od)) throw new Error(CONFIGURATENOTALLOWED); // Tags (array of user and its tags/groups) match OD read restrictions
            for (const pad of ['Database', 'Element', 'View', 'Rule']) 
-                if (globals.CheckUsersToMatchTheList(tags, oldodprops.od[pad]) && !globals.ObjectCompare(oldodprops.od[pad], newodprops.od[pad])) throw new Error(`Database configuration section '${pad}' is not allowed to change for the user '${session.username}'!`);
+                if (funcs.CheckUsersToMatchTheList(tags, oldodprops.od[pad]) && !funcs.ObjectCompare(oldodprops.od[pad], newodprops.od[pad])) throw new Error(`Database configuration section '${pad}' is not allowed to change for the user '${session.username}'!`);
           }
 
        // Check new OD instance for empty name case
@@ -501,20 +501,20 @@ export class Controller
  {
   if (columnaction && columnaction !== 'DROP')
      {
-      await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${eid}`, value: columnaction } })); // Create new element column
-      await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${eid}`, value: `VARCHAR(${suckin.USERNAMEMAXCHAR})` } })); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
+      await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, fields: { name: `${consts.ELEMENTCOLUMNPREFIX}${eid}`, value: columnaction } })); // Create new element column
+      await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: { name: `${consts.ELEMENTCOLUMNPREFIX}${eid}`, value: `VARCHAR(${consts.USERNAMEMAXCHAR})` } })); // New element for metr hypertable, so it results to next columns: id, datetime, date, time, value, eid1, eid2 - where 'id' is an object id; 'eid1..' is an object element property name (null or string) to retreive time 'value' by; 
      }
 
   if (indexaction)
      {
-      if (indexaction === 'None') await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, index: '', fields: `${globals.ELEMENTCOLUMNPREFIX}${eid}` }));
-       else await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: indexaction.includes('hash') ? 'hash' : 'btree', fields: { name: `${globals.ELEMENTCOLUMNPREFIX}${eid}`, value: indexaction.includes('UNIQUE') ? 'UNIQUE' : '' } }));
+      if (indexaction === 'None') await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, index: '', fields: `${consts.ELEMENTCOLUMNPREFIX}${eid}` }));
+       else await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: indexaction.includes('hash') ? 'hash' : 'btree', fields: { name: `${consts.ELEMENTCOLUMNPREFIX}${eid}`, value: indexaction.includes('UNIQUE') ? 'UNIQUE' : '' } }));
      }
 
   if (columnaction === 'DROP')
      {
-      await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, fields: `${globals.ELEMENTCOLUMNPREFIX}${eid}` })); // Drop column
-      await transaction.query(...qm.Make({ method: 'DROP', table: `metr_${odid}`, fields: `${globals.ELEMENTCOLUMNPREFIX}${eid}` })); // Drop column
+      await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, fields: `${consts.ELEMENTCOLUMNPREFIX}${eid}` })); // Drop column
+      await transaction.query(...qm.Make({ method: 'DROP', table: `metr_${odid}`, fields: `${consts.ELEMENTCOLUMNPREFIX}${eid}` })); // Drop column
      }
  }
  
@@ -532,8 +532,7 @@ export class Controller
   if (session.auth) // Also go through all clients for selected OD above
      {
       const msg = { type: sessionremoving ? 'SIDEBARDELETE' : 'SIDEBARSET', data: { odid: id, path: odprops.od.name, ov: {} } }; // Create message for OD 'id' with its path (e.data) and views defined below
-      if (!sessionremoving) for (const ovid in odprops.views) msg.data.ov[ovid] = odprops.views[ovid].general.name.split('\n'); 
-      console.log('hui2', msg);
+      if (!sessionremoving) for (const ovid in odprops.views) if (odprops.views[ovid].general.name) msg.data.ov[ovid] = odprops.views[ovid].general.name.split('\n');
       session.socket.send(JSON.stringify(msg));
       if (session === sessionremoving) session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: `Object Database (id '${id}') is successfully removed!`, title: 'Info' } }));
      }
@@ -591,9 +590,9 @@ export class Controller
        // Parse element ids from all fields for each selection
        for (const selection of selections)
            selection.fields = selection.fields.map(field => {
-                                                             if (field.name in globals.SYSTEMELEMENTNAMES) return { name: field.name, eid: field.name, header: field.name, description: globals.SYSTEMELEMENTNAMES[field.name] };
-                                                             const newfield = { name: field.name }, eid = parseInt(field.name.substring(globals.ELEMENTCOLUMNPREFIX.length)); // Parse numeric id after 'eid' string followed;
-                                                             if (!globals.ELEMENTCOLUMNREGEXP.test(field.name) || !database.elements[eid]) return newfield; // Field name is eid<1|2|3..[_<prop>]> and id does exist?
+                                                             if (field.name in consts.SYSTEMELEMENTNAMES) return { name: field.name, eid: field.name, header: field.name, description: consts.SYSTEMELEMENTNAMES[field.name] };
+                                                             const newfield = { name: field.name }, eid = parseInt(field.name.substring(consts.ELEMENTCOLUMNPREFIX.length)); // Parse numeric id after 'eid' string followed;
+                                                             if (!consts.ELEMENTCOLUMNREGEXP.test(field.name) || !database.elements[eid]) return newfield; // Field name is eid<1|2|3..[_<prop>]> and id does exist?
                                                              [newfield.eid, newfield.header, newfield.description] = [eid, database.elements[eid].name, database.elements[eid].description];
                                                              const pos = field.name.indexOf('_');
                                                              if (pos > 0) newfield.eprop = field.name.substring(pos + 1);
@@ -688,9 +687,9 @@ export class Controller
   if (!eventgrouplist) return;
   for (let eventgroup in eventgrouplist.split('\n'))
       {
-       if (!(eventgroup = this.ups[globals.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exits in SUPERUSER (id <globals.PRIMARYKEYSTARTVALUE>) event groups
+       if (!(eventgroup = this.ups[consts.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exits in SUPERUSER (id <globals.PRIMARYKEYSTARTVALUE>) event groups
        let event = msg.type; // Fix event name and add modifier string '+CTRL+ALT+SHIFT+META' for mouse/keyboard events below if needed
-       if (suckin.KEYBOARDEVENTS.includes(event) || suckin.MOUSEEVENTS.includes(event)) event += `${msg.data & 0b1000 ? '+CTRL' : ''}${msg.data & 0b0100 ? '+ALT' : ''}${msg.data & 0b0010 ? '+SHIFT' : ''}${msg.data & 0b0001 ? '+META' : ''}`;
+       if (consts.KEYBOARDEVENTS.includes(event) || consts.MOUSEEVENTS.includes(event)) event += `${msg.data & 0b1000 ? '+CTRL' : ''}${msg.data & 0b0100 ? '+ALT' : ''}${msg.data & 0b0010 ? '+SHIFT' : ''}${msg.data & 0b0001 ? '+META' : ''}`;
        if (!(event = eventgroup[event])) continue; // Continue for no event in a current event group
        if (event.handlertype !== 'Disabled' && (event.handlertype !== 'Fixed output' || event.action !== 'Ignore')) return event; // Return matched and enebled event profile, except fixed result handler with 'ignore' action
       }
@@ -703,24 +702,24 @@ export class Controller
   try {
        // Phase 1 - check user auth and client event name correctness. And OD id with OV id exist and interactive
        if (!session.auth || !this.ups[session.userid]) throw new Error(`Authentication required, please log in!`);
-       if (!suckin.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
+       if (!consts.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
        if (!this.ods[msg.odid]) throw new Error(`Unknown Object Database id ${msg.odid})!`);
        if (!this.ods[msg.odid].views[msg.ovid]) throw new Error(`Unknown Object View id ${msg.ovid})!`);
        const tblname = session.ods[msg.odid]?.ovs[msg.ovid]?.tblname;
        if (!tblname || tblname !== `data_${msg.odid}`) return; // Todo0 - multiple queries may generate multiple table data retreives, so these views are not interactive, fix it in help doc
 
        // Phase 2 - user permission check
-       if (session.username !== globals.SUPERUSER)
+       if (session.username !== consts.SUPERUSER)
           {
-           if (globals.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.read)) throw new Error(`This 'Object View' read access denied by user restrictions!`);
-           if (globals.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.write)) throw new Error(`This 'Object View' write access denied by user restrictions!`);
+           if (funcs.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.read)) throw new Error(`This 'Object View' read access denied by user restrictions!`);
+           if (funcs.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.write)) throw new Error(`This 'Object View' write access denied by user restrictions!`);
           }
        
        // Phase 3 - OV permission check
-       if (session.username !== globals.SUPERUSER)
+       if (session.username !== consts.SUPERUSER)
           {
-           if (globals.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].views[msg.ovid].permission.read)) throw new Error(`This 'Object View' read access denied by view restrictions!`);
-           if (globals.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].views[msg.ovid].permission.write)) throw new Error(`This 'Object View' write access denied by view restrictions!`);
+           if (funcs.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].views[msg.ovid].permission.read)) throw new Error(`This 'Object View' read access denied by view restrictions!`);
+           if (funcs.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].views[msg.ovid].permission.write)) throw new Error(`This 'Object View' write access denied by view restrictions!`);
           }
       
        // Phase 4 - Check if the element event exists and is enabled (for all client events except 'ADDOBJECT' and 'DELETEOBJECT')
@@ -760,7 +759,7 @@ export class Controller
                     if (json.type !== 'SET') continue;
                     if (json.data && typeof json.data === 'object') json.data = JSON.stringify(json.data);
                     if (typeof json.data !== 'string') continue;
-                    fields.push({ name: globals.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
+                    fields.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
                    }
                console.log({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields });
                await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields }));
@@ -779,12 +778,6 @@ export class Controller
  }
 }
 
-// Controller functions roadmap:
-// Start() -> ReadAllDatabase() -> CheckODConfigurationDialogSyntax()
-//                              -> SuckInODProps() [odid] -> { dialog: <dialog>, name: <dbname>, replacements: {}, elementprofiles: { 'eid1': { type:, name:, description:, event: } }, viewprofiles: { '1': { layout:, query:, replacements:, dialog:, read:, write: } }, ruleprofiles: { [profilename]: }, rulereplacements: {} }
-//                              -> SuckInUserProps() -> [userid] = { name: <username>, tags: <username + group list>, policy: <user policy dialog data>, customization: <customization>, eventgroups: { [eventgroup]: { [event]: {} } },
-// Reset()|SETDATABASE -> SetNewODInstance() -> SuckInODProps()
- 
 // Todo0 - Incoming client/handler events check:
 //      1. User permissions check
 //      2. View permissions check

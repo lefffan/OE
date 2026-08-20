@@ -1,5 +1,3 @@
-import * as globals from './globals.js';
-
 // Method joins field names and values (if exist) via specified separators: <outerseparator><fieldname1><innerseparator><fieldvalue1><outerseparator><fieldname2><innerseparator><fieldvalue2>..
 export function Join(props, outerseparator, innerseparator)
 {

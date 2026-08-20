@@ -1,7 +1,7 @@
 import { Interface } from './interface.js';
 import { ContextMenu } from './contextmenu.js';
 import { View } from './view.js';
-import * as globals from './globals.js';
+import * as funcs from './funcs.js';
 
 function OnDraw(func)
 {
@@ -185,7 +185,7 @@ export class Sidebar extends Interface
                   }
                if (event.button === 2)
                   {
-                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + globals.CutString(this.username)]];
+                   const contextmenuoptions = [['New Database'], , '', ['Help'], ['Logout ' + funcs.CutString(this.username)]];
                    const odid = event.target.attributes['data-odid']?.value;
                    const ovid = event.target.attributes['data-ovid']?.value;
                    if (odid !== undefined) contextmenuoptions[1] = [ 'Configure Database', odid ];
@@ -378,22 +378,22 @@ export class Sidebar extends Interface
   switch (status)
          {
           case undefined:
-               return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGUrlFooter(false);
+               return funcs.SVGUrlHeader(24, 24, false, attribute) + funcs.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + funcs.SVGUrlFooter(false);
           case -2:
           case -1:
-               return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + globals.SVGUrlFooter(false);
+               return funcs.SVGUrlHeader(24, 24, false, attribute) + funcs.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + funcs.SVGRect(2, 2, 18, 18, 3, 30, 'RGB(26,137,51)', 'none', '4', false, '0', `<animate attributeName="stroke-dashoffset" attributeType="XML" from="0" to="-99" dur="0.8s" repeatCount="indefinite" />`) + funcs.SVGUrlFooter(false);
           default:
-               return globals.SVGUrlHeader(24, 24, false, attribute) + globals.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + globals.SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + globals.SVGUrlFooter(false);
+               return funcs.SVGUrlHeader(24, 24, false, attribute) + funcs.SVGRect(2, 2, 18, 18, 3, 105, 'RGB(15,105,153)', 'none', '4', false) + funcs.SVGRect(2, 2, 18, 18, 3, status, 'RGB(26,137,51)', 'none', '4', false) + funcs.SVGUrlFooter(false);
          }
  }
 }
 
 const WEIGHTS       = { 'view': 1, 'database': 2, 'folder': 3 };
-const ARROW         = [ globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + globals.SVGUrlFooter(), // bright green 139,188,122
-                        globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + globals.SVGUrlFooter(),
-                        globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + globals.SVGUrlFooter(),
-                        globals.SVGUrlHeader(12, 12) + globals.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + globals.SVGUrlFooter() ];
-const LUPA          =   globals.SVGUrlHeader(12, 12) + globals.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + globals.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + globals.SVGUrlFooter();
+const ARROW         = [ funcs.SVGUrlHeader(12, 12) + funcs.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + funcs.SVGUrlFooter(), // bright green 139,188,122
+                        funcs.SVGUrlHeader(12, 12) + funcs.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 10', 'RGB(96,125,103)', '3') + ' ' + funcs.SVGUrlFooter(),
+                        funcs.SVGUrlHeader(12, 12) + funcs.SVGPath('M3 7L6 10 M6 10L9 7 M6 3L6 10', 'RGB(125,96,107)', '3') + ' ' + funcs.SVGUrlFooter(),
+                        funcs.SVGUrlHeader(12, 12) + funcs.SVGPath('M3 6L6 3  M6 3L9 6  M6 3L6 11', 'RGB(125,96,107)', '3') + ' ' + funcs.SVGUrlFooter() ];
+const LUPA          =   funcs.SVGUrlHeader(12, 12) + funcs.SVGCircle(5, 5, 3, '2', 'RGB(128, 128, 0)') + ' ' + funcs.SVGPath('M8 8L10 10', 'RGB(128, 128, 0)', '2') + ' ' + funcs.SVGUrlFooter();
 
 // Todo0 - OV description as a hint on taskbar OV navigation
 // Todo0 - Make lupa icon is painted with the color while searching and hint for lupa icon with some sidebar statistics (folder/vew/db number, for a example)
