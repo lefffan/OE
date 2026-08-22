@@ -85,7 +85,6 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 // Todo1 - Make browser favicon more brighter and change it dinamycly to show unread msges presence (for opened views only)
 // Todo1 - Ctrl+PrintScreen to copy image of current active child to buffer
 // Todo2 - Custom cursor div via css style * {cursor: none;}
-// Todo0 - Make module based system, see Shemsetdinov justify src arch via require/import
 // Todo0 - Parse all files from old app version in php
 // Todo0 - app deploy (docker, zabbix-like) 
 // Todo0 - Present app benefits:

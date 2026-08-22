@@ -221,7 +221,7 @@ export class Controller
                     this.SetNewODInstance(msg.data.dialog, msg.data.odid, session);
                     break;
                case 'GETDATABASE':
-                    if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) session.socket.send(JSON.stringify({ type: 'INFO', data: { content: UNKNOWNDBID, title: 'Error' } }));
+                    if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: UNKNOWNDBID, title: 'Error' } }));
                      else session.socket.send(JSON.stringify({ type: 'CONFIGUREDATABASE', data: { dialog: this.ods[msg.data.odid].dialog, odid: msg.data.odid } }));
                     break;
 	           case 'SIDEBARGET':
@@ -371,7 +371,7 @@ export class Controller
 
   await this.SetNewODInstance(consts.USEROBJECTDATABASE, undefined, session);
   await this.Start();
-  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', odid: '1', ovid: '1', data: { '1': consts.SUPERUSER, '2': consts.SUPERUSER } }), session);
+  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', data: { odid: '1', ovid: '1', '1': consts.SUPERUSER, '2': consts.SUPERUSER } }), session);
   await this.ClosePool();
  }
 
@@ -519,7 +519,7 @@ export class Controller
  }
  
  // Function sends ws clients new od/ov/list. Absent <odid> - all app ods are used, absent <sessions> all app ws clients are used
- // { type: 'SIDEBARSET', odid: 13, path: 'System/Users', ov: { 1: ['test/view1a', '/vie1b'], 2: ['/folder/View2c', 'test/view2d'] } }
+ // { type: 'SIDEBARSET', data: { odid: 13, path: 'System/Users', ov: { 1: ['test/view1a', '/vie1b'], 2: ['/folder/View2c', 'test/view2d'] } } }
  SendODOVListToClients(odid, sessions, sessionremoving)
  {
   let odprops;
@@ -572,7 +572,7 @@ export class Controller
        let query = view.selection.query, layout = view.selection.layout;
        if (/\$\{.*\}/.test(query + layout)) // Layout or query do contain any macro? Do replacing below
           {
-           const systemmacros = macro.DefineSystemMacros(session, msg.data);
+           const systemmacros = macro.DefineSystemMacros(session, msg.data, { type: msg.type });
            const replacements = Object.assign({}, systemmacros, database.od.odreplacements, msg.data.macros || view.replacements); // Collect all macro groups for 'GETVIEW' client event
            layout = await macro.MacrosReplace(layout, replacements); // Replace macros in <layout>
            query = await macro.MacrosReplace(query, replacements); // so do for <query>
@@ -638,9 +638,9 @@ export class Controller
  async CheckRules(msg, session, replacements)
  {
   let transaction, query;
-  const odid = msg.odid;
+  const odid = msg.data.odid;
   const database = this.ods[odid];
-  const ovid = msg.ovid;
+  const ovid = msg.data.ovid;
 
   try {
        for (const key in database.rules) // Go through all rule profiles
@@ -650,14 +650,14 @@ export class Controller
             if (!transaction) // Create transaction for the first non empty query
                {
                 transaction = await this.pool.connect();
-                await transaction.query(...qm.Make({ method: 'BEGIN', role: `rwuserodid${msg.odid}` }));
+                await transaction.query(...qm.Make({ method: 'BEGIN', role: `rwuserodid${msg.data.odid}` }));
                }
             try {
                  if (/\$\{.*\}/.test(query)) // Does rule query contain any macro&
                     {
                      if (!Object.keys(replacements).length) // Current macros contain none?
                         {
-                         const systemmacros = macro.DefineSystemMacros(session, msg); // For empty <replacements> define system macros (just once)
+                         const systemmacros = macro.DefineSystemMacros(session, msg, { type: msg.type }); // For empty <replacements> define system macros (just once)
                          Object.assign(replacements, systemmacros, database.od.odreplacements, session.ods[odid].ovs[ovid].replacements); // Also for empty <replacements> collect all other OV/OD macros (just once also)
                         }
                      query = await macro.MacrosReplace(query, replacements); // and do replacements for <query>
@@ -683,7 +683,7 @@ export class Controller
  // Function searchs incoming event name <msg.type> among element event groups with events in
  GetEventProfile(msg)
  {
-  const eventgrouplist = this.ods[msg.odid]?.elements[msg.eid]?.event; // Get event group name list for specified OD and eid
+  const eventgrouplist = this.ods[msg.data.odid]?.elements[msg.data.eid]?.event; // Get event group name list for specified OD and eid
   if (!eventgrouplist) return;
   for (let eventgroup in eventgrouplist.split('\n'))
       {
@@ -695,31 +695,32 @@ export class Controller
       }
  }
 
- // Input args: msg.odid, msg.ovid, msg.oid, msg.eid, msg.prop, session.userid, session.username, session.ods
+ // hui ended here - finish event scheme in connection js, 
+ // Input args: msg.data.odid, msg.data.ovid, msg.data.oid, msg.data.eid, msg.data.eprop, session.userid, session.username, session.ods
  async ElementHandlerExec(msg, session)
  {
-  let transaction;
+  let transaction, odid = msg.data.odid, ovid = msg.data.ovid;
   try {
        // Phase 1 - check user auth and client event name correctness. And OD id with OV id exist and interactive
        if (!session.auth || !this.ups[session.userid]) throw new Error(`Authentication required, please log in!`);
        if (!consts.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
-       if (!this.ods[msg.odid]) throw new Error(`Unknown Object Database id ${msg.odid})!`);
-       if (!this.ods[msg.odid].views[msg.ovid]) throw new Error(`Unknown Object View id ${msg.ovid})!`);
-       const tblname = session.ods[msg.odid]?.ovs[msg.ovid]?.tblname;
-       if (!tblname || tblname !== `data_${msg.odid}`) return; // Todo0 - multiple queries may generate multiple table data retreives, so these views are not interactive, fix it in help doc
+       if (!this.ods[odid]) throw new Error(`Unknown Object Database id ${odid})!`);
+       if (!this.ods[odid].views[ovid]) throw new Error(`Unknown Object View id ${ovid})!`);
+       const tblname = session.ods[odid]?.ovs[ovid]?.tblname;
+       if (!tblname || tblname !== `data_${odid}`) return; // Todo0 - multiple queries may generate multiple table data retreives, so these views are not interactive, fix it in help doc
 
        // Phase 2 - user permission check
        if (session.username !== consts.SUPERUSER)
           {
-           if (funcs.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.read)) throw new Error(`This 'Object View' read access denied by user restrictions!`);
-           if (funcs.CheckViewsToMatchTheList(msg.odid, msg.ovid, this.ups[session.userid].policy.write)) throw new Error(`This 'Object View' write access denied by user restrictions!`);
+           if (funcs.CheckViewsToMatchTheList(odid, ovid, this.ups[session.userid].policy.read)) throw new Error(`This 'Object View' read access denied by user restrictions!`);
+           if (funcs.CheckViewsToMatchTheList(odid, ovid, this.ups[session.userid].policy.write)) throw new Error(`This 'Object View' write access denied by user restrictions!`);
           }
        
        // Phase 3 - OV permission check
        if (session.username !== consts.SUPERUSER)
           {
-           if (funcs.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].views[msg.ovid].permission.read)) throw new Error(`This 'Object View' read access denied by view restrictions!`);
-           if (funcs.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[msg.odid].views[msg.ovid].permission.write)) throw new Error(`This 'Object View' write access denied by view restrictions!`);
+           if (funcs.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[odid].views[ovid].permission.read)) throw new Error(`This 'Object View' read access denied by view restrictions!`);
+           if (funcs.CheckUsersToMatchTheList(this.ups[session.userid].tags, this.ods[odid].views[ovid].permission.write)) throw new Error(`This 'Object View' write access denied by view restrictions!`);
           }
       
        // Phase 4 - Check if the element event exists and is enabled (for all client events except 'ADDOBJECT' and 'DELETEOBJECT')
@@ -729,8 +730,8 @@ export class Controller
        // Phase 5 - Check if object id, the event is on, does exist (for all client events except 'ADDOBJECT'). Check actual object existence after handler exec also
        if (msg.type !== 'ADDOBJECT')
           {
-           let res = await this.pool.query(...qm.Make({ method: 'EXISTS', query: session.ods[msg.odid].ovs[msg.ovid].query, fields: [ { name: 'id', sign: '=', value: msg.oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
-           if (!res?.rows[0]?.exists) throw new Error(`Actual object (id '${msg.oid}') doesn't exist in the current OV!`);
+           let res = await this.pool.query(...qm.Make({ method: 'EXISTS', query: session.ods[odid].ovs[ovid].query, fields: [ { name: 'id', sign: '=', value: oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
+           if (!res?.rows[0]?.exists) throw new Error(`Actual object (id '${msg.data.oid}') doesn't exist in the current OV!`);
           }
 
        // Phase 6 - Rule check. Every rule has message, query, action and log props. Check every rule query on successful result to apply rule action with message logged
@@ -747,13 +748,11 @@ export class Controller
        switch (msg.type)
          {
           case 'ADDOBJECT': //
-               if (!msg.data) msg.data = {}; // Zero msg data if not exist
                const fields = [];
-               for (const eid in this.ods[msg.odid].elements)
+               for (const eid in this.ods[odid].elements)
                    {
                     if (typeof this.modules?.system?.AddUser !== 'function') continue;
                     let json = await this.modules.system.AddUser(eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
-                    console.log('json', json);
                     try { json = JSON.parse(json); }
                     catch { continue; }
                     if (json.type !== 'SET') continue;
@@ -761,18 +760,18 @@ export class Controller
                     if (typeof json.data !== 'string') continue;
                     fields.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
                    }
-               console.log({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields });
-               await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${msg.odid}`, fields: fields }));
+               console.log({ method: 'WRITE', table: `data_${odid}`, fields: fields });
+               await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: fields }));
                break;
           case 'KEYF2':
-            if (msg.eid === 'eid7' && msg.data.modifier === '0')
+            if (msg.eid === '7' && msg.data.value === '0')
                break;
          }
       }
   catch (error)
       {
        console.error(error.stack);
-       session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error', msg: msg.odid, msg: msg.ovid } }));
+       session.socket.send(JSON.stringify({ type: 'WARNING', data: { odid: odid, ovid: ovid, content: error.message, title: 'Error' } }));
        return;
       }
  }

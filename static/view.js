@@ -134,10 +134,10 @@ export class View extends Interface
   editablecell.value = editabletarget.textContent; // Get text as it is to the cell value
   editabletarget.innerHTML = funcs.EscapeString(editablecell.value, true); // and set it pre-escaped to the innerHTML
 
-  if (+editablecell.oid !== consts.NEWVIRTUALROWID) return Object.assign({ type: 'CONFIRMEDIT', destination: this.parentchild, data: editablecell.value }, this.GetCellMetaData(editablecell)); // Apply cell text content via CONFIRMEDIT client event to the controller
+  if (+editablecell.oid !== consts.NEWVIRTUALROWID) return { type: 'CONFIRMEDIT', destination: this.parentchild, data: this.GetCellMetaData({ value: editablecell.value }, editablecell) }; // Apply cell text content via CONFIRMEDIT client event to the controller
   this.SetCellInstances(editablecell.oid, editablecell.eid, editablecell, this.SetCellInstancesInner.bind(this), editabletarget.innerHTML); // Editable cell is a new object? Refresh element instances (innerHTML), going through all element jsonprops and then all json prop cells
   this.SetCellInstances(editablecell.oid, editablecell.eid, editablecell, (cell, editablecell) => (cell.value = editablecell.value) || true, editablecell); // Editable cell which content should be confirmed is a new object, so refresh this object specfified <eid> all cell instances
-  return editablecell === clickedcell ? Object.assign({ type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() }, this.GetCellMetaData()) : undefined; // For mouse click out of editable cell no content confirm (so no new object apply, that is  for CTRL+ENTER or context menu), otherwise apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller
+  return editablecell === clickedcell ? { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetCellMetaData(this.GetNewObjectElementData(), null) } : undefined; // For mouse click out of editable cell no content confirm (so no new object apply, that is  for CTRL+ENTER or context menu), otherwise apply all NEWVIRTUALROWID object elements text content via ADDOBJECT client event to the controller
  }
 
  // Function returns 'new object' cells text content 
@@ -148,9 +148,12 @@ export class View extends Interface
   return data;
  }
 
- GetCellMetaData(cell)
+ // Function create cell meta data object from optional <objs> list, all args except last are collected to one, last arg is a cell object to retrive oid/eid/eprop
+ GetCellMetaData(...objs)
  {
-  return Object.assign({ odid: this.data.odid, ovid: this.data.ovid }, cell ? { oid: cell.oid, eid: cell.eid, eprop: cell.eprop } : {});
+  const resobj = {};
+  for (let i = 0; i < objs.length; i++) if (objs[i]) Object.assign(resobj, i === objs.length - 1 ? { oid: objs[i].oid, eid: objs[i].eid, eprop: objs[i].eprop } : objs[i]);
+  return Object.assign(resobj, { odid: this.data.odid, ovid: this.data.ovid });
  }
 
  DispatchMouseKeyboardEvent(event)
@@ -161,9 +164,9 @@ export class View extends Interface
   const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x];
   if (!cell?.interactive) return;
   const modifier = String(event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1);
-  if (event.type === 'dblclick') return Object.assign({ type: 'DOUBLECLICK', destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell));
-  const events = [Object.assign({ type: consts.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: modifier }, this.GetCellMetaData(cell))];
-  if (event.key && event.key.length === 1 && modifier === '0') events.push(Object.assign({ type: 'KEYPRESS', destination: this.parentchild, data: event.key }, this.GetCellMetaData(cell)));
+  if (event.type === 'dblclick') return { type: 'DOUBLECLICK', destination: this.parentchild, data: this.GetCellMetaData({ value: modifier }, cell) };
+  const events = [{ type: consts.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: this.GetCellMetaData({ value: modifier }, cell) }];
+  if (event.key && event.key.length === 1 && modifier === '0') events.push({ type: 'KEYPRESS', destination: this.parentchild, data: this.GetCellMetaData({ value: event.key }, cell) });
   return events;
  }
 
@@ -195,7 +198,7 @@ export class View extends Interface
  {
   try {
        const text = await navigator.clipboard.readText();
-       return this.EventManager(Object.assign({ type: 'PASTE', destination: this.parentchild, data: text }, this.GetCellMetaData(cell)));
+       return this.EventManager({ type: 'PASTE', destination: this.parentchild, data: this.GetCellMetaData({ value: text }, cell) });
       }
   catch (err)
       {
@@ -209,7 +212,6 @@ export class View extends Interface
 
   switch (event.type)
          {
-          case 'INFO':
           case 'WARNING':
                if (event.data.odid === this.data.odid && event.data.ovid === this.data.ovid) new DialogBox(event.data?.content, this, JSON.parse(consts.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
                break;
@@ -221,7 +223,7 @@ export class View extends Interface
                             return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, od: od, ov: ov, childid: childid, macros: funcs.GetDialogMacrosValues(event.source.data) } };
                       }
                return;
-	     case 'CANCELDIALOG':
+	       case 'CANCELDIALOG':
                switch (event.source.props.callback.type)
                       {
                        case 'SETVIEW':
@@ -234,9 +236,9 @@ export class View extends Interface
                switch (event.data[0].substring(0, 6))
                       {
                        case 'Add ob':
-                            return Object.assign({ type: 'ADDOBJECT', destination: this.parentchild, data: this.GetNewObjectElementData() }, this.GetCellMetaData());
+                            return { type: 'ADDOBJECT', destination: this.parentchild, data: this.GetCellMetaData(this.GetNewObjectElementData(), null) };
                        case 'Delete':
-                            return Object.assign({ type: 'DELETEOBJECT', destination: this.parentchild, data: event.data[1] }, this.GetCellMetaData());
+                            return { type: 'DELETEOBJECT', destination: this.parentchild, data: this.GetCellMetaData(event.data[1], null) };
                        case 'Copy':
 		                      this.CopyToClipboard(event.data[1], true); // Copy areas cell (1st arg) innerText/innerHTML (2nd arg) to clipboard
                             return;

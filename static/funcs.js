@@ -181,17 +181,17 @@ export function GetDialogMacrosValues(dialog)
 export function DialogProfileElementsAdjust(profile, recursive, callback, ...args)
 {
  for (const ename in profile)
-       {
-        const e = profile[ename];
-        const result = callback(profile, ename, ...args);
-        if (result !== undefined) return result;
-        if (recursive && e?.type === 'select' && e.data && typeof e.data === 'object')
-           for (const profilename in e.data)
-                 {
-                  const result = DialogProfileElementsAdjust(e.data[profilename], true, callback, ...args);
-                  if (result !== undefined) return result;
-                 }
-       }
+     {
+      const e = profile[ename];
+      const result = callback(profile, ename, ...args);
+      if (result !== undefined) return result;
+      if (recursive && e?.type === 'select' && e.data && typeof e.data === 'object')
+         for (const profilename in e.data)
+             {
+              const result = DialogProfileElementsAdjust(e.data[profilename], true, callback, ...args);
+              if (result !== undefined) return result;
+             }
+     }
 }
 
 // Dialog data has next structure: root-profile -> element1, element2 -> profile1 -> element1 -> profile1, profile2 ->.., so path represents a slash divided string to point needed element or profile:
@@ -445,5 +445,3 @@ function BuildMacrosDialog(includereplacements, excludereplacements)
  if (dialog) dialog = `{ "${freenames[0]}": { "type": "title", "data": "Macros definition dialog" }, "${freenames[1]}": ${consts.BUTTONOK}, "${freenames[2]}": ${consts.BUTTONCANCEL}, ${dialog} }`;
  return dialog;
 }
-
-// Todo0 - all service data like odid/ovid/oid/eid should be in msg, not in msg.data

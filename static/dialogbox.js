@@ -28,7 +28,7 @@ function SetFlag(e, name, value)
  if ((ELEMENTTEXTTYPES.includes(e.type) || e.type === 'select') && placeholder !== -1)
 	{
 	 flag = e.flag.substring(0, placeholder);
-	 placeholder = funcs.EscapeString(e.flag.substring(placeholder));
+	 placeholder = e.flag.substring(placeholder);
 	}
   else
 	{
@@ -700,12 +700,12 @@ export class DialogBox extends Interface
  // Refresh specified dialog entities
  RefreshDialog(flag)
  {
-  if (flag & CHECKSYNTAX) funcs.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);					// Check all elements syntax
-  if (flag & RESTOREINITIALORDER) funcs.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);						// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
-  if (flag & SETSERVICEDATA) this.InitDialogData();																				// Init dialog data for SETSERVICEDATA flag set
+  if (flag & CHECKSYNTAX) funcs.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementCheckSyntax);						// Check all elements syntax
+  if (flag & RESTOREINITIALORDER) funcs.DialogProfileElementsAdjust(this.data, true, this.RestoreInitialOrder);							// Restore initial profile selection element options order at 'apply' dialog or option 'remove'
+  if (flag & SETSERVICEDATA) this.InitDialogData();																						// Init dialog data for SETSERVICEDATA flag set
   if (flag & SETSERVICEDATA) funcs.DialogProfileElementsAdjust(this.data, true, this.DialogProfileElementSetServiceData.bind(this));	// Set every element service data (id, option array, padbar..)
   if (flag & SETSERVICEDATA) funcs.DialogProfileElementsAdjust(this.data, true, this.ParseElementExpression);							// Create element expression to pass to eval func from original 'expr' element property
-  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																				// Show dialog box creating html from dialog data initial source (this.data)
+  if (flag & SHOWDIALOGDATA) this.ShowDialogBox();																						// Show dialog box creating html from dialog data initial source (this.data)
   if (flag & CLEARELEMENTFROMUNNECESSARYPROPS) funcs.DialogProfileElementsAdjust(this.data, true, this.ClearElementUnnecessaryProps);	// Clear element from unnecessary props
  }
 

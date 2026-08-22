@@ -52,7 +52,7 @@ export async function HashPassword(password)
      }
  catch (error)
      {
-      return `{ "type": "INFO", "data": { "content": "Error hashing the password: ${error.message}" } }`;
+      return `{ "type": "WARNING", "data": { "content": "Error hashing the password: ${error.message}" } }`;
      }
 }
 

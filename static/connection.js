@@ -87,31 +87,28 @@ export class Connection extends Interface
 	          break;
 
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
-               new DialogBox(JSON.parse(JSON.stringify(consts.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: { type: 'SETDATABASE' } }));
+               new DialogBox(JSON.parse(JSON.stringify(consts.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: { type: 'SETDATABASE', data: {} } }));
                break;
 
-	     case 'INFO':
 	     case 'WARNING':
                if (event.data.odid || event.data.ovid) this.EventManager(Object.assign(event, { destination: null }));
                 else new DialogBox(event.data?.content, this, JSON.parse(consts.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
 	          break;
 	     case 'DIALOG':
-               const callback = Object.assign({ type: 'CONFIRMDIALOG', odid: event.odid, ovid: event.ovid, oid: event.oid, eid: event.eid }, 'eprop' in event ? { eprop: event.eprop } : {});
+               const callback = { type: 'CONFIRMDIALOG', data: Object.assign({ odid: event.data.odid, ovid: event.data.ovid, oid: event.data.oid, eid: event.eid }, 'eprop' in event.data ? { eprop: event.data.eprop } : {}) };
                new DialogBox(event.data?.content, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: callback }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
 	          break;
 	     case 'CONFIRMDIALOG':
                switch (event.source.props.callback?.type)
                       {
                        case 'SETDATABASE':
-                            this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.callback?.odid } }); // Send new OD dialog data to controller via WS
+                            this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.callback?.data.odid } }); // Send new OD dialog data to controller via WS
                             break;
 	                  case 'LOGIN':                                                         // Login dialog returned 'LOGIN' event with user/pass
                             LOGINDIALOG.username.data = event.source.data.username.data;     // Keep username in login dialog data to use it as a placeholder for next logins
                             this.HttpSend("/", { method: 'POST',                             // Pass login dialog user/pass to the controller via POST method
                             body: JSON.stringify({ type: 'LOGIN', data: { username: event.source.data.username.data, password: event.source.data.password.data } }),
                             headers: { 'Content-Type': 'application/json; charset=UTF-8' } });
-                            break;
-                       case 'CONFIRMDIALOG':
                             break;
                       }
 	          break;
@@ -120,7 +117,7 @@ export class Connection extends Interface
                this.WebsocketSend(event);
                break;
 	     case 'CONFIGUREDATABASE':
-               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', odid: event.data.odid } }));
+               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', data: { odid: event.data.odid } } }));
                break;
 
 	     case 'GETVIEW':
@@ -184,7 +181,7 @@ export class Connection extends Interface
 /* Login process
    +--------+                                                                                            +------------+                                   +---------+                                     
    |        | LOGIN:HTTP[username,password] ->		                                                  |            |                                   |         |                
-   |        |                         <- LOGINACK:HTTP[ip,port,protocol,authcode]|LOGINERROR:HTTP[title] |            |                                   |         |                
+   |        |         <- LOGINACK:HTTP[username,userid,ip,port,protocol,authcode]|LOGINERROR:HTTP[title] |            |                                   |         |                
    |        | CREATEWEBSOCKET:WS[userid,authcode] ->                                                     | Controller |                                   | Handler |                
    |        |                                         <- CREATEWEBSOCKETACK:WS[]|DROPWEBSOCKET:WS[title] |            |                                   |         |                
    | Client | SIDEBARGET:WS[] -> 			                                                            |            |                                   |         |                
@@ -206,26 +203,27 @@ export class Connection extends Interface
 
 /* Open OV process (controller auto generated event SETVIEW is for OVs with 'scheduled open' feature enabled)
    +--------+                                                                                            +------------+                                   +---------+                                     
-   |        | GETVIEW:LOCAL[ovid,odid,childid] -> GETVIEW:WS[odid,od,ovid,ov,childid[,macros]] ->        |            |                                   |         |                
-   |        |                   <- SETVIEW:WS[odid,ovid,childid,(layout,selections,fields|error|dialog)] | Controller |                                   | Handler |                
+   |        | GETVIEW:LOCAL[odid,ovid,od,ov,childid[,macros]] -> GETVIEW:WS[ --||-- ] ->                 |            |                                   |         |                
+   |        |             <- SETVIEW:WS[odid,ovid,childid,(selections,layout,query,macros|error|dialog)] | Controller |                                   | Handler |                
    | Client |                                					          					|            |                                   |         |                
-   |        |                           <- SETVIEW:WS[odid,ovid,(layout,selections,fields|error|dialog)] |            |                                   |         |                
+   |        |                                                                    <- SETVIEW:WS[ --||-- ] |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
 /* OV ADDOBJECT|DELETEOBJECT events
    +--------+                                                                                            +------------+                                   +---------+                                     
-   |        | ADDOBJECT:LOCAL[odid,ovid,eid1,eid2..] - > ADDOBJECT:WS[odid,ovid,eid1,eid2..] -> 	     |            |                                   |         |                
+   |        | ADDOBJECT:LOCAL[<cellmetadata>,eid1,eid2..] -> ADDOBJECT:WS[ --||-- ] ->                   |            |                                   |         |                
+   |        | DELETEOBJECT:LOCAL[<cellmetadata>,oid1,oid2..] -> DELETEOBJECT:WS[ --||-- ] ->             |            |                                   |         |                
    | Client |                                											     | Controller |                                   | Handler |                
    |        |                        		    		                                                  |            |                                   |         |                
    |        |                        		    		                                                  |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
-/* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other events - modifier keys value
+/* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data is <cellmetadata> (odid,ovid[,oid,eid,eprop]) plus 'value' property: for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other events - modifier keys value
    +--------+                                                                                            +------------+                                   +---------+                                     
-   |        | KEYF2:LOCAL[odid,ovid,oid,eid,eprop,data] - > KEYF2:WS[odid,ovid,oid,eid,eprop,data] -> 	|            |                                   |         |                
-   | Client |                                      <- WARNING:WS[content,title, odid, ovid] | Controller |                                   | Handler |                
+   |        | KEYF2:LOCAL[<cellmetadata>,value] -> KEYF2:WS[<cellmetadata>,value] ->                     |            |                                   |         |                
+   | Client |                                                     <- WARNING:WS[content,title,odid,ovid] | Controller |                                   | Handler |                
    |        |                        		    		                                                  |            |                                   |         |                
    |        |                        		    		                                                  |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
