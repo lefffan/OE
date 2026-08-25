@@ -4,6 +4,7 @@ import { DialogBox } from './dialogbox.js';
 import { ContextMenu } from './contextmenu.js';
 import * as consts from './consts.js';
 
+
 function GetStyleInnerHTML(customizations) // https://dev.to/karataev/set-css-styles-with-javascript-3nl5, https://professorweb.ru/my/javascript/js_theory/level2/2_4.php
 {
  let inner = '';

@@ -103,7 +103,7 @@ export async function GetObjectElementData(macroobject, controller, replacements
  let transaction, elementdata;
  if (!('odid' in macroobject)) macroobject.odid = replacements.ODID;
  if (!('oid' in macroobject)) macroobject.oid = `id={replacements.OID}`;
- if (!('eid' in macroobject)) macroobject.eid = replacements.EID;
+ if (!('ename' in macroobject)) macroobject.ename = consts.ELEMENTCOLUMNPREFIX + replacements.EID;
  if (!('eprop' in macroobject) && 'EPROP' in replacements) macroobject.eprop = replacements.EPROP;
  if (macroobject.eid in consts.SYSTEMELEMENTNAMES) delete macroobject.eprop;
   else macroobject.eid = consts.ELEMENTCOLUMNPREFIX + macroobject.eid;
@@ -111,7 +111,7 @@ export async function GetObjectElementData(macroobject, controller, replacements
  try {
       transaction = await controller.pool.connect();
       await transaction.query(...qm.Make({ method: 'BEGIN', role: `rouserodid${macroobject.odid}` }));
-      elementdata = await transaction.query(...qm.Make({ method: 'SELECT', fields: Object.assign({ name: macroobject.eid }, 'eprop' in macroobject ? { prop: macroobject.eprop } : {}), table: `data_${macroobject.odid}`, where: macroobject.oid, limit: macroobject.limit }, { rowMode: 'array' }));
+      elementdata = await transaction.query(...qm.Make({ method: 'SELECT', fields: Object.assign({ name: macroobject.ename }, 'eprop' in macroobject ? { prop: macroobject.eprop } : {}), table: `data_${macroobject.odid}`, where: macroobject.oid, limit: macroobject.limit }, { rowMode: 'array' }));
       await transaction.query(...qm.Make({ method: 'COMMIT' }));
       if (Array.isArray(elementdata)) elementdata = elementdata[0]; // In case of multiple queries - get first one only!
       elementdata = elementdata?.rows?.[0]?.[0]; // In case of row mode, the result is returned in 2d array with rows and columns. Get 1st column of a 1st row

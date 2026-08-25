@@ -944,3 +944,4 @@ export class DialogBox extends Interface
 // Todo0 - Use adjusted dialog data (without service props like id, padarea, options..) at interactive (or for non interactive too?) mode just the pure dialog data to be passed to the controller
 // Todo0 - test all dialog features including table cells click that applies table data and send it to the controller
 // Todo0 - Input element with type=text autocomplete feature in 'expr' property?
+// Todo1 - new element 'pseudopass' to show password hidden chars?

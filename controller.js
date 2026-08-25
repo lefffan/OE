@@ -371,7 +371,7 @@ export class Controller
 
   await this.SetNewODInstance(consts.USEROBJECTDATABASE, undefined, session);
   await this.Start();
-  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', data: { odid: '1', ovid: '1', '1': consts.SUPERUSER, '2': consts.SUPERUSER } }), session);
+  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', data: { odid: '1', ovid: '1', '1': consts.SUPERUSER, '2': consts.SUPERUSER, '3': 'Super user' } }), session);
   await this.ClosePool();
  }
 
@@ -455,7 +455,7 @@ export class Controller
        if (!newodprops.od.name)
           {
            if (!oldodprops) throw new Error(EMPTYDBCONFDBNAME); // New OD name shouldn't be empty
-           if (Object.keys(newpodrops.od.odreplacements).length || Object.keys(newodprops.od.elements).length || Object.keys(newodprops.od.views).length || Object.keys(newodprops.od.rules).length) throw new Error(INCORRECTDBCONFDBNAME); // New OD instance empty name is for removong-od case and should be with empty content only
+           if (Object.keys(newodprops.od.odreplacements).length || Object.keys(newodprops.od.elements).length || Object.keys(newodprops.od.views).length || Object.keys(newodprops.od.rules).length) throw new Error(INCORRECTDBCONFDBNAME); // New OD instance empty name is for removong-od case and should be with empty content only
            for (const table of ['head_', 'data_', 'metr_', 'meta_']) await transaction.query(...qm.Make({method: 'DROP', table: `${table}${odid}` })); // Drop all OD related tables
            await transaction.query(...qm.Make({ method: 'COMMIT' }));
            delete this.ods[odid]; // Delete OD from app memory
@@ -639,8 +639,8 @@ export class Controller
  {
   let transaction, query;
   const odid = msg.data.odid;
-  const database = this.ods[odid];
   const ovid = msg.data.ovid;
+  const database = this.ods[odid];
 
   try {
        for (const key in database.rules) // Go through all rule profiles
@@ -653,7 +653,7 @@ export class Controller
                 await transaction.query(...qm.Make({ method: 'BEGIN', role: `rwuserodid${msg.data.odid}` }));
                }
             try {
-                 if (/\$\{.*\}/.test(query)) // Does rule query contain any macro&
+                 if (/\$\{.*\}/.test(query)) // Does rule query contain any macro?
                     {
                      if (!Object.keys(replacements).length) // Current macros contain none?
                         {
@@ -689,13 +689,11 @@ export class Controller
       {
        if (!(eventgroup = this.ups[consts.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exits in SUPERUSER (id <globals.PRIMARYKEYSTARTVALUE>) event groups
        let event = msg.type; // Fix event name and add modifier string '+CTRL+ALT+SHIFT+META' for mouse/keyboard events below if needed
-       if (consts.KEYBOARDEVENTS.includes(event) || consts.MOUSEEVENTS.includes(event)) event += `${msg.data & 0b1000 ? '+CTRL' : ''}${msg.data & 0b0100 ? '+ALT' : ''}${msg.data & 0b0010 ? '+SHIFT' : ''}${msg.data & 0b0001 ? '+META' : ''}`;
-       if (!(event = eventgroup[event])) continue; // Continue for no event in a current event group
-       if (event.handlertype !== 'Disabled' && (event.handlertype !== 'Fixed output' || event.action !== 'Ignore')) return event; // Return matched and enebled event profile, except fixed result handler with 'ignore' action
+       if (consts.KEYBOARDEVENTS.includes(event) || consts.MOUSEEVENTS.includes(event)) event += `${msg.data.value & 0b1000 ? '+CTRL' : ''}${msg.data.value & 0b0100 ? '+ALT' : ''}${msg.data.value & 0b0010 ? '+SHIFT' : ''}${msg.data.value & 0b0001 ? '+META' : ''}`;
+       if (event = eventgroup[event]) return event.handlertype === 'Disabled' ? undefined : event; // Return matched event profile or undefined for 'disabled' one
       }
  }
 
- // hui ended here - finish event scheme in connection js, 
  // Input args: msg.data.odid, msg.data.ovid, msg.data.oid, msg.data.eid, msg.data.eprop, session.userid, session.username, session.ods
  async ElementHandlerExec(msg, session)
  {
@@ -706,8 +704,7 @@ export class Controller
        if (!consts.CLIENTEVENTS.includes(msg.type)) throw new Error(`Unknown client event '${msg.type}'!`);
        if (!this.ods[odid]) throw new Error(`Unknown Object Database id ${odid})!`);
        if (!this.ods[odid].views[ovid]) throw new Error(`Unknown Object View id ${ovid})!`);
-       const tblname = session.ods[odid]?.ovs[ovid]?.tblname;
-       if (!tblname || tblname !== `data_${odid}`) return; // Todo0 - multiple queries may generate multiple table data retreives, so these views are not interactive, fix it in help doc
+       // Todo0 - Should every session for every OV and every multiple queries in selection store queries? And then be checked to define whether OV is interactive (all query tables are 'data_N') or not? Old code release for that feature: const tblname = session.ods[odid]?.ovs[ovid]?.tblname; if (!tblname || tblname !== `data_${odid}`) return; 
 
        // Phase 2 - user permission check
        if (session.username !== consts.SUPERUSER)
@@ -730,7 +727,7 @@ export class Controller
        // Phase 5 - Check if object id, the event is on, does exist (for all client events except 'ADDOBJECT'). Check actual object existence after handler exec also
        if (msg.type !== 'ADDOBJECT')
           {
-           let res = await this.pool.query(...qm.Make({ method: 'EXISTS', query: session.ods[odid].ovs[ovid].query, fields: [ { name: 'id', sign: '=', value: oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
+           let res = await this.pool.query(...qm.Make({ method: 'EXISTS', query: session.ods[odid].ovs[ovid].query, fields: [ { name: 'id', sign: '=', value: msg.data.oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
            if (!res?.rows[0]?.exists) throw new Error(`Actual object (id '${msg.data.oid}') doesn't exist in the current OV!`);
           }
 
@@ -739,41 +736,107 @@ export class Controller
        let rule = await this.CheckRules(msg, session, replacements);
        if (rule) // The rule <rule> result is true, so perform rule action
           {
-           if (/\$\{.*\}/.test(rule.message)) rule.message = await macro.MacrosReplace(rule.message, replacements);
+           rule.message = await macro.MacrosReplace(rule.message, replacements); // Old version check any macro presence before <MacroReplace> function call: if (/\$\{.*\}/.test(rule.message)). It's not needed - <MacroReplace> function checks the presence by its self via indexOf('${'). The only reason of macro presence chek before <MacroReplace> call is no need to prepare macro value replacements
            if (rule.action === 'Reject')
               if (rule.warning) throw new Error(`Rule '${rule.key}' reject: ` + rule.message);
                  else return;
           }
           
        switch (msg.type)
-         {
-          case 'ADDOBJECT': //
-               const fields = [];
-               for (const eid in this.ods[odid].elements)
-                   {
-                    if (typeof this.modules?.system?.AddUser !== 'function') continue;
-                    let json = await this.modules.system.AddUser(eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
-                    try { json = JSON.parse(json); }
-                    catch { continue; }
-                    if (json.type !== 'SET') continue;
-                    if (json.data && typeof json.data === 'object') json.data = JSON.stringify(json.data);
-                    if (typeof json.data !== 'string') continue;
-                    fields.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
-                   }
-               console.log({ method: 'WRITE', table: `data_${odid}`, fields: fields });
-               await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: fields }));
-               break;
-          case 'KEYF2':
-            if (msg.eid === '7' && msg.data.value === '0')
-               break;
-         }
+              {
+               case 'ADDOBJECT_':
+                    const columns = [];
+                    for (const eid in this.ods[odid].elements)
+                        {
+                         let json = '';
+                         msg.data.eid = eid;
+                         if (!(eventprofile = this.GetEventProfile(msg))) continue;
+                         if (!eventprofile.output.Ignore && !eventprofile.output.Debug)
+                            {
+                             json = await this.GetHandlerResult(eventprofile, Object.assign(replacements, { EVENTDATA: msg.data[eid] ? msg.data[eid] : '', EID: eid }));
+                             try {
+                                  json = Object.parse(json);
+                                  if (!('type' in json)) throw new Error(`Handler returned incorrect json: 'type' property is absent!`);
+                                  if (!consts.EVENTSONOBJECTADD.includes(json.type)) throw new Error(`Handler returned incorrect json: unknown 'type' property '${json.type}'! Expected event types: '${consts.EVENTSONOBJECTADD.join("', '")}'`);
+                                  if (!('data' in json)) throw new Error(`Handler returned incorrect json: 'data' property is absent!`);
+                                  json = json.data;
+                                 }
+                             catch
+                                 {
+                                  json = '';
+                                 }
+                            }
+                         columns.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json, escape: true });
+                        }
+                    await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: columns }));
+                    break;
+               case 'ADDOBJECT': //
+                    const fields = [];
+                    for (const eid in this.ods[odid].elements)
+                        {
+                         if (typeof this.modules?.system?.AddUser !== 'function') continue;
+                         let json = await this.modules.system.AddUser(eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
+                         try { json = JSON.parse(json); }
+                         catch { continue; }
+                         if (json.type !== 'SET') continue;
+                         if (json.data && typeof json.data === 'object') json.data = JSON.stringify(json.data);
+                         if (typeof json.data !== 'string') continue;
+                         fields.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
+                        }
+                    console.log({ method: 'WRITE', table: `data_${odid}`, fields: fields });
+                    await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: fields }));
+                    break;
+               case 'KEYF2OLD':
+                    if (msg.eid === '7' && msg.data.value === '0')
+                    break;
+              }
       }
   catch (error)
       {
        console.error(error.stack);
-       session.socket.send(JSON.stringify({ type: 'WARNING', data: { odid: odid, ovid: ovid, content: error.message, title: 'Error' } }));
+       if (session) session.socket.send(JSON.stringify({ type: 'WARNING', data: { odid: odid, ovid: ovid, content: error.message, title: 'Error' } }));
        return;
       }
+ }
+
+ // Function executes event profile handler only and returns the result of execution
+ async GetHandlerResult(eventprofile, replacements)
+ {
+  switch (eventprofile.handlertype)
+         {
+          case 'Fixed output':
+               return eventprofile.output.Ignore ? undefined : await macro.MacrosReplace(eventprofile.handlerdata, replacements, this); // // Ignore action for fixed output makes no sence or do replacements for handler data and return it
+          case 'Command line':
+          case 'Shell command line':
+               return;
+          default: // 'Module function'
+               let callback = this.modules, cmd, args;
+               const pos = eventprofile.handlerdata.indexOf('\n');
+               if (pos === -1) // Retreive handler command and args from handlerdata text area
+                  {
+                   cmd = eventprofile.handlerdata;
+                   args = [];
+                  }
+                else
+                  {
+                   cmd = eventprofile.handlerdata.substring(0, pos);
+                   args = (await macro.MacrosReplace(eventprofile.handlerdata.substring(pos), replacements, this)).split('\n');
+                  }
+               for (const name of cmd.split('.')) if (!(callback = callback[name.trim()])) throw new Error(`Unknown module function '${cmd}'!`);
+               if (typeof callback !== 'function') throw new Error(`Unknown module function '${cmd}'!`);
+               if (callback.constructor?.name !== 'AsyncFunction') throw new Error(`Expected an async, but received a synchronous module function '${cmd}'!`);
+               if (eventprofile.output.Ignore)
+                  {  
+                   callback(...args);
+                   return;
+                  }
+               const result = await callback(...args); // No ignore option, so wait handler result
+               if (typeof result !== 'string' && (typeof result !== 'number' || isNaN(result)) && typeof result !== 'undefined') throw new Error(`Module function '${cmd}' returned unknown data type '${typeof result}'! Expected types: undefined, number or string`);
+               if (typeof result !== 'undefined') result = ''; // Convert undefined to empty string
+               if (eventprofile.output.Wrap) result = `{"type":"SET","data":${typeof result === 'string' ? '"' : ''}${result}${typeof result === 'string' ? '"' : ''}}`; // Todo0 - do 'wrap' action in level above in <ElementHandlerExec> function to exclude unnecessary JSON parse/stringify
+               if (eventprofile.output.Debug) {} // Todo0 - Convert handler result to DIALOG event here
+               return result;
+         } 
  }
 }
 
@@ -789,18 +852,17 @@ export class Controller
 //                     SELECT * FROM data1 WHERE <ваши_условия>
 //                    ) AS subquery WHERE id = 1 and lastversion=true);
 //      5. Rule check
-//      6. Event handler exec (for element to be callable (interactive): explicit 'id'/'lastversion' columns should be queried). In case of eidN->>prop extra style/hint props may be added to the selection to customize cell element
+//      6. Event handler exec for callableelements (interactive)
 //         Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
 //         At any client/server side element event occur - incoming event is checked on all event groups until the match. Once the match is found - the specified event with its handler is called to process event and its data. 
-//         Every event may have 'disabled' handler type to explicitly set no call-handler, may be usefull to cancel through-profiles event search with no action
-//         Command line handler data are not single line, but multiple. Controller runs first line handler, may be used as a comments
+//         Every event may have 'disabled' handler type to set explicitly no call-handler (may be usefull to cancel through-profiles event search with no action)
+//         Command line handler data are not single line, but multiple. Controller runs first line handler, while other ones may be used as a comments
 //         Negative queue value (the scheduler sleep for) in msec on crontab line
-// Todo0 - all DB dialog settings workable
-// Todo0 - all user dialog settings workable (GUI customization and event profiler)
+// Todo0 - all OD, user, GUI customization and event profiler dialog settings workable
 // Todo0 - Handler-call element policy on backend - user double clicked on any object element is unable generate another double click event on other (or same) object element
 // Todo0 - System MACROS that get user online/offline status with datetime timestamp and current instances number logged in, RULEQUERY macro to use in a rule message
 // Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'. Log format: datetime, user, process, log message
 // Todo0 - Should console.error/log be duplicated to app logfile?
 // Todo0 - Change pass or user delete - force user logout, and natively restrict root user delete
 // Todo0 - shoud OD/OV versions should be stored and where
-// Todo0 - check function is async: async function Test(){} console.log(Test?.constructor?.name === 'AsyncFunction');
+// Todo0 - WARNING event data property: for clear string 'data' becomes 'content' property

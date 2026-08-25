@@ -24,40 +24,42 @@ export const OPTIONISREMOVABLE			= '-'; // Var is used in dialog.js, const.js, f
 export const OPTIONSDIVIDER					= '/'; // Var is used in dialog.js, const.js 
 export const FIELDSDIVIDER					= '~'; // Var is used in dialog.js, const.js, func.js
 export const WARNINGDIALOG          = JSON.stringify({ title: { type: 'title', data: 'Warning' }, msg: { type: 'table' }, ok: JSON.parse(BUTTONOK) });
-export const SYSTEMSTATICMACROS     = { USERNAME: 'username', USERID: 'userid', OD: 'od', OV: 'ov', ODID: 'odid', OVID: 'ovid', OID: 'oid', EID: 'eid', EPROP: 'eprop', ELEMENT: null, EVENTNAME: 'type', EVENTDATA: 'data', RANDOM: null, DATE: null, TIME: null, DATETIME: null, NULL: null, DBDATATBLNAME: null, ELEMENTCOLUMNPREFIX: null };
+export const SYSTEMSTATICMACROS     = { USERNAME: 'username', USERID: 'userid', OD: 'od', OV: 'ov', ODID: 'odid', OVID: 'ovid', OID: 'oid', EID: 'eid', EPROP: 'eprop', ELEMENT: null, EVENTNAME: 'type', EVENTDATA: 'value', RANDOM: null, DATE: null, TIME: null, DATETIME: null, NULL: null, DBDATATBLNAME: null, ELEMENTCOLUMNPREFIX: null };
 export const SYSTEMDYNAMICMACROS    = { LAYOUT: null };
 export const ALLOWEDINNERTAGSSTRING = 'span, pre, br, b';
 export const ALLOWEDINNERTAGSREGEX  = new RegExp(`${ALLOWEDINNERTAGSSTRING.split(', ').map(tag => `<${tag} .*?>|<${tag} *>|<\/${tag} *>`).join('|')}`);
 export const INNERENCODEMAP         = [['&', '<', '>', "'", '"'], ['&amp;', '&lt;', '&gt;', '&#39;', '&quot;']];
-       const MOUSEEVENTS            = ['DOUBLECLICK'];
-       const MISCEVENTS             = ['ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE'];
-       const CALLBACKEVENTS         = ['ONEVENT', 'ONTIMER'];
+export const MOUSEEVENTS            = ['DOUBLECLICK'];
+export const MISCEVENTS             = ['ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE'];
+export const CALLBACKEVENTS         = ['ONEVENT', 'ONTIMER'];
 export const USERNAMEMAXCHAR        = 255;
+export const USERPASSMINLENGTH      = 4;
 export const NATIVEKEYBOARDEVENTS   = ['KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'F1',    'F2',    'F3',    'F4',    'F5',    'F6',    'F7',    'F8',    'F9',    'F10',    'F11',    'F12',    'Space',    'Delete',    'BracketLeft',    'BracketRight'];
 export const KEYBOARDEVENTS         = ['KEYA', 'KEYB', 'KEYC', 'KEYD', 'KEYE', 'KEYF', 'KEYG', 'KEYH', 'KEYI', 'KEYJ', 'KEYK', 'KEYL', 'KEYM', 'KEYN', 'KEYO', 'KEYP', 'KEYQ', 'KEYR', 'KEYS', 'KEYT', 'KEYU', 'KEYV', 'KEYW', 'KEYX', 'KEYY', 'KEYZ', 'KEY0',   'KEY1',   'KEY2',   'KEY3',   'KEY4',   'KEY5',   'KEY6',   'KEY7',   'KEY8',   'KEY9',   'KEYF1', 'KEYF2', 'KEYF3', 'KEYF4', 'KEYF5', 'KEYF6', 'KEYF7', 'KEYF8', 'KEYF9', 'KEYF10', 'KEYF11', 'KEYF12', 'KEYSpace', 'KEYDelete', 'KEYBracketLeft', 'KEYBracketRight', 'KEYPRESS'];
 export const CONTROLLEREVENTS       = ['EMULATE', 'EDIT', 'DIALOG', 'SET', 'WRITE', 'PUT', 'ADJUST', 'RESET', 'UPDATE', 'PUSH', 'COLLECT', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'];
 export const CLIENTEVENTS           = [...KEYBOARDEVENTS, ...MOUSEEVENTS, ...MISCEVENTS, ...CALLBACKEVENTS];
+export const EVENTSONOBJECTADD      = ['SET', 'WRITE', 'PUT', 'ADJUST', 'RESET'];
 const DIALOGBOXMACROSSTYLE          = { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
 export const CUSTOMIZATIONS         =
 {
-       "Sidebar": {
-                   ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
-                   ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
-                   ".sidebar tr:hover": { "background-color": "#25589F;", "cursor": "pointer;", "margin": "100px 100px;" },
-                   ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
+       "Sidebar":   {
+                     ".sidebar": { "border": "none;", "background-color": "rgb(12,68,118);", "border-radius": "5px;", "color": "#9FBDDF;", "width": "13%;", "height": "90%;", "left": "4%;", "top": "5%;", "box-shadow": "4px 4px 5px #222;", "padding": "16px 0 0 0;" },
+                     ".changescount": { "vertical-align": "super;", "padding": "2px 3px 2px 3px;", "color": "rgb(232,187,174);", "font": "0.5em Lato, Helvetica;", "background-color": "rgb(125,77,94);", "border-radius": "35%"},
+                     ".sidebar tr:hover": { "background-color": "#25589F;", "cursor": "pointer;", "margin": "100px 100px;" },
+                     ".sidebar_folder": { "color": "", "font": "1.8em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
                      ".sidebar_database": { "color": "", "font": "1.6em Lato, Helvetica;", "padding": "8px 0;", "margin": "" },
                      ".sidebar_view": { "color": "", "font": "1.1em Lato, Helvetica;", "padding": "4px 0;", "margin": "" },
-                   ".searchbar": { "margin": "4px 17px 1px 17px;", "border-radius": "5px;", "background-color": "rgb(32,88,138);", },
-                   ".searchinput": { "color": "", "font": "0.9em Lato, Helvetica;", "paddin": "0;", "margin": "4px;", "outline": "none;", "border": "none;", "background-color": "inherit;", "color": "inherit;", "width": "90%;" },
-                  },
-  "Context menu": {
+                     ".searchbar": { "margin": "4px 17px 1px 17px;", "border-radius": "5px;", "background-color": "rgb(32,88,138);", },
+                     ".searchinput": { "color": "", "font": "0.9em Lato, Helvetica;", "paddin": "0;", "margin": "4px;", "outline": "none;", "border": "none;", "background-color": "inherit;", "color": "inherit;", "width": "90%;" },
+                    },
+  "Context menu":   {
                      ".contextmenu": { "position": "fixed;", "overflow": "hidden;", "background-color": "#F3F3F3;", "border": "solid 1px #dfdfdf;", "padding": "10px 0;", "border-radius": "5px;", "min-width": "200px;", "white-space": "nowrap;" },
                      ".contextmenuitem": { "background-color": "transparent;", "color": "#1166aa;", "margin-bottom": "0px;", "font-family": "sans-serif;", "font-size": "16px;", "font-weight": "300;", "line-height": "1.5;", "padding": "5px 15px;" },
                      ".greycontextmenuitem": { "background-color": "transparent;", "color": "#CCC;", "margin-bottom": "0px;", "font-family": "sans-serif;", "font-size": "16px;", "font-weight": "300;", "line-height": "1.5;", "padding": "5px 15px;" },
                      ".contextmenuitem:hover": { "color": "#1166aa;", "background-color": "#e7e7e7;", "cursor": "pointer;" },
                      ".contextmenuitemdivider": { "background-color": "transparent;", "margin": "5px 10px 5px 10px;", "height": "0px;", "border-bottom": "1px solid #CCC;", "border-top-color": "transparent;", "border-left-color": "transparent;" , "border-right-color": "transparent;" },
-                  },
-    "Dialog box": {
+                    },
+    "Dialog box":   {
                      // dialog box global css props
                      ".dialogbox": { "background-color": "rgb(233,233,233);", "color": "#1166aa;", "border-radius": "5px;", "border": "solid 1px #dfdfdf;" },
                      // dialog box title
@@ -75,7 +77,7 @@ export const CUSTOMIZATIONS         =
                      // dialog box button and pad hover
                      ".button:hover, .pad:hover, .itemadd:hover, .itemremove:hover": { "cursor": "pointer;", "border": "" },
                      // dialog box element headers
-                   ".element-headers": { "margin": `${DIALOGBOXMACROSSTYLE.HEADER_MARGIN};`, "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "text-shadow": "none;", "user-select": "text;" },
+                     ".element-headers": { "margin": `${DIALOGBOXMACROSSTYLE.HEADER_MARGIN};`, "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "text-shadow": "none;", "user-select": "text;" },
                      // dialog box help icon
                      ".hint-icon": { "padding": "1px;", "font": `1em Arial Narrow, ${DIALOGBOXMACROSSTYLE.FONT};`, "color": "#555;", "background-color": "#FF0;", "border-radius": "40%;" },
                      // dialog box help icon hover
@@ -122,24 +124,24 @@ export const CUSTOMIZATIONS         =
                      "input[type=password]": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "none", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
                      // dialog box input textarea
                      "textarea": { "margin": `0px ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN} ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN} ${DIALOGBOXMACROSSTYLE.SIDE_MARGIN};`, "padding": "2px 5px;", "background-color": "#f3f3f3;", "border": "1px solid #777;", "outline": "", "color": "#57C;", "border-radius": "3px;", "font": `.9em ${DIALOGBOXMACROSSTYLE.FONT};`, "width": "90%;", "min-width": "300px;" },
-                  },
- "Dropdown list": {
-                         // Expanded selection
+                    },
+ "Dropdown list":   {
+                     // Expanded selection
                      ".expanded": { "display": "block;", "margin": "0 !important;", "padding": "0 !important;", "position": "absolute;", "overflow-y": "auto !important;", "overflow-x": "hidden !important;", "max-height": "500px !important;" },
-                          },
-   "Application": {
+                    },
+   "Application":   {
                      ".modalfilter": { "filter": "opacity(50%);", " filter": "Dialog box modal effect appearance via css filter property (such as opacity, blur and others), see appropriate css documentaion." },
                      "::-webkit-scrollbar": { "width": "8px;", "height": "8px;", "cursor": "pointer !important;" },
                      "*": { "scrollbar-width": "thin;", " scrollbar-width": "Set scrollbar thickness, available options are 'auto;', 'thin;' and 'none;'. For FireFox browser only! See appropriate css documentation", "scrollbar-color": "rgba(55, 119, 204, 0.3) rgba(255, 255, 255, 0);", " scrollbar-color": "Set space divided scrollbar thumb and track colors. For FireFox browser only! See appropriate css documentation" },
                      " Appearance animation": { "Dialog box": "slideleft", " Dialog box": `Select interface elements (dialog box, context menu and others below) appearance animation such as ${ANIMATIONS.join(', ')}. Any other values - no animation is applied`, "Drop down list": "rise", "Context menu": "rise", "New connection": "", "New view": "" },
-                      " Force to use other user customization settings": { "Username": "" }, 
+                     " Force to use other user customization settings": { "Username": "" }, 
                      //" Key combination to apply cell text": {},
                      //" Logon events": { "Log unsuccessful logons": "", },
                     },
-    "Connection": {
+    "Connection":   {
                      ".connection": { "background-color": "#343e54;" },
                     },
-          "View": {
+          "View":   {
                      ".ovbox":                      { "position": "absolute;", "overflow": "none;", "min-width": "10%;", "min-height": "3%;", "border-radius": "4px;", "width": "30%;", "height": "30%;", "background-color": "RGB(230,230,230);", "box-sizing": "border-box;", "padding": "25px 0px 0px 0px;" },
                      ".ovboxmessage":               { "display": "flex;", "overflow": "auto;", "justify-content": "center;", "align-items": "center;", "width": "100%;", "height": "100%;", "padding": "0 10px 0 10px;", "box-sizing": "border-box;", "t ext-align": "justify;" },
                      ".scrollingcontainer":         { "width": "100%;", "height": "100%;", "box-sizing": "border-box;", "overflow": "auto;", "border": "none;", "outline": "none;" },
@@ -147,17 +149,17 @@ export const CUSTOMIZATIONS         =
                      ".undefinedcell":              { "padding": "10px;", "background-color": "",                                                                              "border": "1px solid #999;" },
                      ".titlecell":                  { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#CCC;", "font": "",                 "border": "1px solid #999;" },
                      ".newobjectcell":              { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EFE;", "font": "",                 "border": "1px solid #999;" },
-                       ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
-                       ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
-                       ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
-                   ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
-                   ".interactivecursorcell":      { "outline": "green solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
-                   ".celleditmode":               { "box-shadow": "rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset; !important;", "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;" },
-                   ".clipboardcell":              { "filter": "blur(1px);" }, 
-                       ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
-                   ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
-                       [`.gridcontainer div:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
-                  },
+                     ".interactivecell":            { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "",      "font": "12px/14px arial;", "border": "1px solid #999;" },
+                     ".noninteractivecell":         { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+                     ".virtualcell":                { "padding": "10px;", "color": "black;", "text-align": "center;", "background-color": "#EEE;", "font": "12px/14px arial;", "border": "1px solid #999;" },
+                     ".noninteractivecursorcell":   { "outline": "red solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                     ".interactivecursorcell":      { "outline": "green solid 1px;", "outline-offset": "-2px;", "box-shadow": "", "border": "" }, 
+                     ".celleditmode":               { "box-shadow": "rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px, rgba(10, 37, 64, 0.35) 0px -2px 6px 0px inset; !important;", "outline": "#1b74e9 solid 1px;", "outline-offset": "-2px;" },
+                     ".clipboardcell":              { "filter": "blur(1px);" }, 
+                     ".selectedcell":               { "background-color": "rgb(189,200,203) !important;" },
+                     ".defaultcell":                { "margin-top": "-1px;", "margin-left": "-1px;", "box-sizing": "border-box;", "min-width": `${CELLMINWIDTH}px;`, "min-height": `${CELLMINHEIGHT}px;` },
+                     [`.gridcontainer div:not([contenteditable=${EDITABLE}])`]:   { "cursor": "cell;" },
+                    },
 };
 
 export const CUSTOMIZATIONDIALOG = { section: { type: 'select', head: 'Select customization section', data: {} },
@@ -260,7 +262,7 @@ const RULEPAD = {
                            action: { type: 'radio', data: 'Accept/Reject~!/Pass', head: `Rule action~'Accept' action permits incoming event passing it to the controller, 'Reject' action cancels it, 'Pass' action does nothing with no search terminating and continuing from the next rule - useful for event logging and rule disabling without removing` }, 
                            query: { type: 'textarea', data: '', head: `Rule query~Every controller incoming event (such as user mouse/keyboard, system SCHEDULE/CHANGE or others) is passed through the controller to be tested on all rules in alphabetical order one by one until the rule query is successful. Rule query is a list of one by line truncated SQL query strings with no SELECT statement that is added automatically to the begining of the string. Empty or char '#' commented lines are ignored. Emtpy query - test is successful. Error queries are ignored. Non-empty and non-zero result of all query strings - test is successful; any empty, error or zero char '0' result - unsuccessful. The action corresponding to 'successful' rule is performed, no any successful rules - default action 'Accept' is made. Query may contain some macros (${'${'}OID}, ${'${'}EID}, ${'${'}OD}, ${'${'}OV}, ${'${'}EVENT}, ${'${'}MODIFIER}, etc..) to apply for specified events/objects/elements/views only. Be aware of using queries with no events specified, it may cause some overload due to every incoming event query test made` }, 
                            log: { type: 'checkbox', data: 'Log/Warning', flag: '*' },
-                }, }, } };
+                }, }, }, };
 export const NEWOBJECTDATABASE = {
                            padbar: { type: 'select', data: { Main: MAINPAD, Element: ELEMENTPAD, View: VIEWPAD, Rule: RULEPAD }  },
                            title: { type: 'title', data: 'New Database Configuration' },
@@ -284,12 +286,12 @@ const USERODLAYOUT = '${LAYOUT h,n,-}' + `
 {"exp":"r>=0 && c===6", "value":"Change password"}
 {"exp":"r>=0 && c===7", "value":"Configure event groups"}
 `;
-const enewprofiles = { 'username~*': { name: 'Username', description: 'Username', type: `VARCHAR(${USERNAMEMAXCHAR})`, index: 'None/btree/UNIQUE btree~!/hash' },
-                    'password~*': { name: 'Password', description: 'Password', type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash' },
-                    'custom~*': { name: 'Custom field', description: 'Custom field', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                    'policy~*': { name: 'Policy', description: 'Policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                    'customization~*': { name: 'Customization', description: 'Customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' },
-                    'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash' } };
+const enewprofiles = { 'username~*': { name: 'Username', description: 'User name', type: `VARCHAR(${USERNAMEMAXCHAR})`, index: 'None/btree/UNIQUE btree~!/hash', event: 'SYSTEM' },
+                    'password~*': { name: 'Password', description: `User password, expected minimal ${USERPASSMINLENGTH} chars length, uppercase/lowercase letters and digits.. `, type: 'TEXT', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' },
+                    'custom~*': { name: 'Info', description: 'Custom user info such as name, email, phone number..', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' },
+                    'policy~*': { name: 'Policy', description: 'User policy', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' },
+                    'customization~*': { name: 'Customization', description: 'User customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' },
+                    'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' } };
 const vnewprofiles = { 'All~*': { settings: { data: { General: { name: 'All users', description: 'All users list' }, 
                                                       Selection: { layout: USERODLAYOUT, query: `SELECT id,ownerid,owner,datetime,lastversion,${ELEMENTCOLUMNPREFIX}1,${ELEMENTCOLUMNPREFIX}2,${ELEMENTCOLUMNPREFIX}6\nFROM data_1` } } } } };
 for (const profilename in enewprofiles)
@@ -326,33 +328,27 @@ const newevent = JSON.stringify({ events: { type: 'select', head: 'Select event 
                          });
 const neweventgroup = { evsel: { type: 'select', head: 'Select event profile for event group above', data: { 'New event~+': JSON.parse(newevent) }, flag: '*' } };
 //////////////////////////////    
-const CALLDIALOG = JSON.parse(newevent);
-delete CALLDIALOG.events;
-delete CALLDIALOG.modifier;
-delete CALLDIALOG.attr;
-CALLDIALOG.handlertype.data = 'Disabled/Fixed output~!/Command line/Shell command line/Module function';
-CALLDIALOG.handlerdata.data = '{"type": "DIALOG", "data": { "content": "${}" } }';
-const SETDATA = JSON.parse(newevent);
-delete SETDATA.events;
-delete SETDATA.modifier;
-delete SETDATA.attr;
-SETDATA.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
-SETDATA.handlerdata.data = 'modules.SetData\n${EVENTDATA}\n${EPROP}';
+const USERSET = JSON.parse(newevent);
+delete USERSET.events;
+delete USERSET.modifier;
+delete USERSET.attr;
+USERSET.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
+USERSET.handlerdata.data = 'system.Userset\n${EVENTNAME}\n${EID}\n${EVENTDATA}\n${USERNAME}\n${"ename":"' + ELEMENTCOLUMNPREFIX + '1"}';
+const system = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'ADDOBJECT~+': USERSET, 'DOUBLECLICK~+': JSON.parse(JSON.stringify(USERSET)), 'KEYF2~+': JSON.parse(JSON.stringify(USERSET)), 'CONFIRMDIALOG~+': JSON.parse(JSON.stringify(USERSET)) }, flag: '*' } };
+//////////////////////////////    
+const DATASET = JSON.parse(newevent);
+delete DATASET.events;
+delete DATASET.modifier;
+delete DATASET.attr;
+DATASET.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
+DATASET.handlerdata.data = 'system.Dataset\n${EVENTDATA}\n${ELEMENT}\n${EVENTNAME}';
 const EDIT = JSON.parse(newevent);
 delete EDIT.events;
 delete EDIT.modifier;
 delete EDIT.attr;
 EDIT.handlertype.data = 'Disabled/Fixed output~!/Command line/Shell command line/Module function';
 EDIT.handlerdata.data = '{"type": "EDIT"}';
-const SETNODATA = JSON.parse(newevent);
-delete SETNODATA.events;
-delete SETNODATA.modifier;
-delete SETNODATA.attr;
-SETNODATA.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
-SETNODATA.handlerdata.data = 'modules.SetData\n\n${EPROP}';
-//////////////////////////////    
-const system = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'DOUBLECLICK~+': CALLDIALOG, 'CONFIRMEDIT~+': SETDATA, 'CONFIRMDIALOG~+': SETDATA }, flag: '*' } };
-const general = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'KEYF2~+': EDIT, 'DOUBLECLICK~+': EDIT, 'KEYDelete~+': SETNODATA, 'CONFIRMEDIT~+': SETDATA, 'CONFIRMDIALOG~+': SETDATA }, flag: '*' } };
+const general = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'KEYF2~+': EDIT, 'DOUBLECLICK~+': JSON.parse(JSON.stringify(EDIT)), 'ADDOBJECT~+': DATASET, 'KEYDelete~+': JSON.parse(JSON.stringify(DATASET)), 'CONFIRMEDIT~+': JSON.parse(JSON.stringify(DATASET)) }, flag: '*' } };
 export const EVENTGROUPDIALOG = {
                            title: { type: 'title', data: 'Event profiling' },
                            eventgroups: { type: 'select', head: 'Select event group profile', data: { 'New event group~+': neweventgroup, 'SYSTEM~+': system, 'GENERAL~+': general } },

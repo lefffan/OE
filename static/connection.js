@@ -136,7 +136,6 @@ export class Connection extends Interface
                break;
           default:
                if (consts.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
-               //if (consts.CONTROLLEREVENTS.includes(event.type)) return Object
 	    }
  }
 
@@ -238,7 +237,7 @@ export class Connection extends Interface
    +--------+       +------------+                                                                             +---------+                                     
 */
 
-/* Handler EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW),EDIT,DIALOG,SET|WRITE|PUT|ADJUST,RESET,UPDATE(set if obj change),PUSH|COLLECT(tsdb),UPLOAD,DOWNLOAD,UNLOAD,GALLERY,NULL,COPY(buffer),NEWPAGE(url) events
+/* Handler EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW),EDIT,DIALOG,SET|WRITE|PUT|ADJUST,RESET(delete all and set),UPDATE(set if obj change),PUSH|COLLECT(tsdb),UPLOAD,DOWNLOAD,UNLOAD,GALLERY,NULL,COPY(buffer),NEWPAGE(url) events
    +--------+       +------------+                                                                             +---------+                                     
    |        | 	     |            |                                                                             |         |                
    | Client |       | Controller |                                                                             | Handler |                

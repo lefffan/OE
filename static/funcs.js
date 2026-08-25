@@ -220,7 +220,7 @@ export function GetDialogElement(dialog, path, value)
                    {
                     const [name, flag] = option.split(consts.FIELDSDIVIDER, 2);
                     if (value && (flag || '').includes('!')) return name;
-                    if (!value) options[option] = (flag || '').includes('!');
+                    if (!value) options[name] = (flag || '').includes('!');
                   }
                return value ? '' : options; // Return empty string for no any option checked (value === true) or <options> (value === false)
           default: // Other cases - return whole element
@@ -234,7 +234,7 @@ function GetOptionInSelectElement(e, option)
  for (const name in e.data) if (CompareOptionInSelectElement(option, name)) return e.data[name];
 }
 
-function CompareOptionInSelectElement(string, option)
+export function CompareOptionInSelectElement(string, option)
 {
  [string] = string.split(consts.FIELDSDIVIDER, 1);
  [option] = option.split(consts.FIELDSDIVIDER, 1);
@@ -294,13 +294,12 @@ export function SuckInDatabaseProps(dialog, odid, neweid = 1, newovid = 1)
       // Suck in Rule pad
       const rulereplacements = {};
       profile = GetDialogElement(dialog, 'padbar/Rule/rules', true);
-      for (let option in profile)
-          if (!CompareOptionInSelectElement('New rule', option)) AdjustProfileOption(profile, option);
+      for (let option in profile) AdjustProfileOption(profile, option);
       props.rules = Object.keys(profile).sort((a, b) => a.localeCompare(b));	// Get all rule profile names to the array in alphabetical order
       for (let i = 0; i < props.rules.length; i++) // Then go through all of them
           {
            const option = props.rules[i];
-           if (!CompareOptionInSelectElement('New rule', option) && props.rules.splice(i--, 1)) continue; // excluding template
+           if (CompareOptionInSelectElement('New rule template', option) && props.rules.splice(i--, 1)) continue; // excluding template
            const rule = props.rules[i] = { key: option.split(consts.FIELDSDIVIDER, 1)[0] }; // Store rule object with rule profile name as a key prop
            for (const prop of ['message', 'action', 'query']) props.rules[i][prop] = GetDialogElement(profile, `${option}/${prop}`, true).trim(); // Store some props
            props.rules[i].log = GetDialogElement(profile, `${option}/log`, false);
@@ -347,20 +346,20 @@ export function SuckInDatabaseProps(dialog, odid, neweid = 1, newovid = 1)
      }
 }
 
-// Function takes cloned options, removes 'cloned' flag, adds '+-' flags and creates new option with changed name (for true <addid>) and flag
-function AdjustProfileOption(profile, option, addid)
+// Function iterates cloned options, removes 'cloned' flag, adds '+-' flags and creates new option with changed name (for true <addid>) and flag
+export function AdjustProfileOption(profile, option, addid)
 {
- let [name, flag, ...style] = option.split(consts.FIELDSDIVIDER);          // Split option to its name and flag via FIELDSDIVIDER char '~'
- if (addid) name += ` (id${addid})`;                                // Add ' (id<num>)' to option name
- flag = flag || '';
- if (addid && !flag.includes(consts.OPTIONISCLONED)) return;              // Var <addid> is added for cloned profiles only, so do not process non-cloned if <addid>
+ let [name, flag, ...style] = option.split(consts.FIELDSDIVIDER);               // Split option to its name and flag via FIELDSDIVIDER char '~'
+ if (addid) name += ` (id${addid})`;                                            // Add ' (id<num>)' to option name if <addid> is defined
+ flag = flag || '';                                                             // Set <flag> to string type if needed
+ if (!flag.includes(consts.OPTIONISCLONED)) return;                             // Var <addid> is added for cloned profiles only, so do not process non-cloned if <addid>
  flag = flag.replaceAll(consts.OPTIONISCLONED, '');
  if (!flag.includes(consts.OPTIONISCLONABLE)) flag += consts.OPTIONISCLONABLE;
  if (!flag.includes(consts.OPTIONISREMOVABLE)) flag += consts.OPTIONISREMOVABLE;
- style = style.length ? style.join(consts.FIELDSDIVIDER) : '';             // Join back style string
+ style = style.length ? style.join(consts.FIELDSDIVIDER) : '';                  // Join back style string
 
- const newoption = `${name}${flag || style ? consts.FIELDSDIVIDER + flag : ''}${style ? consts.FIELDSDIVIDER + style : ''}`;  // Build new option name
- profile[newoption] = profile[option];                                                  // and include it to profile instead of old <option>
+ const newoption = `${name}${flag || style ? consts.FIELDSDIVIDER + flag : ''}${style ? consts.FIELDSDIVIDER + style : ''}`;    // Build new option name
+ profile[newoption] = profile[option];                                                                                          // and include it to profile instead of old <option>
  delete profile[option];
  return newoption;
 }
@@ -399,6 +398,10 @@ export function SuckInUserProps(userrow)
                for (const prop of ['handlertype', 'handlerdata', 'timeout', 'retry'])
                    if (typeof (egs[eg][e][prop] = GetDialogElement(userrow.eid6, `eventgroups/${eg}/evsel/${e}/${prop}`, true)) !== 'string') throw new Error(`Couldn't suck in user event group '${eg}'!`);
                egs[eg][e].output = GetDialogElement(userrow.eid6, `eventgroups/${eg}/evsel/${e}/output`, false);
+               if (['Disabled', 'Fixed output'].includes(egs[eg][e].handlertype)) continue; // Continue for hadnler disabled/fixed types, for others (module funcs and cmd) remove leading comments below
+               let handlerdata = egs[eg][e].handlerdata.split('\n'); // Todo0 - how event dialog handler data with function and its args below is interpreted? Spaces are rpelaced with &nbsp? Get textContent instead of innerHTML in case
+               for (let i = 0; i < handlerdata.length; i++) if (!handlerdata[i].trim() || handlerdata[i].trim()[0] === '#') handlerdata.splice(i--, 1); else break;
+               egs[eg][e].handlerdata = handlerdata.join('\n');
               }
          }
       // Returning user props

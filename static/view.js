@@ -996,3 +996,4 @@ export class View extends Interface
 // Todo2 - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo1 - Always develop table functional to some needful excel functions!
 // Todo0 - Start event in OV layout is any client event whth no event data (that is no where to place). Emulataion of 'select all objects and then delete them', 'charts', 'regexp search' (emulates ctrl+shift+f at OV open) is deprecated
+// Todo0 - object elements values set in layout shouldn't be changed/refreshed at controller SET and other events
