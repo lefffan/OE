@@ -1,5 +1,6 @@
 import * as qm from './querymaker.js';
 import * as consts from './static/consts.js';
+import * as funcs from './static/funcs.js';
 
 // The function determines whether the macro name is dynamic or not. And returns macro name if it is
 function IsSystemDynamicMacro(macroname)
@@ -119,7 +120,7 @@ export async function GetObjectElementData(macroobject, controller, replacements
  catch(error)
      {
       await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
-      console.error(error.stack);
+      funcs.Log('Macro sql query error: ' + error.stack, replacements);
       elementdata = ''; // or elementdata = error.message;
      }
  finally
@@ -168,6 +169,7 @@ export async function MacrosReplace(string, replacements, controller, chain = {}
        }
 }
 
+// Todo0 - System MACROS that get user online/offline status with datetime timestamp and current instances number logged in, RULEQUERY macro to use in a rule message
 // Todo2 - remember macro scheme below:
 // Macros names is replaced by appropriate macros values. Undefined macros names are replaced by empty strings. User defined empty macros name is correct, but is not recomended
 // Macros types:

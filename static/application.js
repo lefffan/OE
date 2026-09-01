@@ -185,6 +185,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //		    Automatic preload client data (switch, port, ip, geo addr, contacts) at order/request creation
 //          request ip/subnet list at OV open via input dialog and display 'setki.xls' for these ips/subnets
 //          search for free subnets
+//          search for nodes with some converters and sort them with nodes with max count of converters at the header. For nodes dlya modernizacii
 // Todo0 - Arp base like in SLAVINA ADMINKA with mac moved 
 // Todo0 - Another functional to be released: 
 //              ask Slava what reports he does to Megacom Bosses (on HD or other systems) and ask Rozbah what we do need for FSB and others

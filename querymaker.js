@@ -1,3 +1,6 @@
+import * as consts from './static/consts.js';
+import * as funcs from './static/funcs.js';
+
 // Method joins field names and values (if exist) via specified separators: <outerseparator><fieldname1><innerseparator><fieldvalue1><outerseparator><fieldname2><innerseparator><fieldvalue2>..
 export function Join(props, outerseparator, innerseparator)
 {
@@ -52,7 +55,7 @@ export function Make(props, config)
  if ('orderdesc' in props) props.orderdesc = ` ORDER BY ${props.orderdesc} DESC`; // Adjust 'order' props
 
  const query = this.BuildQuery(props);
- console.log(`Making a query: ${query}`);
+ funcs.Log(`Next query is made by query maker: '${query}'`, {}, consts.LOGTOSTDOUT);
  if (config) return [Object.assign(config, { text: query, values: args })];
  return args.length ? [query, args] : [query];
 }

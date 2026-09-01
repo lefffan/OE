@@ -24,31 +24,44 @@ const INCORRECTDBCONFDBNAME = 'In order to remove Object Database via setting em
 const EMPTYDBCONFDBNAME     = 'Cannot create new database with empty name!';
 const CONFIGURATENOTALLOWED = 'You are not allowed to configurate this Object Database!';
 
+let   LASTLOGMSG            = '';
+let   LASTLOGCOUNTER        = 0;
+
 export class Controller
 {
  async ClosePool()
  {
   if (!this.pool) return;
   await this.pool.end();
-  console.log('DB pool is closed successfully!');
+  funcs.Log('DB pool is closed successfully!', {}, consts.LOGTOSTDOUT);
  }
 
  async GracefulShutdown(signal)
  {
-  console.log(`\nReceived '${signal}' signal. Closing connections...`);
+  funcs.Log(`Received '${signal}' signal. Closing connections...`, {}, consts.LOGTOSTDOUT);
   try {
        await this.ClosePool();
        process.exit(0); // Closing process with no errors
       }
   catch(error)
       {
-       console.error('Error closing DB pool:', error.stack);
+       funcs.Log(`Error closing DB pool: ${error.stack}`);
        process.exit(1); // Closing process with some errors
       }
  }
 
+ // Arrow function example (specified ms value to sleep by): export const freeze = ms => new Promise(resolve => setTimeout(resolve, ms)); // await freeze(0);
  constructor(HTTP, WS, DB)
  {
+  global[consts.WRITETOFILEFUNC] = (header, msg) => // Bind 'write-to-logfile' function to global object uniq property (Symbol). Needed for 'Log' function in func.js that is used as an external module in both NodeJS and browser js virtual machine
+  {
+   if (LASTLOGMSG === msg) return LASTLOGCOUNTER++;
+   if (LASTLOGCOUNTER) fs.appendFile(consts.LOGFILENAME, `Last message repeated ${LASTLOGCOUNTER} time(s)\n\n`, 'utf8', (err) => err ? console.error(`Failed writing log file '${consts.LOGFILENAME}': ${err}`) : undefined);
+   LASTLOGCOUNTER = 0;
+   LASTLOGMSG = msg;
+   fs.appendFile(consts.LOGFILENAME, `${header}${msg}\n${consts.MSGDELIMITER}`, 'utf8', (err) => err ? console.error(`Failed writing log file '${consts.LOGFILENAME}': ${err}`) : undefined);
+  } 
+
   if (this.HTTP = HTTP) http.createServer(this.HTTPNewConnection.bind(this)).listen(HTTP.port, HTTP.ip); // Todo0 - set secure server via https instead of http
   if (this.WS = WS) new WebSocketServer({ host: WS.ip, port: WS.port }).on('connection', this.WSNewConnection.bind(this));
   if (this.DB = DB) this.pool = new Pool(DB.adminconfig);
@@ -78,9 +91,9 @@ export class Controller
        if (!file.endsWith('.js')) continue;
        const modulename = path.parse(file).name;
        const fulldir = path.join(absolutedir, file);
-       console.log(`Loading module '${modulename}' from file://${fulldir}...`);
+       funcs.Log(`Loading module '${modulename}' from file://${fulldir}...`, {}, consts.LOGTOSTDOUT);
        this.modules[modulename] = await import(`file://${fulldir}`);
-       console.log('done');
+       funcs.Log('done', {}, consts.LOGTOSTDOUT);
       }
  }
 
@@ -96,7 +109,7 @@ export class Controller
       }
   catch(error)
       {
-       console.error(error.stack);
+       funcs.Log(error.stack, { EVENTNAME: 'Application start or DB reset' });
        return;
       }
  
@@ -105,7 +118,7 @@ export class Controller
        const odid = funcs.GetTableNameId(table);                                                                                      // Get table id
        if (!odid || !tables.includes(`head_${odid}`) || !tables.includes(`data_${odid}`) || !tables.includes(`metr_${odid}`))
           {
-           console.log(`Undefined id '${odid}' in table name or required SQL tables (head_${odid}, data_${odid} or metr_${odid}) are missing!`);
+           funcs.Log(`Undefined id '${odid}' in table name or required SQL tables (head_${odid}, data_${odid} or metr_${odid}) are missing!`);
            continue;
           }
        if (odid in this.ods) continue;                                                                                                  // OD with id <odid> already sucked in
@@ -129,7 +142,7 @@ export class Controller
            }
        catch(error)
            {
-            console.error(error.stack);
+            funcs.Log(`Sucking in OD id ${odid} error: ${error.stack}`);
            }
       }
  }
@@ -161,12 +174,12 @@ export class Controller
  // Var <wsclient> is a ws connection object that is passed first at websocket init and stored in <sessions> map object
  WSNewConnection(wsclient, req)
  {
-  console.log(`Client web socket is opened with ip ${req.socket.remoteAddress}`);
+  funcs.Log(`Client web socket is opened with ip ${req.socket.remoteAddress}`, {}, consts.LOGTOSTDOUT);
   const session = { socket: wsclient, ip: req.socket.remoteAddress, ods: {}, auth: false, userid: undefined, username: undefined, idle: Date.now() };
   this.sessions.set(wsclient, session);
   wsclient.on('message', msg => { this.Handler(msg, session); });
-  wsclient.on('error', error => console.log(error));
-  wsclient.on('close', code => console.log(`${this.sessions.delete(wsclient) ? 'Client' : 'Undefined client'} web socket was closed with code ${code}!`));
+  wsclient.on('error', error => funcs.Log(error));
+  wsclient.on('close', code => funcs.Log(`${this.sessions.delete(wsclient) ? 'Client' : 'Undefined client'} web socket was closed with code ${code}!`, {}, consts.LOGTOSTDOUT));
  }
 
  // Todo0 - do Settimeout to remove expired auth codes
@@ -179,21 +192,21 @@ export class Controller
  async Authenticate(username, password)
  {
   let hash;
-  const macroobject = { odid: "1", eid: `2`, oid: `${consts.ELEMENTCOLUMNPREFIX}1='${username}'` };
-  if (typeof username !== 'string' || !username) return { type: 'LOGINERROR', data: "User name couldn't be empty!" };
-  if (typeof password !== 'string' || !password) return { type: 'LOGINERROR', data: "Password couldn't be empty!" };
+  const macroobject = { odid: "1", ename: `${consts.ELEMENTCOLUMNPREFIX}2`, oid: `${consts.ELEMENTCOLUMNPREFIX}1='${username}'` };
+  if (typeof username !== 'string' || !username) return { type: 'LOGINACK', data: "User name couldn't be empty!" };
+  if (typeof password !== 'string' || !password) return { type: 'LOGINACK', data: "Password couldn't be empty!" };
 
   try {
        hash = await macro.GetObjectElementData(macroobject, this, {}); // First get username hash from OD 'Users'
-       if (!hash || !await argon2.verify(hash, password)) return { type: 'LOGINERROR', data: 'Wrong username or password!' }; // then compare it from input password
+       if (!hash || !await argon2.verify(hash, password)) return { type: 'LOGINACK', data: 'Wrong username or password!' }; // then compare it from input password
       }
   catch (error)
       {
-       console.error(`Argon2 exception occurs for hash '${hash}': `, error.stack);
-       return { type: 'LOGINERROR', data: 'Argon2 error: ' + error.message };
+       funcs.Log(`Argon2 exception occurs for hash '${hash}': `, error.stack);
+       return { type: 'LOGINACK', data: 'Argon2 error: ' + error.message };
       }
 
-  const userid = await macro.GetObjectElementData(Object.assign(macroobject, { eid: 'id' }), this, {}); // Change retrieving element name to 'id' and get element data (user id)
+  const userid = await macro.GetObjectElementData(Object.assign(macroobject, { ename: 'id' }), this, {}); // Change retrieving element name to 'id' and get element data (user id)
   const authcode = this.AddClientAuthCode(funcs.GenerateRandomString(12), { userid: userid, username: username });
   return { type: 'LOGINACK', data: { username: username, userid: userid, protocol: 'ws', ip: this.WS.ip, port: this.WS.port, authcode: authcode } };
  }
@@ -201,16 +214,16 @@ export class Controller
  // Session for 'LOGIN' event is HTTP client, for other events - WS client
  async Handler(msg, session)
  {
+  funcs.Log(`Client incoming event: ${msg}`, {}, consts.LOGTOSTDOUT);
   try {
        try { msg = JSON.parse(msg); }
        catch {}
        if (!msg || typeof msg !== 'object' || !msg.type) return;
-       console.log('Incoming msg:', msg);
   
        if (msg.type !== 'LOGIN') session.idle = Date.now();
        if (!['LOGIN', 'CREATEWEBSOCKET'].includes(msg.type) && !session?.auth)
           {
-           session.socket.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS })); // Todo0 - process event 'Server has closed connection due to timeout' here, see const var TIMEOUTACCESS
+           session.socket.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK', data: UNAUTHORIZEDACCESS })); // Todo0 - process event 'Server has closed connection due to timeout' here, see const var TIMEOUTACCESS
            session.socket.terminate();
            return;
           }
@@ -221,7 +234,7 @@ export class Controller
                     this.SetNewODInstance(msg.data.dialog, msg.data.odid, session);
                     break;
                case 'GETDATABASE':
-                    if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: UNKNOWNDBID, title: 'Error' } }));
+                    if ((typeof msg.data.odid !== 'number' && typeof msg.data.odid !== 'string') || !this.ods[msg.data.odid]) session.socket.send(JSON.stringify({ type: 'CONFIGUREDATABASE', warning: { content: UNKNOWNDBID, title: 'Error' } }));
                      else session.socket.send(JSON.stringify({ type: 'CONFIGUREDATABASE', data: { dialog: this.ods[msg.data.odid].dialog, odid: msg.data.odid } }));
                     break;
 	           case 'SIDEBARGET':
@@ -244,7 +257,7 @@ export class Controller
                        }
                      else
                        {
-                        session.socket.send(JSON.stringify({ type: 'DROPWEBSOCKET', data: UNAUTHORIZEDACCESS }));
+                        session.socket.send(JSON.stringify({ type: 'CREATEWEBSOCKETACK', data: UNAUTHORIZEDACCESS }));
                         session.socket.terminate();
                        }
                     break;
@@ -257,7 +270,7 @@ export class Controller
       }
   catch(error)
       {
-       console.error(error.stack);
+       funcs.Log(`Controller error: ${error.stack}`);
       }
  }
 
@@ -282,11 +295,10 @@ export class Controller
            const rwusers = await client.query(...qm.Make({ method: 'SELECT', database: this.DB.adminconfig.database, table: 'pg_roles', fields: ['rolname', { name: 'rolname', value: 'rwuserodid%', sign: ' LIKE ' }] }));
            if (Array.isArray(rousers?.rows)) rousers.rows.map(row => { if (row.rolname?.match(/\d+$/)?.[0]) roles.push(row.rolname); });
            if (Array.isArray(rwusers?.rows)) rwusers.rows.map(row => { if (row.rolname?.match(/\d+$/)?.[0]) roles.push(row.rolname); });
-           console.log('DB user list:', roles);
           }
       catch(error)
           {
-           console.error('Getting all roles error: ', error.stack);
+           funcs.Log('Getting all roles error: ', error.stack);
           }
       if (client) await client.end();
      }
@@ -298,7 +310,7 @@ export class Controller
       }
   catch(error)
       {
-       console.error('Connect to application database for managing roles error: ', error.stack);
+       funcs.Log('Connect to application database for managing roles error: ', error.stack);
        return;
       }
 
@@ -311,17 +323,17 @@ export class Controller
        if (drop) // Drop role and its privileges
           {
            try { await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database, table: tables, role: role, privileges: role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE' })); }
-           catch(error) { console.log(`Dropping role ${role} privileges error: `, error.stack); }
+           catch(error) {} // Old version: catch(error) { funcs.Log(`Dropping role ${role} privileges error: ${error.stack}`); }
 
            try { await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database, table: tables, role: role })); }
-           catch(error) { console.log(`Dropping role ${role} error: `, error.stack); }
+           catch(error) {} // Old version: catch(error) { funcs.Log(`Dropping role ${role} error: ${error.stack}`); }
           }
        if (create) // Create role with its privileges
           { 
            try { await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database, table: tables, role: role })); }
-           catch(error) { console.log(`Creating role ${role} error: `, error.stack); }
+           catch(error) { funcs.Log(`Creating role ${role} error: ${error.stack}`); }
            try { await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database, table: tables, role: role, privileges: role.includes('ro') ? 'SELECT' : 'SELECT, INSERT, UPDATE, DELETE' })); }
-           catch(error) { console.log(`Creating role ${role} privileges error: `, error.stack); }
+           catch(error) { funcs.Log(`Creating role ${role} privileges error: ${error.stack}`); }
           }
       }
 
@@ -340,13 +352,13 @@ export class Controller
        client = new Client(this.DB.defaultconfig);
        await client.connect();
        await client.query(...qm.Make({ method: 'DROP', database: this.DB.adminconfig.database }));
-       console.log(`Database ${this.DB.adminconfig.database} is dropped`);
+       funcs.Log(`Database ${this.DB.adminconfig.database} is dropped`, {}, consts.LOGTOSTDOUT);
        await client.query(...qm.Make({ method: 'CREATE', database: this.DB.adminconfig.database }));
-       console.log(`Database ${this.DB.adminconfig.database} is created successfully`);
+       funcs.Log(`Database ${this.DB.adminconfig.database} is created successfully`, {}, consts.LOGTOSTDOUT);
       }
   catch(error)
       {
-       console.error(`Reset database '${this.DB.adminconfig.database}' error: `, error.stack);
+       funcs.Log(`Reset database '${this.DB.adminconfig.database}' error: ${error.stack}`);
        return;
       }
   await client.end();
@@ -356,11 +368,11 @@ export class Controller
        client = new Client(this.DB.adminconfig);
        await client.connect();
        await client.query(...qm.Make({ method: 'CREATETMDBEXTENSION' }));
-       console.log(`TimescaleDB extension is activated successfully`);
+       funcs.Log(`TimescaleDB extension is activated successfully`, {}, consts.LOGTOSTDOUT);
       }
   catch(error)
       {
-       console.log('Activation TimescaleDB extension error: ', error.stack);
+       funcs.Log(`Activation TimescaleDB extension error: ${error.stack}`);
       }
   if (client) await client.end();
 
@@ -455,11 +467,11 @@ export class Controller
        if (!newodprops.od.name)
           {
            if (!oldodprops) throw new Error(EMPTYDBCONFDBNAME); // New OD name shouldn't be empty
-           if (Object.keys(newodprops.od.odreplacements).length || Object.keys(newodprops.od.elements).length || Object.keys(newodprops.od.views).length || Object.keys(newodprops.od.rules).length) throw new Error(INCORRECTDBCONFDBNAME); // New OD instance empty name is for removong-od case and should be with empty content only
+           if (Object.keys(newodprops.od.odreplacements).length || Object.keys(newodprops.elements).length || Object.keys(newodprops.views).length || newodprops.rules.length) throw new Error(INCORRECTDBCONFDBNAME); // New OD instance empty name is for removong-od case and should be with empty content only
            for (const table of ['head_', 'data_', 'metr_', 'meta_']) await transaction.query(...qm.Make({method: 'DROP', table: `${table}${odid}` })); // Drop all OD related tables
            await transaction.query(...qm.Make({ method: 'COMMIT' }));
-           delete this.ods[odid]; // Delete OD from app memory
            this.SendODOVListToClients(odid, undefined, session);
+           delete this.ods[odid]; // Delete OD from app memory
            return;
           }
 
@@ -477,13 +489,13 @@ export class Controller
        await transaction.query(...qm.Make({ method: 'COMMIT' }));
        this.ods[odid] = newodprops;
        this.SendODOVListToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
-       session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: `Object Database (id '${odid}') new instance is successfully created!`, title: 'Info' } }));
+       session.socket.send(JSON.stringify({ type: 'SIDEBARSET', warning: { content: `Object Database (id '${odid}') new instance is successfully created!`, title: 'Info' } }));
       }
   catch(error)
       {
        if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
-       console.error(error.stack);
-       session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: error.message, title: 'Error' } }));
+       funcs.Log(`Setting new OD instance error: ${error.stack}`);
+       session.socket.send(JSON.stringify({ type: 'SIDEBARSET', warning: { content: error.message, title: 'Error' } }));
       }
   finally
       {
@@ -533,8 +545,9 @@ export class Controller
      {
       const msg = { type: sessionremoving ? 'SIDEBARDELETE' : 'SIDEBARSET', data: { odid: id, path: odprops.od.name, ov: {} } }; // Create message for OD 'id' with its path (e.data) and views defined below
       if (!sessionremoving) for (const ovid in odprops.views) if (odprops.views[ovid].general.name) msg.data.ov[ovid] = odprops.views[ovid].general.name.split('\n');
+      if (session === sessionremoving) msg.warning = { content: `Object Database (id '${id}') is successfully removed!`, title: 'Info' };
+      console.log('hui', msg);
       session.socket.send(JSON.stringify(msg));
-      if (session === sessionremoving) session.socket.send(JSON.stringify({ type: 'WARNING', data: { content: `Object Database (id '${id}') is successfully removed!`, title: 'Info' } }));
      }
  }
 
@@ -616,7 +629,7 @@ export class Controller
       {
        if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
        msg.data.error = `OV error:<br>${error.message}`;
-       console.error(error.stack);
+       funcs.Log(`Getting OV content error: ${error.stack}`);
       }
   finally
       {
@@ -685,11 +698,13 @@ export class Controller
  {
   const eventgrouplist = this.ods[msg.data.odid]?.elements[msg.data.eid]?.event; // Get event group name list for specified OD and eid
   if (!eventgrouplist) return;
-  for (let eventgroup in eventgrouplist.split('\n'))
+  for (const line in eventgrouplist.split('\n'))
       {
-       if (!(eventgroup = this.ups[consts.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exits in SUPERUSER (id <globals.PRIMARYKEYSTARTVALUE>) event groups
-       let event = msg.type; // Fix event name and add modifier string '+CTRL+ALT+SHIFT+META' for mouse/keyboard events below if needed
-       if (consts.KEYBOARDEVENTS.includes(event) || consts.MOUSEEVENTS.includes(event)) event += `${msg.data.value & 0b1000 ? '+CTRL' : ''}${msg.data.value & 0b0100 ? '+ALT' : ''}${msg.data.value & 0b0010 ? '+SHIFT' : ''}${msg.data.value & 0b0001 ? '+META' : ''}`;
+       let [eventgroup, eventname] = line.split('/', 2); // Split line specified in OD element profile 'event' textarea
+       if (!(eventgroup = this.ups[consts.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exist in SUPERUSER event group list
+       let event = msg.type; // Fix event name and add modifier string '+CTRL+ALT+SHIFT' for mouse/keyboard events below if needed
+       if (consts.KEYBOARDEVENTS.includes(event) || consts.MOUSEEVENTS.includes(event)) event += `${msg.data.value & 0b100 ? '+CTRL' : ''}${msg.data.value & 0b010 ? '+ALT' : ''}${msg.data.value & 0b001 ? '+SHIFT' : ''}`;
+       if (eventname && eventname !== event) continue; // With event-group name specified in element OD profile event name (<eventname>) via slash '/' is specified also (so the search specified not for all events in event group, but specified only). Then check if <eventname> matches client event <event|msg.type>. If not - stop searching and go to next event group to search
        if (event = eventgroup[event]) return event.handlertype === 'Disabled' ? undefined : event; // Return matched event profile or undefined for 'disabled' one
       }
  }
@@ -753,15 +768,20 @@ export class Controller
                          if (!(eventprofile = this.GetEventProfile(msg))) continue;
                          if (!eventprofile.output.Ignore && !eventprofile.output.Debug)
                             {
-                             json = await this.GetHandlerResult(eventprofile, Object.assign(replacements, { EVENTDATA: msg.data[eid] ? msg.data[eid] : '', EID: eid }));
                              try {
+                                  json = await this.GetHandlerResult(eventprofile, Object.assign(replacements, { EVENTDATA: msg.data[eid] ? msg.data[eid] : '', EID: eid }));
                                   json = Object.parse(json);
+                                  if (json === undefined) json = '';
+                                  if (typeof json === 'number' && isNaN(json)) json = String(json);
+                                  if (eventprofile.output.Wrap) json = { type: Set, data: json };
+                                  if (eventprofile.output.Debug) {} // Todo0 - Convert handler result to DIALOG event here
+
                                   if (!('type' in json)) throw new Error(`Handler returned incorrect json: 'type' property is absent!`);
                                   if (!consts.EVENTSONOBJECTADD.includes(json.type)) throw new Error(`Handler returned incorrect json: unknown 'type' property '${json.type}'! Expected event types: '${consts.EVENTSONOBJECTADD.join("', '")}'`);
                                   if (!('data' in json)) throw new Error(`Handler returned incorrect json: 'data' property is absent!`);
                                   json = json.data;
                                  }
-                             catch
+                             catch(error)
                                  {
                                   json = '';
                                  }
@@ -774,8 +794,10 @@ export class Controller
                     const fields = [];
                     for (const eid in this.ods[odid].elements)
                         {
-                         if (typeof this.modules?.system?.AddUser !== 'function') continue;
-                         let json = await this.modules.system.AddUser(eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
+                         if (typeof this.modules?.system?.Userset !== 'function') continue;
+                         //let json = await this.modules.system.Userset(eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
+                         let json = await this.modules.system.Userset('ADDOBJECT', eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
+                         //(eventname, eid, eventdata, userfrom, userto)
                          try { json = JSON.parse(json); }
                          catch { continue; }
                          if (json.type !== 'SET') continue;
@@ -783,7 +805,6 @@ export class Controller
                          if (typeof json.data !== 'string') continue;
                          fields.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
                         }
-                    console.log({ method: 'WRITE', table: `data_${odid}`, fields: fields });
                     await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: fields }));
                     break;
                case 'KEYF2OLD':
@@ -793,8 +814,8 @@ export class Controller
       }
   catch (error)
       {
-       console.error(error.stack);
-       if (session) session.socket.send(JSON.stringify({ type: 'WARNING', data: { odid: odid, ovid: ovid, content: error.message, title: 'Error' } }));
+       funcs.Log(`Handler execution error: ${error.stack}`);
+       if (session) session.socket.send(JSON.stringify({ type: 'NULL', data: { odid: odid, ovid: ovid }, warning: { content: error.message, title: 'Error' } }));
        return;
       }
  }
@@ -805,41 +826,44 @@ export class Controller
   switch (eventprofile.handlertype)
          {
           case 'Fixed output':
-               return eventprofile.output.Ignore ? undefined : await macro.MacrosReplace(eventprofile.handlerdata, replacements, this); // // Ignore action for fixed output makes no sence or do replacements for handler data and return it
+               return eventprofile.output.Ignore ? undefined : await macro.MacrosReplace(eventprofile.handlerdata, replacements, this); // // Ignore action for fixed output makes no sence, so undefined is returned. Otherwise do replacements for handler data and return it
           case 'Command line':
           case 'Shell command line':
+               // Todo0 - later 
                return;
           default: // 'Module function'
                let callback = this.modules, cmd, args;
                const pos = eventprofile.handlerdata.indexOf('\n');
-               if (pos === -1) // Retreive handler command and args from handlerdata text area
+               if (pos === -1) // Retreive handler command (1st line) and args (all lines below) from handlerdata text area
                   {
-                   cmd = eventprofile.handlerdata;
-                   args = [];
+                   cmd = eventprofile.handlerdata; // Handler data is a single line, so set command <cmd> to that 1st line
+                   args = []; // with empty arg list
                   }
                 else
                   {
-                   cmd = eventprofile.handlerdata.substring(0, pos);
-                   args = (await macro.MacrosReplace(eventprofile.handlerdata.substring(pos), replacements, this)).split('\n');
+                   cmd = eventprofile.handlerdata.substring(0, pos); // Otherwise set <cmd> to the 1st line also (note that macro replacing is not perfomed on cmd string)
+                   args = (await macro.MacrosReplace(eventprofile.handlerdata.substring(pos), replacements, this)).split('\n'); // and estimated lines to <cmd> 'macro replaced' args
                   }
-               for (const name of cmd.split('.')) if (!(callback = callback[name.trim()])) throw new Error(`Unknown module function '${cmd}'!`);
-               if (typeof callback !== 'function') throw new Error(`Unknown module function '${cmd}'!`);
-               if (callback.constructor?.name !== 'AsyncFunction') throw new Error(`Expected an async, but received a synchronous module function '${cmd}'!`);
-               if (eventprofile.output.Ignore)
+               for (const name of cmd.split('.')) if (!(name = name.trim()) || !(callback = callback[name.trim()])) throw new Error(`Unknown module function '${cmd}'!`); // Go to module function name (shouldn't be empty)
+               if (typeof callback !== 'function') throw new Error(`Unknown module function '${cmd}'!`); // Retrieved function is not a function?
+               if (callback.constructor?.name !== 'AsyncFunction') throw new Error(`Expected an async, but received a synchronous module function '${cmd}'!`); // or retrieved function is not async one?
+               if (eventprofile.output.Ignore) // Just call <callback> function in ignore mode and return with no result
                   {  
                    callback(...args);
                    return;
                   }
                const result = await callback(...args); // No ignore option, so wait handler result
-               if (typeof result !== 'string' && (typeof result !== 'number' || isNaN(result)) && typeof result !== 'undefined') throw new Error(`Module function '${cmd}' returned unknown data type '${typeof result}'! Expected types: undefined, number or string`);
-               if (typeof result !== 'undefined') result = ''; // Convert undefined to empty string
-               if (eventprofile.output.Wrap) result = `{"type":"SET","data":${typeof result === 'string' ? '"' : ''}${result}${typeof result === 'string' ? '"' : ''}}`; // Todo0 - do 'wrap' action in level above in <ElementHandlerExec> function to exclude unnecessary JSON parse/stringify
-               if (eventprofile.output.Debug) {} // Todo0 - Convert handler result to DIALOG event here
+               if ((typeof result === 'number' && isNaN(result)) || result === null) result = String(result); // This function goal is to return native module function result, so adjust that result some types to string. All JS types: number (NaN), bigint, string, boolean, object (null, {}, [], function), undefined, symbol, function
+               if (['symbol', 'function'].includes(typeof result)) throw new Error(`Module function '${cmd}' returned unacceptable data type '${typeof result}'! Expected types: object, undefined, number, bigint, boolean or string`);
                return result;
          } 
  }
 }
 
+// Todo0 - all OD, user, GUI customization and event profiler dialog settings workable
+// Todo0 - Change pass or user delete - force user logout, and natively restrict root user delete
+// Todo0 - Handler-call element policy on backend - user double clicked on any object element is unable generate another double click event on other (or same) object element
+// Todo0 - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
 // Todo0 - Incoming client/handler events check:
 //      1. User permissions check
 //      2. View permissions check
@@ -852,17 +876,26 @@ export class Controller
 //                     SELECT * FROM data1 WHERE <ваши_условия>
 //                    ) AS subquery WHERE id = 1 and lastversion=true);
 //      5. Rule check
-//      6. Event handler exec for callableelements (interactive)
+//      6. Event handler exec for callable elements (interactive)
 //         Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
 //         At any client/server side element event occur - incoming event is checked on all event groups until the match. Once the match is found - the specified event with its handler is called to process event and its data. 
 //         Every event may have 'disabled' handler type to set explicitly no call-handler (may be usefull to cancel through-profiles event search with no action)
 //         Command line handler data are not single line, but multiple. Controller runs first line handler, while other ones may be used as a comments
 //         Negative queue value (the scheduler sleep for) in msec on crontab line
-// Todo0 - all OD, user, GUI customization and event profiler dialog settings workable
-// Todo0 - Handler-call element policy on backend - user double clicked on any object element is unable generate another double click event on other (or same) object element
-// Todo0 - System MACROS that get user online/offline status with datetime timestamp and current instances number logged in, RULEQUERY macro to use in a rule message
-// Todo0 - Don't log message in case of previous msg match, but log 'last message repeated 3 times'. Log format: datetime, user, process, log message
-// Todo0 - Should console.error/log be duplicated to app logfile?
-// Todo0 - Change pass or user delete - force user logout, and natively restrict root user delete
-// Todo0 - shoud OD/OV versions should be stored and where
-// Todo0 - WARNING event data property: for clear string 'data' becomes 'content' property
+// Todo0 - Start event in OV layout is any client event whth no event data (that is no where to place). Emulataion of 'select all objects and then delete them', 'charts', 'regexp search' (emulates ctrl+shift+f at OV open) is deprecated
+// Todo0 - object elements values, set in layout, shouldn't be changed/refreshed at controller SET and other events
+// Todo0 - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
+
+// Todo0 - all view changes comes to client side with odid/ovid with object id and its element id/prop.
+//         Controller passes all changed data to all clients that has this view opened, so that clients apply all changes right now (not forgetting to check oid presense, cause of possible random or non-actual selection).
+//         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar against the sent view
+//          - client inited the change
+//          - client that has this OV open
+//          - client that has not OV open but in sidebar
+//          - client that has no this OV in sidebar
+// Todo0 - shoud OD/OV versions should be stored and where, nahui?
+
+// Todo0 - release all event chain from handler to the conrtoller and then to client side with 'MUTE' add to all SET events
+// Todo0 - all table cells have their allowed real html tags, plus custom tags <stream> (to display video streams) and <tsdb> (to draw graphs from tsdb). How should tag <tsdb> be refreshed? Via scheduled OV refresh or another way?
+//         Every user defined element (eid1, eid2..) has its external data - files (documents, audio, video, image..), so app data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props and files
+//		   Configurate element external data (files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download (for example GALLERY handler event shows all object element files for default, otherwise - foto/audio/video. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?)

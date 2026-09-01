@@ -124,7 +124,7 @@ export class View extends Interface
   const editablecell = this.contentEditableCell; // Fix editable cell
   const editabletarget = this.GetGridCoordinatesElement(editablecell.x, editablecell.y); // and its html element
   if (!editabletarget) return; // Element is unknown or removed? Do nothing and return
-  const keyboardapply = event.key === 'Enter' && event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1 === 8 ? true : false; // Check if CTRL+ENTER is pressed 
+  const keyboardapply = event.key === 'Enter' && event.ctrlKey * 4 + event.altKey * 2 + event.shiftKey * 1 === 4 ? true : false; // Check if CTRL+ENTER is pressed 
   // Todo2 - refresh all element <editable.eid> instances interactively at any key pressed
   if (editablecell === clickedcell && !keyboardapply) return; // User clicked/pressed event is on editable cell, and event is not CTRL+ENTER? Return or apply cell content below
 
@@ -163,7 +163,7 @@ export class View extends Interface
   if (event.type !== 'dblclick' && (eventpos = consts.NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
   const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x];
   if (!cell?.interactive) return;
-  const modifier = String(event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1);
+  const modifier = String(event.ctrlKey * 4 + event.altKey * 2 + event.shiftKey * 1);
   if (event.type === 'dblclick') return { type: 'DOUBLECLICK', destination: this.parentchild, data: this.GetCellMetaData({ value: modifier }, cell) };
   const events = [{ type: consts.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: this.GetCellMetaData({ value: modifier }, cell) }];
   if (event.key && event.key.length === 1 && modifier === '0') events.push({ type: 'KEYPRESS', destination: this.parentchild, data: this.GetCellMetaData({ value: event.key }, cell) });
@@ -188,9 +188,9 @@ export class View extends Interface
        await navigator.clipboard.writeText(text); // Todo0 - should oringinal text be copied to the clipboard?
        this.HighlightClipboardAreas(true);
       } 
-  catch (err)
+  catch (error)
       {
-       console.error('Copy to clipboard error: ', err);
+       funcs.Log(`Copy to clipboard error: ${error}`);
       }
  }
 
@@ -200,27 +200,31 @@ export class View extends Interface
        const text = await navigator.clipboard.readText();
        return this.EventManager({ type: 'PASTE', destination: this.parentchild, data: this.GetCellMetaData({ value: text }, cell) });
       }
-  catch (err)
+  catch (error)
       {
-       console.error('Get from clipboard error: ', err);
+       funcs.Log(`Get from clipboard error: ${error}`);
       }
  }
 
  Handler(event)
  {
   let cell, confirmevent, x, y, clickedelement;
-
   switch (event.type)
          {
-          case 'WARNING':
-               if (event.data.odid === this.data.odid && event.data.ovid === this.data.ovid) new DialogBox(event.data?.content, this, JSON.parse(consts.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
-               break;
+          case 'DIALOG':
+               const callback = { type: 'CONFIRMDIALOG', data: Object.assign({ odid: event.data.odid, ovid: event.data.ovid, oid: event.data.oid, eid: event.data.eid }, 'eprop' in event.data ? { eprop: event.data.eprop } : {}) };
+               new DialogBox(event.data?.content, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: callback }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
+               return;
           case 'CONFIRMDIALOG':
                switch (event.source.props.callback.type)
                       {
-                       case 'SETVIEW':
+                       case 'SETVIEW': // Macros definition dialog returned event SETVIEW
                             const { odid, ovid, od, ov, childid } = event.source.props.callback.data;
                             return { type: 'GETVIEW', destination: this.parentchild, data: { odid: odid, ovid: ovid, od: od, ov: ov, childid: childid, macros: funcs.GetDialogMacrosValues(event.source.data) } };
+                       case 'CONFIRMDIALOG': // Object element handler dialog return CONFIRM calback
+                            event.source.props.callback.destination = this.parentchild;
+                            event.source.props.callback.content = event.source.data;
+                            return event.source.props.callback;
                       }
                return;
 	       case 'CANCELDIALOG':
@@ -290,7 +294,7 @@ export class View extends Interface
                             this.HighlightClipboardAreas();
                             break;
                        case 'Insert':
-                            if (event.ctrlKey * 8 + event.altKey * 4 + event.shiftKey * 2 + event.metaKey * 1 === 8) this.CopyToClipboard(this.cursor.areas); // Copy cursor areas (1st arg) innerText/innerHTML (2nd arg) to clipboard for CTRL+INSERT hold. Todo0 - should i use CTRL+C combination to do the same and should i return back INSERT key to the event list that was removed due 'copy-to-clipboard' event?
+                            if (event.ctrlKey * 4 + event.altKey * 2 + event.shiftKey * 1 === 4) this.CopyToClipboard(this.cursor.areas); // Copy cursor areas (1st arg) innerText/innerHTML (2nd arg) to clipboard for CTRL+INSERT hold. Todo0 - should i use CTRL+C combination to do the same and should i return back INSERT key to the event list that was removed due 'copy-to-clipboard' event?
                             break;
                        default:
                             confirmevent = this.contentEditableCell ? this.ConfirmCellEditableContent(event, this.valuetable[this.cursor.y]?.[this.cursor.x]) : undefined;
@@ -949,15 +953,12 @@ export class View extends Interface
 }
 
 // Todo0 - Should the view be closed after its OD have been removed? No, but status 'removed' is displayed
-// Todo2 - Text area color customization, example - query text - SELECT statement is blue color highlighted
+// Todo2 - Text area color customization, example - query text - SELECT statement is blue color highlighted. Textarea doesn't allow to cusomize apparently one text and another, div with contenteditable=true should be used
 // Todo0 - Emulate user client events binded on context menu. Events are defined in OV proflie settings
-// Todo0 - Limit json.row and json.value expressions evaluated as a js code via JS future specification named SHADOW REALMS.
+// Todo0 - Limit json.row and json.value expressions evaluated as a js code via JS future specification named SHADOW REALMS. Don't call eval function in case of constants x,y values also, check it on million cycles
 // Todo0 - whole table selection (Ctrl a), per object selection (what key combination?), enter[+shift] moves cursor down[up] (in case of selection moves among selected cells), home/end [with ctrl/alt] moves cusor to start/end of a line [table/page] and shift selects cursor track. Ctrl with up[down] jumps to next[previous] object
 // Todo0 - in context menu description: OV opened and OV refreshed seconds ago, quantity of valid/incorrect/total layout jsons, out of range cells number, max cells, current cell number, OD/OV description, table width/height, total objects, selected objects, current x,y, areas count, timing OV load, see old php version also
 // Todo0 - in context menu help: application version, tel number and other contacts (something like 'please contact us support@tabels.app'), add in system description something like 'it has a 'game' style interface colors but offers a powerful functionality. Also helpdesk/jira/CRM example in Help context menu
-// Todo0 - all view changes comes to client side with odid/ovid with object id and its element id/prop.
-//         Controller passes all changed data to all clients that has this view opened, so that clients apply all changes right now (not forgetting to check oid presense, cause of possible random or non-actual selection).
-//         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar against the sent view
 // Todo0 - regexp search should be implemented to all types of view including tree and map. Should js range be used instead of span highlighting in regexp search? Not only regexp search but search on mask with only one asterisk as a special char or just plain text
 // Todo0 - Emodzi symbols as an element text causes db sql error. Should it be fixed?
 // Todo0 - Setka via css https://dbmast.ru/fon-v-vide-diagonalnoj-setki-na-css
@@ -967,33 +968,19 @@ export class View extends Interface
 // Todo0 - OV icon in a sidebar depend on template, so displaay table/tree/map little icons inside rounded square icon
 // Todo0 - Tree selection: SELECT <layout elements> FROM <actual data> WHERE <clause1 /n clause2>, other exoressions are unavailable. Clause2 points to the second point of the tree. No second point (clause2) - until the end of the tree. Point to point tree may be multipath.
 // Todo0 - Tree element layout style:
-//		     for example to see what nodes are down by seeing them via red background
-//  	     Tree wire name (arrow name) to mark fiber cooper radio..
-//		     Node color or wire type should depend on some current object element values to mark nodes and its links status (node down, line down, etc..)
+//		         for example to see what nodes are down by seeing them via red background
+//  	         Tree wire name (arrow name) to mark fiber cooper radio..
+//		         Node color or wire type should depend on some current object element values to mark nodes and its links status (node down, line down, etc..)
 // Todo0 - Tree view: every object has its content defined via table element layout, so you can output any object elements (including images) in a tree node, but be aware and place only nessesary data due to possible page overload. Also all tree nodes have its uplinked/downlinked elmenents displayed with specified wire between
 // Todo0 - Tree view: context menu: expand/hide uplink and downlink subtrees, description for tree view (object number, object selection parameteres..)
 // Todo0 - Tree view: loop element - show real looped object instead of read message
 // Todo1 - Tree view: nested level input (nodes depth) to display may be defined. For example, nested level 2 diaplys main switch with its direct downlink nodes and no more deeper levels of nodes
-// Todo0 - all table cells have their allowed html tags - <div>, <table>, <stream> or/and <tsdb> to draw graph from tsdb
-//             Every user defined element (eid1, eid2..) has its external data - files (documents, audio, video, image)
-//		         App data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props.. files
-//		         Configurate element external data (streams, files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download
-//             GALLERY command shows all object element files for default, otherwise - foto/audio/video. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?
-//		         Make external source data settings via these kinds of systme calls UPLOAD, DOWNLOAD, UNLOAD for files, another cmd for TSDB (duration, unit of measurement) and another cmd for streams (timeshift, source, qulity)
-// Todo0 - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
 // Todo0 - table cells selection should fade cell background color, not just shadow it. Also selected area rectangle should be highlighted via bold line
-// Todo0 - Don't call eval function in case of constants x,y values also, check it on million cycles
-// Todo0 - only 'table' type of view allows new object creation. Release object creation via dialog to input all elements values, or no new object creation if new-object-cells are not present?
 // Todo0 - Export OV data to xls(via csv), export to txt file should be via copy-paste
-// Todo0 - autocomplete feature at cell editing. Autocomplete data may be retrieved from other OD, for example, client list or street list.
-// Todo0 - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
-// Todo0 - macros like in joe
-// Todo0 - Context menu Graph -tTable selection of this strings and values (dlink space, snr space, eltex space..) displays pie chart with dlink - 100%, and 0% for other values, is it right?
+// Todo0 - Context menu Graph - table selection of this strings and values (dlink space, snr space, eltex space..) displays pie chart with dlink - 100%, and 0% for other values, is it right?
 // Todo0 - Paste file or image to object element - PASTE user event; drag and drop file to the corresponded cell - DRAGANDDROP user event or PASTE to specific object element
 //             One or multiple cell selecting - buffer copy as text or/and as image (like excel cells are copied into whatsup)
 // Todo0 - Fetch progress indicator for uploading files https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
 // Todo0 - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711. Apply white list (allowed chars) and black list (disallowed chars). And autocomplete feature of predefined values (for a example company clients)
 // Todo2 - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo1 - Always develop table functional to some needful excel functions!
-// Todo0 - Start event in OV layout is any client event whth no event data (that is no where to place). Emulataion of 'select all objects and then delete them', 'charts', 'regexp search' (emulates ctrl+shift+f at OV open) is deprecated
-// Todo0 - object elements values set in layout shouldn't be changed/refreshed at controller SET and other events

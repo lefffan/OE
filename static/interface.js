@@ -74,7 +74,7 @@ function ControlEventMatchUserEvent(control, userevent, phase)
 	 if (event && ((event[0] !== '!' && event === userevent.type) || (event[0] === '!' && event !== userevent.type)))																	// Positive event value matches user event.type or negative event doesn't match?
  	    return ((control.button === undefined || (['keydown', 'keyup'].indexOf(userevent.type) === -1 ? control.button === userevent.button : control.button === userevent.code)) &&	// Then mouse event button and keyboard event code match (if exist)
  	    		(control.buttons === undefined || (['keydown', 'keyup'].indexOf(userevent.type) === -1 && control.buttons === userevent.buttons)) &&									// and mouse event buttons match (if exist)
- 		 	    (control.modifier === undefined || control.modifier === userevent.ctrlKey * 8 + userevent.altKey * 4 + userevent.shiftKey * 2 + userevent.metaKey * 1));				// and modifier keys at the end (if exist). Return true for all successfull matches
+ 		 	    (control.modifier === undefined || control.modifier === userevent.ctrlKey * 4 + userevent.altKey * 2 + userevent.shiftKey * 1));										// and modifier keys at the end (if exist). Return true for all successfull matches
  return false;																																											// Return false for no any event match
 }
 
@@ -325,7 +325,6 @@ export class Interface
 		 	{
 			 document.body.style.cursor = 'auto';
 			 CallControlHandler(app.control, null, 'release');
-			 //console.log(`Control ${app.control.name} is released!`);
 			 delete app.control;
 			}
 		 if (lower && !this.IsOnTop(current) && this.IsOnTop(lower))								// Lower child is 'top layer' and current is not? Swap it
@@ -346,7 +345,6 @@ export class Interface
   if (app.control?.child === this.childs[id])																								// Current captured control is on killing child? Release it
 	 {
 	  if (app.control.cursor) document.body.style.cursor = 'auto';
-	  //console.log(`Control ${app.control.name} is released!`);
 	  delete app.control;
 	 }
   this.childs[id].Hide();																													// Hide and kill the child
@@ -429,7 +427,7 @@ export class Interface
  // captureevent: event the capture starts at. Since the capture is started - no other captures allowed, so any other childs mouse/keyboards events are ignored. The capture starts at this event, area match (if exists) and DOM elements array match
  // button: event.code ('Escape, 'KeyZ'..) for keyboard events and event.button (0 - left btn, 1 - middle btn, 2 - right btn, 3 - fourth btn, 4 - fifth btn) for mouse events
  // buttons: event.buttons (0 - no any btn, 1 - left btn, 2 - right btn, 4 - middle btn, 8 - 4th btn, 16 - 5th btn) for mouse events
- // modifier: key flag to match together with mouse/keyboard <captureevent> for next keys: CTRL (0b1), ALT (0b10), SHIFT (0b100) and META (0b1000)
+ // modifier: key flag to match together with mouse/keyboard <captureevent> for next keys: CTRL (0b1), ALT (0b10), SHIFT (0b100)
  // processevent: event the current capture handles via <callbackfunction> call
  // releaseevent: event the capture is released on. Since the capture is released - any other childs mouse/keyboards events become available
  // area: child element DOM relative rectangle coordinates x1,y1,x2,y2 the mouse cursor in to start the capture
@@ -601,7 +599,6 @@ export class Interface
 	 {
 	  if (ControlEventMatchUserEvent(app.control, event, 'release') !== false)
 		 {
-		  //console.log(`Control ${app.control.name} is released!`);
 		  SetMouseCursorContolsHover(app.control.child, event, childclientrect);		// Check all controls mouse cursor hover match and modify cursor for mouse moving	
 		  if (ControlAreaMatchMouseCursor(app.control, event, 'release', childclientrect) !== false)
 			 CallControlHandler(app.control, event, 'release');							// Call control handler
@@ -629,7 +626,6 @@ export class Interface
 	   	   ControlAreaMatchMouseCursor(control, event, 'capture', childclientrect) !== false &&	
 		   ControlElementsMatchEventTarget(control, event) !== false)
 		  {																						// Check control event, mouse cursor is in control area and clicked element match of control DOM elements for 'capture' phase. Control is considered captures in case of all cases match
-		   //console.log(`Control ${prop} is captured!`);
 		   app.control = control;																// Fix captured control
 		   if ('cursor' in control) document.body.style.cursor = control.cursor;				// Set control cursor document.body.style.setProperty('cursor', control.cursor, 'important');
 		   CallControlHandler(control, event, 'capture');										// Call control handler
@@ -640,7 +636,6 @@ export class Interface
 		   ControlAreaMatchMouseCursor(control, event, 'release', childclientrect) !== false &&
 		   ControlElementsMatchEventTarget(control, event) !== false)							// Check match case for 'release' phase only for non-existing 'capture' phase
 	   	  {
-		   //console.log(`Control ${control.name} is captured and released!`);
 		   if (CallControlHandler(control, event, 'release')) return;							// Call control handler. For only these kind of controls (with no 'capture' phase) next control process is continued if no current control handler return event
 		  }
 	  }
@@ -667,7 +662,6 @@ export class Interface
 
   for (const event of events)
 	  {
-	   console.log(`Interface new event detected:`, event);
 	   let childs;
 	   if (!event.source) event.source = this;
 	   if (event.destination === null) // Dispatch event to all childs of a source

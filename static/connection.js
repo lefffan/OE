@@ -22,6 +22,15 @@ export class Connection extends Interface
   this.Login();
  }
 
+ // Function displays warning dialog for allowed event types
+ DisplayWarning(event, parent)
+ {
+  let title, content;
+  if (!event.warning) return;
+  typeof event.warning === 'object' ? { title, content } = event.warning : content = event.warning;
+  if (content) new DialogBox(content, parent || this, JSON.parse(consts.MODALBOXPROPS), title || 'Warning', undefined, '   OK   ');
+ }
+
  Login()
  {
   this.EventManager({ type: 'KILL', destination: null }); // Kill all connection childs
@@ -43,35 +52,46 @@ export class Connection extends Interface
 
  Handler(event)
  {
-  console.log(`Connection child new event detected:`, event);
+  funcs.Log(event, { EVENTNAME: 'New controller message' }, consts.LOGTOSTDOUT);
   switch (event.type)
 	    {
+	     case 'KILL':
+               this.Logout();
+               break;
+	     case 'BRINGTOTOP':
+               break;
 	     case 'LOGOUT':
 	          this.Logout();
 	          break;
 	     case 'LOGINACK':
+               if (typeof event.data === 'string')
+                  {
+                   this.logintitle = event.data;
+                   this.Login();
+                   break;
+                  }
                this.username = event.data.username;
                this.userid = event.data.userid;
                this.authcode = event.data.authcode;
                this.CreateWebSocket(event.data.protocol + '://' + event.data.ip + ':' + event.data.port);
 	          break;
-	     case 'LOGINERROR':
-               this.logintitle = event.data;
-               this.Login();
-	          break;
 	     case 'CREATEWEBSOCKET':
                this.WebsocketSend(event);
 	          break;
-	     case 'DROPWEBSOCKET':
-               this.logintitle = event.data;
-	          break;
 	     case 'CREATEWEBSOCKETACK':
+               if (typeof event.data === 'string')
+                  {
+                   this.logintitle = event.data;
+                   break;
+                  }
                new Sidebar(null, this);
                this.WebsocketSend({ type: 'SIDEBARGET' }); // Get OD/OV list
 	          break;
 	     case 'SIDEBARSET':
 	     case 'SIDEBARDELETE':
-	          return { type: event.type, data: event.data, destination: null };
+               this.DisplayWarning(event);
+               if (event.data) return { type: event.type, data: event.data, destination: null };
+               break;
 
 	     case 'mouseup':
 	          new ContextMenu(this.username ? [['Help'], ['Logout ' + funcs.CutString(this.username)]] : [['Help']], this, event);
@@ -89,15 +109,13 @@ export class Connection extends Interface
 	     case 'CREATEDATABASE': // Context menu event incoming from sidebar
                new DialogBox(JSON.parse(JSON.stringify(consts.NEWOBJECTDATABASE)), this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: { type: 'SETDATABASE', data: {} } }));
                break;
-
-	     case 'WARNING':
-               if (event.data.odid || event.data.ovid) this.EventManager(Object.assign(event, { destination: null }));
-                else new DialogBox(event.data?.content, this, JSON.parse(consts.MODALBOXPROPS), event.data?.title ?? 'Warning', undefined, '   OK   ');
-	          break;
-	     case 'DIALOG':
-               const callback = { type: 'CONFIRMDIALOG', data: Object.assign({ odid: event.data.odid, ovid: event.data.ovid, oid: event.data.oid, eid: event.eid }, 'eprop' in event.data ? { eprop: event.data.eprop } : {}) };
-               new DialogBox(event.data?.content, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { callback: callback }), event.data?.title, event.data?.ok, event.data?.cancel, event.data?.apply);
-	          break;
+	     case 'GETDATABASE': // Context menu event incoming from sidebar, dispatch it directly to the controller
+               this.WebsocketSend(event);
+               break;
+	     case 'CONFIGUREDATABASE':
+               this.DisplayWarning(event);
+               if (event.data?.dialog) new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', data: { odid: event.data.odid } } }));
+               break;
 	     case 'CONFIRMDIALOG':
                switch (event.source.props.callback?.type)
                       {
@@ -113,29 +131,19 @@ export class Connection extends Interface
                       }
 	          break;
 
-	     case 'GETDATABASE': // Context menu event incoming from sidebar, dispatch it directly to the controller
-               this.WebsocketSend(event);
-               break;
-	     case 'CONFIGUREDATABASE':
-               new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', data: { odid: event.data.odid } } }));
-               break;
-
 	     case 'GETVIEW':
                this.WebsocketSend(event);
                return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: -1 }, destination: null };
-	     case 'SETVIEW':
-               const view = this.childs[event.data.childid];
-               if (!view || view.data.odid !== event.data.odid || view.data.ovid !== event.data.ovid) return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: undefined, childid: undefined }, destination: null };
-               event.destination = view;
-               return event;
-
-	     case 'KILL':
-               this.Logout();
-               break;
-	     case 'BRINGTOTOP':
-               break;
           default:
-               if (consts.CLIENTEVENTS.includes(event.type)) this.WebsocketSend(event);
+               if (consts.CLIENTEVENTS.includes(event.type)) return this.WebsocketSend(event); // Dispatch all client (browser) events to the controller
+               if (event.type === 'SETVIEW' || consts.CONTROLLEREVENTS.includes(event.type)) // Dispatch OV specific events to the child box with id <childid>
+                  {
+                   const view = event.destination = this.childs[event.data.childid];
+                   if (!view || view.data.odid !== event.data.odid || view.data.ovid !== event.data.ovid) // The child with <childid>, the event is addressed to, doesn't exist, so ignore all events except 'SETVIEW' - set specified OV status to offline
+                      return event.type === 'SETVIEW' ? { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: undefined, childid: undefined }, destination: null } : undefined;
+                   this.DisplayWarning(event, view); // Otherwise display warning msg if exist. Next contoller events may come with 'warning' property: 'EDIT', 'DIALOG', 'SET', 'WRITE', 'PUT', 'ADJUST', 'RESET', 'UPDATE', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'
+                   return event; // and dispatch <event> to the specified via <childid> one
+                  }
 	    }
  }
 
@@ -152,9 +160,8 @@ export class Connection extends Interface
          response = await response.json();
          this.Handler(response);
         }
-  catch (err)
+  catch (error)
         {
-         console.log(err);
          setTimeout(this.Login.bind(this), 0, this.logintitle = 'No server respond!');
         }
  }
@@ -166,7 +173,7 @@ export class Connection extends Interface
   delete msg.destination;
   if (this.socket && this.socket.readyState !== WebSocket.OPEN) return;
   try { this.socket.send(JSON.stringify(msg)); }
-  catch { console.log(`Websocket error sending message "${msg}"`); }
+  catch { funcs.Log(`Websocket error sending message '${msg}'`, {}, consts.LOGTOSTDOUT); }
  }
 }
 
@@ -180,9 +187,9 @@ export class Connection extends Interface
 /* Login process
    +--------+                                                                                            +------------+                                   +---------+                                     
    |        | LOGIN:HTTP[username,password] ->		                                                  |            |                                   |         |                
-   |        |         <- LOGINACK:HTTP[username,userid,ip,port,protocol,authcode]|LOGINERROR:HTTP[title] |            |                                   |         |                
+   |        |                        <- LOGINACK:HTTP[username,userid,ip,port,protocol,authcode]|[title] |            |                                   |         |                
    |        | CREATEWEBSOCKET:WS[userid,authcode] ->                                                     | Controller |                                   | Handler |                
-   |        |                                         <- CREATEWEBSOCKETACK:WS[]|DROPWEBSOCKET:WS[title] |            |                                   |         |                
+   |        |                                                           <- CREATEWEBSOCKETACK:WS[|title] |            |                                   |         |                
    | Client | SIDEBARGET:WS[] -> 			                                                            |            |                                   |         |                
    |        |                                                             <- SIDEBARSET:WS[odid,path,ov] |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
@@ -191,12 +198,12 @@ export class Connection extends Interface
 /* Edit/create OD process
    +--------+                                                                                            +------------+                                   +---------+                                     
    |        | CREATEDATABASE:LOCAL[] -> SETDATABASE:WS[dialog] ->                     	     	     |            |                                   |         |                
-   |        |                                   <- SIDEBARSET:WS[odid,path,ov]|WARNING:WS[content,title] |            |                                   |         |                
+   |        |                                                             <- SIDEBARSET:WS[odid,path,ov] |            |                                   |         |                
    | Client |                        		    		                                                  |            |                                   |         |                
    |        | GETDATABASE:LOCAL[odid] -> GETDATABASE:WS[odid] ->                                         | Controller |                                   | Handler |                
    |        |                   			                       <- CONFIGUREDATABASE:WS[dialog,odid] |            |                                   |         |                
    |        | SETDATABASE:WS[dialog,odid] ->                     		                              |            |                                   |         |                
-   |        |            <- SIDEBARSET:WS[odid,path,ov]|SIDEBARDELETE:WS[odid]|WARNING:WS[content,title] |            |                                   |         |                
+   |        |                                      <- SIDEBARSET:WS[odid,path,ov]|SIDEBARDELETE:WS[odid] |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
@@ -222,7 +229,7 @@ export class Connection extends Interface
 /* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data is <cellmetadata> (odid,ovid[,oid,eid,eprop]) plus 'value' property: for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other events - modifier keys value
    +--------+                                                                                            +------------+                                   +---------+                                     
    |        | KEYF2:LOCAL[<cellmetadata>,value] -> KEYF2:WS[<cellmetadata>,value] ->                     |            |                                   |         |                
-   | Client |                                                     <- WARNING:WS[content,title,odid,ovid] | Controller |                                   | Handler |                
+   | Client |                                                     <- NULL:WS[content,title,odid,ovid]    | Controller |                                   | Handler |                
    |        |                        		    		                                                  |            |                                   |         |                
    |        |                        		    		                                                  |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
@@ -237,7 +244,7 @@ export class Connection extends Interface
    +--------+       +------------+                                                                             +---------+                                     
 */
 
-/* Handler EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW),EDIT,DIALOG,SET|WRITE|PUT|ADJUST,RESET(delete all and set),UPDATE(set if obj change),PUSH|COLLECT(tsdb),UPLOAD,DOWNLOAD,UNLOAD,GALLERY,NULL,COPY(buffer),NEWPAGE(url) events
+/* Handler events: EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW); EDIT; DIALOG; [MUTE]SET|[MUTE]WRITE|[MUTE]PUT|[MUTE]ADJUST; [MUTE]RESET(delete all and set); [MUTE]UPDATE(set if obj change); PUSH|COLLECT(tsdb); UPLOAD; DOWNLOAD; UNLOAD; GALLERY; NULL; COPY(buffer); NEWPAGE(url)
    +--------+       +------------+                                                                             +---------+                                     
    |        | 	     |            |                                                                             |         |                
    | Client |       | Controller |                                                                             | Handler |                

@@ -44,7 +44,7 @@ function SetFlag(e, name, value)
 		 			 readonly = eval(e.test); // Evaluate (test) element modified expression
 					}
   			  catch { 
-		 			 console.log('Evaluation exception detected on element:', e.test);
+		 			 funcs.Log(`Evaluation exception detected on element: ${e.test}`);
 		 			 delete e.expr;
 		 			 delete e.test;
 		 			 for (const element of this.elements) element.affect.delete(e.id);	// In case of error expression e.test - remove this element (<e>) id from all elements 'affect' property, so these elements can't affect to <e> readonly status due to incorrect e.test

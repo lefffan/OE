@@ -26,7 +26,7 @@ export const FIELDSDIVIDER					= '~'; // Var is used in dialog.js, const.js, fun
 export const WARNINGDIALOG          = JSON.stringify({ title: { type: 'title', data: 'Warning' }, msg: { type: 'table' }, ok: JSON.parse(BUTTONOK) });
 export const SYSTEMSTATICMACROS     = { USERNAME: 'username', USERID: 'userid', OD: 'od', OV: 'ov', ODID: 'odid', OVID: 'ovid', OID: 'oid', EID: 'eid', EPROP: 'eprop', ELEMENT: null, EVENTNAME: 'type', EVENTDATA: 'value', RANDOM: null, DATE: null, TIME: null, DATETIME: null, NULL: null, DBDATATBLNAME: null, ELEMENTCOLUMNPREFIX: null };
 export const SYSTEMDYNAMICMACROS    = { LAYOUT: null };
-export const ALLOWEDINNERTAGSSTRING = 'span, pre, br, b';
+export const ALLOWEDINNERTAGSSTRING = 'div, span, pre, br, b'; // Should table tags (table, tbody, tr, td, thead, tfoot, caption, col, colgroup) be added?
 export const ALLOWEDINNERTAGSREGEX  = new RegExp(`${ALLOWEDINNERTAGSSTRING.split(', ').map(tag => `<${tag} .*?>|<${tag} *>|<\/${tag} *>`).join('|')}`);
 export const INNERENCODEMAP         = [['&', '<', '>', "'", '"'], ['&amp;', '&lt;', '&gt;', '&#39;', '&quot;']];
 export const MOUSEEVENTS            = ['DOUBLECLICK'];
@@ -38,6 +38,12 @@ export const NATIVEKEYBOARDEVENTS   = ['KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', '
 export const KEYBOARDEVENTS         = ['KEYA', 'KEYB', 'KEYC', 'KEYD', 'KEYE', 'KEYF', 'KEYG', 'KEYH', 'KEYI', 'KEYJ', 'KEYK', 'KEYL', 'KEYM', 'KEYN', 'KEYO', 'KEYP', 'KEYQ', 'KEYR', 'KEYS', 'KEYT', 'KEYU', 'KEYV', 'KEYW', 'KEYX', 'KEYY', 'KEYZ', 'KEY0',   'KEY1',   'KEY2',   'KEY3',   'KEY4',   'KEY5',   'KEY6',   'KEY7',   'KEY8',   'KEY9',   'KEYF1', 'KEYF2', 'KEYF3', 'KEYF4', 'KEYF5', 'KEYF6', 'KEYF7', 'KEYF8', 'KEYF9', 'KEYF10', 'KEYF11', 'KEYF12', 'KEYSpace', 'KEYDelete', 'KEYBracketLeft', 'KEYBracketRight', 'KEYPRESS'];
 export const CONTROLLEREVENTS       = ['EMULATE', 'EDIT', 'DIALOG', 'SET', 'WRITE', 'PUT', 'ADJUST', 'RESET', 'UPDATE', 'PUSH', 'COLLECT', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'];
 export const CLIENTEVENTS           = [...KEYBOARDEVENTS, ...MOUSEEVENTS, ...MISCEVENTS, ...CALLBACKEVENTS];
+export const WRITETOFILEFUNC        = Symbol('WRITETOFILEFUNC');
+export const LOGFILENAME            = 'tabels.log';
+export const LOGTOSTDOUT            = 0b001;
+export const LOGTOSTDERR            = 0b010;
+export const LOGTOFILE              = 0b100;
+export const MSGDELIMITER           = '--------------------------------\n';
 export const EVENTSONOBJECTADD      = ['SET', 'WRITE', 'PUT', 'ADJUST', 'RESET'];
 const DIALOGBOXMACROSSTYLE          = { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
 export const CUSTOMIZATIONS         =
@@ -318,7 +324,7 @@ for (const profilename in vnewprofiles)
 /***************************************Super user event dialog start*************************************/
 /*********************************************************************************************************/
 const newevent = JSON.stringify({ events: { type: 'select', head: 'Select event type', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
-                           modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift/Meta', expr: `/${[...CALLBACKEVENTS, ...MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
+                           modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift', expr: `/${[...CALLBACKEVENTS, ...MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
                            attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEVENT~\!|ONTIMER~\!)).*$/events' },
                            handlertype: { type: 'select', head: 'Handler type', data: 'Disabled~!/Fixed output/Command line/Shell command line/Module function' },
                            handlerdata: { type: 'textarea', head: 'Handler data', data: '', expr: '/Disabled~!/handlertype' },
@@ -467,7 +473,7 @@ Next - event handlers. Handler is a command line script or binary called on spec
 and defined for necessary events only. Events are occured on object processes ('INIT' event at object creation, 'CHANGE'
 at object element data change), keyboard/mouse element push/click ('DOUBLECLICK', 'KEYPRESS'..), event feedback ('CONFIRM',
 'CONFIRMDIALOG'), scheduler events (SCHEDULE) and others. Keyboard and mouse events are combined with modifier keys CTRL, ALT,
-SHIFT and META, so you can bind different handlers for one event, but with various modifier keys. For all events (except
+and SHIFT, so you can bind different handlers for one event, but with various modifier keys. For all events (except
 SCHEDULE) handler command line is a first non-empty srting, for SCHEDULE - *nix like scheduler service (cron) crontab file
 format text area, wich represents an instructions list (one by line) of the general form:
 'run this command at this time on this date for all objects of this view for the current element'.
@@ -500,7 +506,7 @@ restricts others.
 
 Last configuration section is 'Rule'. Every controller inbound event is passed to the rule analyzer to test on all rule profiles
 in alphabetical order until the match for both event and query is found. Events (each on a new line and at the start) may be
-combined with modifier keys CTRL, ALT, SHIFT and META (for keyboard and mouse events only) separated by spaces.
+combined with modifier keys CTRL, ALT, and SHIFT (for keyboard and mouse events only) separated by spaces.
 Event line example 'KeyG CTRL' matches keyboard event for the key 'g' down together with CTRL. Rule query is a list of SQL query
 strings (one by line), so non-empty and non-zero result of all query strings - match case; any empty, error or zero char '0'
 result - no match. When a match is found, the action corresponding to the matching rule profile is performed, no any match -
@@ -632,7 +638,7 @@ attribute, event and etc, for a example - '{"oid": "..", "eid": "..", "x": "..",
   selection to the second row (y=1), second object (n=1) - to the third row (y=2) and so on. Note that column/row numeration starts
   from 0. See layout examples below.
 - 'event'. Mouse (DOUBLECLICK), keyboard (only KeyF1..KeyF12, KeyInsert, KeyDelete), clipboard paste (PASTE) or chart (CHART) events
-  to emulate at OV open. Mouse and keyboard events may be combined with modifier keys CTRL, ALT, SHIFT and META separated by spaces.
+  to emulate at OV open. Mouse and keyboard events may be combined with modifier keys CTRL, ALT, and SHIFT separated by spaces.
   Event property example {.."event": "KeyF2 CTRL"..} emulates key 'F2' press together with CTRL just right after the view open.
   'PASTE' event pastes clipboard text data specified after event name via single space: {.."event": "PASTE <pasting text>"..}
   Chart event emulates context menu 'Chart' call of the table seleceted cells. It is useful to display the chart automatically after
@@ -834,7 +840,7 @@ As it was mentioned above user events are generated after database object manipu
     event is fired when a key that produces a character value (alphabetic, numeric, punctuation and others) is pressed down
     and pressed key event above is unregistered, so, for a example, key 'a' press will fire KEYPRESS event only in case of no
     event 'KeyA' registered. Also note that all keyboard (including KEYPRESS) and mouse events may be set up with modifier keys
-    CTRL, ALT, SHIFT and META, so events 'KeyA' and 'KeyA+CTRL' are different and may have their own handlers.
+    CTRL, ALT, and SHIFT, so events 'KeyA' and 'KeyA+CTRL' are different and may have their own handlers.
  - CONFIRM:
     editable content after edit finish returns back to the controller and then to the handler to be processed
  - CONFIRMDIALOG:
@@ -914,7 +920,7 @@ one moment - angle brackets quoted arguments are parsed to be replaced by the ne
     All properties of <JSON> argument are optional, so any JSON (even empty <{}>) is treated as a correct one. Thus, empty
     (or with unknown properties) JSON will be replaced by the current object element value.
  - <oid> is replaced by the object id the event was initiated on. The same as JSON arg  <{"element":"id"}>.
- - <modificators> is replaced by the logical-OR result of pressed Ctrl(8), Alt(4), Shift(2) and Meta(1) modificator key values
+ - <modificators> is replaced by the logical-OR result of pressed Ctrl(4), Alt(2) and Shift(1) modificator key values
    from keyboard/mouse user events. No modificator key pressed - zero value is used.
  - <dir> is replaced by the current element directory the handler can read/write saved files.
  - <od>, <ov>, <odid>, <ovid> are replaced by the database name, view name, database id and view id respectively.

@@ -17,5 +17,3 @@ switch (process.argv[2])
              console.log(`Usage: ${process.argv[1]} start|reset`);
              process.exit(0);
        }
-
-// Todo0 - log all controller/handler events with option 'logstart' together with 'start'
