@@ -133,16 +133,11 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //  SVG animation: https://habr.com/ru/articles/450924/ https://habr.com/ru/articles/667116/ https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/animateTransform https://developer.mozilla.org/ru/docs/Web/SVG/Reference/Element/animate
 //  Secure wss https://www.npmjs.com/package/ws#external-https-server
 //  Study ws on Node https://github.com/websockets/ws?tab=readme-ov-file#how-to-detect-and-close-broken-connections
-//  socket rate limit: https://javascript.info/websocket#rate-limiting
-//  How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/
+//  How to secure web socket connections: https://www.freecodecamp.org/news/how-to-secure-your-websocket-connections-d0be0996c556/ https://javascript.info/websocket#rate-limiting
 //  Node SNMP https://github.com/markabrahams/node-net-snmp old stuff: https://github.com/calmh/node-snmp-native
-//  Node module import/export syntax https://www.w3schools.com/nodejs/nodejs_modules_esm.asp https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Statements/import
 //  NodeJS highload https://www.youtube.com/watch?v=77h-_SytDhM
-//  NodeJS multithread https://tproger.ru/translations/guide-to-threads-in-node-js
-//  Multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
-//  scrypt from openssl (passwords hashing)
-//  auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/ https://nodejsdev.ru/api/crypto/#_2
-//  https://node-postgres.com/apis/pool
+//  NodeJS multithread https://tproger.ru/translations/guide-to-threads-in-node-js see comments
+//  auth https://nodejsdev.ru/guides/webdraftt/jwt/ https://zalki-lab.ru/node-js-passport-jwt-auth/ https://habr.com/ru/companies/ruvds/articles/457700/
 // Todo0 - Megacom appliance information systems:
 //          discuss how will megacom nodes/switches will be edited by L1 support? Via template card (application dialog with node name, ip, address.. etc)?
 //          add startel nodes
@@ -207,7 +202,7 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //					  CHANGE select count(version) > 1 from :odtable where id=3 and owner=':user'
 //					  INIT select 1 (add object first (only once))
 //					  DELETE select 1
-//		            Event DOUBLECLICK handler: php /usr/local/src/tabels/handlers/_.php SELECT 'Путин|Зюганов|Медведев'
+//		            Event DOUBLECLICK handler: php /usr/local/src/tabels/handlers/_.php SELECT 'Putin/Zuganov/Medvedev'
 //		            Event CONFIRMDIALOG handler:  php /usr/local/src/tabels/handlers/_.php <event> <data>
 //		            Display selected cells sum for 'number' cell type
 // Todo0 - SCHEDULE controller generated event binds to object element and object view (OV). Usage 'discover new objects' example:
@@ -215,3 +210,4 @@ window.onload = function () { new Connection(null, app = new Application()); }; 
 //                  layout - col=id, OV restrictions not viewable for any
 //                  event handler with element macro - {"eid": "eid2(ip)", "oid": "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"}
 //                  result - based on input arg (macro ip list) the handler can discover (create) new objects or destroy (delete) in range of user defined pool in a query "eid2 > 195.208.145.0 && eid2 < 195.208.145.255"
+// Todo0 - telnet://10.53.3.15 - the url is the same as for http/https

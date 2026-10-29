@@ -9,6 +9,14 @@ function IsSystemDynamicMacro(macroname)
      if (name === macroname.substring(0, name.length)) return name;
 }
 
+//
+export function DefineComplexMacro(macros, proplist)
+{
+ const macro = {};
+ for (const prop of proplist) if (prop in macros) macro[prop] = macros[prop];
+ return JSON.stringify(macro);
+}
+
 // Incoming <args> is an array of macro objects with macro names as a keys for corresponded macro values
 export function DefineSystemMacros(...macroobjects)
 {
@@ -16,7 +24,7 @@ export function DefineSystemMacros(...macroobjects)
  const systemmacros = {};
 
  // First add macro object wich macros should be defined just right at initialization
- macroobjects.push({ RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', DBDATATBLNAME: 'data_${ODID}', ELEMENTCOLUMNPREFIX: consts.ELEMENTCOLUMNPREFIX });
+ macroobjects.push({ RANDOM: Math.round(Math.random() * 100), DATE: now.toLocaleDateString(), TIME: now.toLocaleTimeString(), DATETIME: now.toLocaleString(), NULL: '', ELEMENTCOLUMNPREFIX: consts.ELEMENTCOLUMNPREFIX });
 
  // Then go through all macro names in SYSTEMSTATICMACROS
  for (const macroname in consts.SYSTEMSTATICMACROS)
@@ -24,14 +32,15 @@ export function DefineSystemMacros(...macroobjects)
       const searchmacroname = consts.SYSTEMSTATICMACROS[macroname] === null ? macroname : consts.SYSTEMSTATICMACROS[macroname]; // and define macro name to search in macro objects - macro name is untouched for null or is <SYSTEMSTATICMACROS[macroname]> for not null
       for (const macroobject of macroobjects) //  Macro name is defined, so go through all macro objects to search it
           {
-           if (typeof macroobject[searchmacroname] !== 'string' && (!macroobject[searchmacroname] || typeof macroobject[searchmacroname] !== 'object')) continue; // Continue for non string/object types
-           try { systemmacros[macroname] = typeof macroobject[searchmacroname] === 'string' ? macroobject[searchmacroname] : JSON.stringify(macroobject[searchmacroname]); } // or defined macro as a string or as an serialized object
+           try { if (searchmacroname in macroobject) systemmacros[macroname] = typeof macroobject[searchmacroname] === 'object' ? JSON.stringify(macroobject[searchmacroname]) : String(macroobject[searchmacroname]); } // or defined macro as a string or as an serialized object
            catch {}
           }
      }
 
- // And return inited system macros adding 'ELEMENT' macro that is used to represent element id and its prop. Key feature is to define whether element prop exists or just empty
- return Object.assign(systemmacros, { ELEMENT: JSON.stringify(Object.assign('EID' in systemmacros ? { id: systemmacros.EID } : {}, 'EPROP' in systemmacros ? { prop: systemmacros.EPROP } : {})) });
+ // Don't forget to build complex ELEMENT macro from EID/EPROP macros, this macro key feature is to define whether element prop exists or just empty
+ systemmacros.ELEMENT = DefineComplexMacro(systemmacros, ['EID', 'EPROP']);
+ systemmacros.DBDATATBLNAME = `data_${systemmacros.ODID}`;
+ return systemmacros;
 }
 
 // Function sorts/unions ranges in a range string, example: '6-,4-5,1' => '1,4-' or '6-,4-5, 10-9, 1-' => '1-';
@@ -103,7 +112,7 @@ export async function GetObjectElementData(macroobject, controller, replacements
 {
  let transaction, elementdata;
  if (!('odid' in macroobject)) macroobject.odid = replacements.ODID;
- if (!('oid' in macroobject)) macroobject.oid = `id={replacements.OID}`;
+ if (!('oid' in macroobject)) macroobject.oid = `id=0${replacements.OID || ''} AND lastversion=TRUE`; // For no 'OID' macro defined in system macros (at least event ADDOBJECT is generated with undefined OID) id is not compared to empty value, but zero
  if (!('ename' in macroobject)) macroobject.ename = consts.ELEMENTCOLUMNPREFIX + replacements.EID;
  if (!('eprop' in macroobject) && 'EPROP' in replacements) macroobject.eprop = replacements.EPROP;
  if (macroobject.eid in consts.SYSTEMELEMENTNAMES) delete macroobject.eprop;

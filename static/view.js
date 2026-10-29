@@ -153,7 +153,7 @@ export class View extends Interface
  {
   const resobj = {};
   for (let i = 0; i < objs.length; i++) if (objs[i]) Object.assign(resobj, i === objs.length - 1 ? { oid: objs[i].oid, eid: objs[i].eid, eprop: objs[i].eprop } : objs[i]);
-  return Object.assign(resobj, { odid: this.data.odid, ovid: this.data.ovid });
+  return Object.assign(resobj, { odid: this.data.odid, ovid: this.data.ovid, childid: this.id });
  }
 
  DispatchMouseKeyboardEvent(event)
@@ -162,7 +162,7 @@ export class View extends Interface
   if (!this.cursor) return;
   if (event.type !== 'dblclick' && (eventpos = consts.NATIVEKEYBOARDEVENTS.indexOf(event.code)) === -1) return;
   const cell = this.valuetable?.[this.cursor.y]?.[this.cursor.x];
-  if (!cell?.interactive) return;
+  if (!cell?.interactive || cell.oid === '-1') return;
   const modifier = String(event.ctrlKey * 4 + event.altKey * 2 + event.shiftKey * 1);
   if (event.type === 'dblclick') return { type: 'DOUBLECLICK', destination: this.parentchild, data: this.GetCellMetaData({ value: modifier }, cell) };
   const events = [{ type: consts.KEYBOARDEVENTS[eventpos], destination: this.parentchild, data: this.GetCellMetaData({ value: modifier }, cell) }];
@@ -969,7 +969,7 @@ export class View extends Interface
 // Todo0 - Tree selection: SELECT <layout elements> FROM <actual data> WHERE <clause1 /n clause2>, other exoressions are unavailable. Clause2 points to the second point of the tree. No second point (clause2) - until the end of the tree. Point to point tree may be multipath.
 // Todo0 - Tree element layout style:
 //		         for example to see what nodes are down by seeing them via red background
-//  	         Tree wire name (arrow name) to mark fiber cooper radio..
+//  	         Tree wire name (arrow name) to mark fiber cooper radio.. and be able to draw welding map (karta razvarki)
 //		         Node color or wire type should depend on some current object element values to mark nodes and its links status (node down, line down, etc..)
 // Todo0 - Tree view: every object has its content defined via table element layout, so you can output any object elements (including images) in a tree node, but be aware and place only nessesary data due to possible page overload. Also all tree nodes have its uplinked/downlinked elmenents displayed with specified wire between
 // Todo0 - Tree view: context menu: expand/hide uplink and downlink subtrees, description for tree view (object number, object selection parameteres..)
@@ -984,3 +984,5 @@ export class View extends Interface
 // Todo0 - EDIT controller cmd limits text lines number to edit https://toster.ru/q/355711. Apply white list (allowed chars) and black list (disallowed chars). And autocomplete feature of predefined values (for a example company clients)
 // Todo2 - Sort by header click for look like default element layout when header line at the top, bottom, left, right
 // Todo1 - Always develop table functional to some needful excel functions!
+// Todo0 - Any view statistic stored in head_<odid> - objects num, element num, opening time, query num, width/height, virtual cells nums
+// Todo0 - grafiki is a vector image so its opening in a new tab may increase detailing

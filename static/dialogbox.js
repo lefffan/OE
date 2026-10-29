@@ -310,6 +310,7 @@ export class DialogBox extends Interface
   if (!args[2].control) args[2].control = { closeicon: {}, fullscreenicon: {}, fullscreendblclick: {}, resize: {}, resizex: {}, resizey: {}, drag: {}, push: {}, default: {}, closeesc: {} };
   if (!args[2].attributes) args[2].attributes = {};
   args[2]['attributes']['data-element'] = '_-1';
+  if (!args[2].callback) args[2].callback = {};
   // Curstom title/buttons
   let spaces = 0;
   funcs.DialogProfileElementsAdjust(args[0], true, (profile, ename) => { if (ename.length > spaces) spaces = ename.length; }); // Calc prop max length and fill it by spaces

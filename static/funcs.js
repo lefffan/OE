@@ -319,10 +319,12 @@ export function SuckInDatabaseProps(dialog, odid, neweid = 1, newovid = 1)
       if (id !== undefined && newovid) newovid++; // Increase next free element id to use
       if (!(id = GetOptionNameId(option))) continue; // Only template profile has no id
       const view = props.views[id] = { general: {}, selection: {}, appearance: {}, macros: {}, permissions: {} };
-      for (const prop of ['General/name', 'General/description', 'General/shortcut', 'Selection/template', 'Selection/layout', 'Selection/query', 'Selection/linkname', 'Appearance/init', 'Appearance/position', 'Appearance/size', 'Appearance/width', 'Appearance/timer', 'Appearance/lifetime', 'Macros/call', 'Macros/dialog', 'Permissions/read', 'Permissions/write'])
+      //for (const prop of ['General/name', 'General/description', 'General/shortcut', 'Selection/template', 'Selection/layout', 'Selection/query', 'Selection/linkname', 'Appearance/init', 'Appearance/position', 'Appearance/size', 'Appearance/control', 'Appearance/bringtotop', 'Appearance/autoopen', 'Appearance/refresh', 'Appearance/timer1', 'Appearance/close', 'Appearance/timer2', 'Macros/call', 'Macros/dialog', 'Permissions/read', 'Permissions/write'])
+      for (const prop of ['General/name', 'General/description', 'General/shortcut', 'Selection/template', 'Selection/layout', 'Selection/query', 'Selection/linkname', 'Appearance/init', 'Appearance/position', 'Appearance/size', 'Appearance/control', 'Appearance/action/Bring to top/bringtotop', 'Appearance/action/Open in a new window/autoopen', 'Appearance/action/Refresh/refresh', 'Appearance/action/Refresh/timer', 'Appearance/action/Close/close', 'Appearance/action/Close/timer', 'Macros/call', 'Macros/dialog', 'Permissions/read', 'Permissions/write'])
           view[prop.split('/')[0].toLowerCase()][prop.split('/')[1]] = GetDialogElement(profile[option], `settings/${prop}`, true).trim();
-      for (const prop of ['Appearance/control', 'Appearance/bringtotop', 'Appearance/autoopen', 'Appearance/refresh'])
-          view[prop.split('/')[0].toLowerCase()][prop.split('/')[1]] = GetDialogElement(profile[option], `settings/${prop}`, false);
+      //for (const prop of ['Appearance/control', 'Appearance/bringtotop', 'Appearance/autoopen', 'Appearance/refresh'])
+          //view[prop.split('/')[0].toLowerCase()][prop.split('/')[1]] = GetDialogElement(profile[option], `settings/${prop}`, false);
+      // Todo0 - set escape prop to true for this case: No 'close btn' and 'escape key' options checked - escape key is used anyway to avoid dead lock
       view.general.name = [...new Set(view.general.name.split('\n').map(alias => alias.trim()).map(alias => alias.at(-1) === '/' ? alias.slice(0, -1) : alias).map(alias => alias.trim()).filter(alias => alias))].join('\n'); // Exclude duplicated aliases, trim and slice last '/'
 
       // Macro dialog field is empty and 'Call dialog' option is checked? Create macro dialog automatically
@@ -375,7 +377,7 @@ export function SuckInUserProps(userrow)
  const policy = {};
  for (const prop of ['groups', 'instances', 'timeout', 'read', 'write', 'create', 'task'])
      {
-      policy[prop] = GetDialogElement(userrow.eid4, prop, true);
+      policy[prop] = userrow.eid1 === consts.SUPERUSER ? '' : GetDialogElement(userrow.eid4, prop, true);
       if (typeof policy[prop] !== 'string') throw new Error(`Couldn't suck in user policy '${prop}'!`);
      }
 

@@ -48,11 +48,25 @@ export function Make(props, config)
       if (!('value' in field)) continue;                                                                   // Adjust field value below
       if (['boolean', 'number'].includes(typeof field.value)) field.value += '';                           // Bring boolean/number field value to string type
       if (typeof field.constraint === 'string' && field.constraint) field.value += ` ${field.constraint}`; // Field constraint does exist? Add it to the field value
-      if (field.escape) field.value = `$${args.push(field.value)}`;                                        // In case of escaped field value - push field value to <args> array and set field value to its array index as an arg number
+      if (field.escape)
+         {
+          field.value = `$${args.push(field.value)}`;                                                      // In case of escaped field value - push field value to <args> array and set field value to its array index as an arg number
+          switch (field.escape)
+                 {
+                  case 'ANY':                                                                              // In case of <field.escape> is a row/array comparison operator (ANY, ALL..) wrap <field.value> to this operator
+                  case 'ALL': 
+                       field.value = `${field.escape}(${field.value})`;
+                       break;
+                  case 'OR':                                                                               // Apply OR operand, for JSON props add/redefine
+                       field.value = `${field.name} || ${field.value}`;
+                       break;
+                 }
+         }
       if (!field.escape && props.method !== 'CREATE') field.value = `'${field.value}'`;                    // In case of nonescaped field value and nonCREATE method - quote field value (for WHERE/INSERT clause)
      }
  if ('orderasc' in props) props.orderasc = ` ORDER BY ${props.orderasc} ASC`; // Adjust 'order' props
  if ('orderdesc' in props) props.orderdesc = ` ORDER BY ${props.orderdesc} DESC`; // Adjust 'order' props
+ if (props.method === 'SELECT' && props.query && !props.table) props.table = `(${props.query}) AS subquery`; // Table is absent, but query does exist? Interpret query as a subquery
 
  const query = this.BuildQuery(props);
  funcs.Log(`Next query is made by query maker: '${query}'`, {}, consts.LOGTOSTDOUT);
@@ -67,21 +81,29 @@ export function BuildQuery(props)
  switch (props.method)
         {
          case 'SELECT':
-              if ('lock' in props) return `SELECT pg_advisory_xact_lock(${props.lock})`; // Lock <props.lock> id
-              if ('where' in props) return `SELECT ${this.Join(props, ',', '')} FROM ${props.table} WHERE ${props.where}${props.orderasc || props.orderdesc ? (props.orderasc || props.orderdesc) : ''}${props.limit ? ' LIMIT ' + props.limit : ''}`;
-              return `SELECT ${this.Join(props, ',', '')} FROM ${props.table}${this.Join(props, ' AND ')}${props.orderasc || props.orderdesc ? (props.orderasc || props.orderdesc) : ''}${props.limit ? ' LIMIT ' + props.limit : ''}`;
+              if ('hypertable' in props) return `SELECT add_dimension('${props.table}', by_range('${props.hypertable}', 1000))`; // Add hyper table dimension
+              if ('lock' in props && props.lock !== 'UPDATE') return `SELECT pg_advisory_xact_lock(${props.lock})`; // Lock <props.lock> id for non-update lock (SELECT .. FOR UPDATE)
+              props.lock = props.lock === 'UPDATE' ? ' FOR UPDATE SKIP LOCKED' : '';
+              if (props.where) return `SELECT ${this.Join(props, ',', '')} FROM ${props.table} WHERE ${props.where}${props.orderasc || props.orderdesc ? (props.orderasc || props.orderdesc) : ''}${props.limit ? ' LIMIT ' + props.limit : ''}${props.lock}`;
+              return `SELECT ${this.Join(props, ',', '')} FROM ${props.table}${this.Join(props, ' AND ')}${props.orderasc || props.orderdesc ? (props.orderasc || props.orderdesc) : ''}${props.limit ? ' LIMIT ' + props.limit : ''}${props.lock}`;
+
          case 'CREATE':
               if ('privileges' in props) return `GRANT ${props.privileges} ON TABLE ${props.table} TO ${props.role}`; // GRANT SELECT|INSERT|UPDATE|DELETE|TRUNCATE|REFERENCES|TRIGGER|ALL ON TABLE <table> TO <role>;
               if ('role' in props) return `CREATE ROLE ${props.role}; GRANT CONNECT ON DATABASE ${props.database} TO ${props.role}; GRANT USAGE ON SCHEMA public TO ${props.role}`; // CREATE ROLE <props.role>
               if ('database' in props) return `CREATE DATABASE ${props.database}`; // Create database
               if ('hypertable' in props) return `SELECT create_hypertable('${props.table}', by_range('${props.hypertable}'))`; // Create hyper table
-              if ('index' in props) return `CREATE ${props.fields[0].value === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX ${props.table}_${props.fields[0].name}_index ON ${props.table} USING ${props.index} (${props.fields[0].name})`; // Create index for 1st field only
+              if ('index' in props) return `CREATE ${props.fields[0].value === 'UNIQUE' ? 'UNIQUE ' : ''}INDEX ${props.table}_${props.fields[0].name}_index ON ${props.table} USING ${props.index} (${props.fields[0].name})${this.Join(props, ' AND ')}`; // Create index for 1st field only
               for (const field of props.fields) if (!('sign' in field)) query += `ALTER TABLE ${props.table} ADD ${field.name} ${field.value};`; // Add non-where clause (no sign prop) columns at the end for default
               return query ? query : `CREATE TABLE ${props.table}()`; // Add non-where clause (no sign prop) columns for any field exist or create table (should `IF NOT EXIST` be used?) in case of no fields defined otherwise
-         case 'WRITE':
-              if ('hypertable' in props) return `SELECT add_dimension('${props.table}', by_range('${props.hypertable}', 1000))`; // Write hyper table dimension
-              query = this.Join(props, ' AND '); // Get WHERE clause in case of any field with sign does exist
-              return query ? `UPDATE ${props.table} SET ${this.Join(props, ',', '=')}${query}` : `INSERT INTO ${props.table} (${this.Join(props, ',', '')}) VALUES (${this.Join(props, '', ',')})`; // Update matched rows or insert new row otherwise
+
+         case 'UPDATE':
+              return `UPDATE ${props.table} SET ${this.Join(props, ',', '=')}${this.Join(props, ' AND ')}`; // Update rows
+
+         case 'INSERT':
+              props.where = this.Join(props, ' AND ');
+               // Insert existing row copy (*** INSERT INTO my_table (id, name, description, price) SELECT 999, name, description, price FROM my_table WHERE id = 42 ***) or just new row depending on WHERE columns exist
+              return props.where ? `INSERT INTO ${props.table} (${this.Join(props, ',', '')}) SELECT ${this.Join(props, '', ',')} FROM ${props.table}${props.where}` : `INSERT INTO ${props.table} (${this.Join(props, ',', '')}) VALUES (${this.Join(props, '', ',')})`;
+
          case 'DROP':
               if ('privileges' in props) return `REVOKE ${props.privileges} ON TABLE ${props.table} FROM ${props.role}`; // DROP role privileges
               if ('role' in props) return `REVOKE CONNECT ON DATABASE ${props.database} FROM ${props.role}; REVOKE USAGE ON SCHEMA public FROM ${props.role}; DROP ROLE ${props.role}`; // DROP role
@@ -91,6 +113,7 @@ export function BuildQuery(props)
               if (query = this.Join(props, ' AND ')) return `DELETE FROM TABLE ${props.table}${query}`; // Drop rows matched WHERE clause
               for (const field of props.fields) query += `ALTER TABLE ${props.table} DROP COLUMN IF EXISTS ${field.name};`; // Drop columns at the end for default. Todo0 - Statement 'DROP COLUMN' doesn't remove column physically. Fix it. See https://postgrespro.ru/docs/postgresql/14/sql-altertable for details
               return query;
+
          case 'SHOWTABLES':
               return this.BuildQuery({ method: 'SELECT', table: 'pg_tables', fields: [{ name: 'tablename' }, { name: 'schemaname', sign: '=', value: `'public'` }] }); // Props for BuildQuery() function should be passed already prepared, cause preparing is done at Make() function
          case 'CREATETMDBEXTENSION':
@@ -116,7 +139,7 @@ export function BuildQuery(props)
 // Todo0 - 19/03/2026: Process no PGSQL running error, in this case no error in concole and client side shows just no any OD in sidebar without any warnings. What if new OD is created? What error will it be?
 // Todo0 - Study psql syntax:
 //         SELECT current_database(); SELECT current_schema(); SELECT current_user;
-//         \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html)
+//         \c oe postgres - connect to oe db via user postgres (https://www.postgresql.org/docs/9.1/app-psql.html) (https://node-postgres.com/apis/pool)
 //         \l list databases
 //         \dt [*.*] list tables [of all schemas]
 //         \c postgres postgres; 

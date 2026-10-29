@@ -9,6 +9,7 @@ import * as macro from './macro.js';
 import * as qm from './querymaker.js';
 import * as consts from './static/consts.js';
 import * as funcs from './static/funcs.js';
+import { escape } from 'querystring';
 
 const { Pool, Client }      = pg;
 const UNKNOWNDBID           = 'Incorrect or nonexistent database id!';
@@ -53,6 +54,10 @@ export class Controller
  // Arrow function example (specified ms value to sleep by): export const freeze = ms => new Promise(resolve => setTimeout(resolve, ms)); // await freeze(0);
  constructor(HTTP, WS, DB)
  {
+  pg.types.setTypeParser(1114, str => str); // Redefine type parsers (just return a string instead of JS conversion): 1114 — TIMESTAMP inner ID in Postgres
+  pg.types.setTypeParser(1082, str => str); // Redefine type parsers (just return a string instead of JS conversion): 1082 — DATE inner ID in Postgres
+  pg.types.setTypeParser(1184, str => str); // Redefine type parsers (just return a string instead of JS conversion): 1184 — TIMESTAMPTZ inner ID in Postgres
+
   global[consts.WRITETOFILEFUNC] = (header, msg) => // Bind 'write-to-logfile' function to global object uniq property (Symbol). Needed for 'Log' function in func.js that is used as an external module in both NodeJS and browser js virtual machine
   {
    if (LASTLOGMSG === msg) return LASTLOGCOUNTER++;
@@ -65,10 +70,15 @@ export class Controller
   if (this.HTTP = HTTP) http.createServer(this.HTTPNewConnection.bind(this)).listen(HTTP.port, HTTP.ip); // Todo0 - set secure server via https instead of http
   if (this.WS = WS) new WebSocketServer({ host: WS.ip, port: WS.port }).on('connection', this.WSNewConnection.bind(this));
   if (this.DB = DB) this.pool = new Pool(DB.adminconfig);
+  // Client auth codes object [authcode]: { userid:, username: }
   this.clientauthcodes = {};
+  // Session object [socket]: { socket:, ip:, ods: { [odid]: { ovs: { [ovid]: { query:, replacements: } } } }, auth:, userid:, username:, idle: }
   this.sessions = new Map();
-  this.ods = {}; // Object databases
-  this.ups = {}; // User profiles
+  // App OD object [odid]: { dialog:, od: {}, elements: {}, views: {}, rules: {} }
+  this.ods = {};
+  // User profile object [userid]: { name:, tags: [username, usergroup1, usergroup2..], policy: {}, customization: {}, eventgroups: {} }
+  this.ups = {};
+  // App module object [module name]: module
   this.modules = {};
   for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => this.GracefulShutdown(signal)); // Todo1 - should  signal 'uncaughtException' be added for a final app version?
  }
@@ -192,7 +202,7 @@ export class Controller
  async Authenticate(username, password)
  {
   let hash;
-  const macroobject = { odid: "1", ename: `${consts.ELEMENTCOLUMNPREFIX}2`, oid: `${consts.ELEMENTCOLUMNPREFIX}1='${username}'` };
+  const macroobject = { odid: "1", ename: `${consts.ELEMENTCOLUMNPREFIX}2`, oid: `${consts.ELEMENTCOLUMNPREFIX}1='${username}' AND lastversion = TRUE` };
   if (typeof username !== 'string' || !username) return { type: 'LOGINACK', data: "User name couldn't be empty!" };
   if (typeof password !== 'string' || !password) return { type: 'LOGINACK', data: "Password couldn't be empty!" };
 
@@ -378,12 +388,16 @@ export class Controller
 
   // Creating new User OD with emulating user session and user profile (this.ups)
   const session = { socket: { send: function(){} }, auth: true, userid: consts.PRIMARYKEYSTARTVALUE, username: consts.SUPERUSER, ods: { '1': { ovs: { '1': { tblname: 'data_1', replacements: {} } } } } };
+
   this.sessions.set(session.socket, session);
-  this.ups[consts.PRIMARYKEYSTARTVALUE] = { tags: [consts.SUPERUSER] };
+  this.ups[consts.PRIMARYKEYSTARTVALUE] = { tags: [consts.SUPERUSER],
+                                            eventgroups: { SYSTEM: { ADDOBJECT: { handlertype: 'Module function',
+                                                                                  handlerdata: 'system.Userset\n${EVENTNAME}\n${EID}\n${EVENTDATA}\n${USERNAME}\n${"ename":"' + consts.ELEMENTCOLUMNPREFIX + '1"}',
+                                                                                  output: { Wrap: false, Debug: false, Ignore: false } } } } };
 
   await this.SetNewODInstance(consts.USEROBJECTDATABASE, undefined, session);
   await this.Start();
-  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', data: { odid: '1', ovid: '1', '1': consts.SUPERUSER, '2': consts.SUPERUSER, '3': 'Super user' } }), session);
+  await this.Handler(JSON.stringify({ type: 'ADDOBJECT', data: { odid: '1', ovid: '1', '1': consts.SUPERUSER, '2': consts.SUPERUSER, '3': 'Super user', '4': consts.RANDOMSTRINGID, '6': consts.RANDOMSTRINGID } }), session);
   await this.ClosePool();
  }
 
@@ -393,7 +407,7 @@ export class Controller
   // Create new databases and write its structure. First - head_ table
   await transaction.query(...qm.Make({ method: 'CREATE', table: `head_${odid}` }));
   await transaction.query(...qm.Make({ method: 'CREATE', table: `head_${odid}`, fields: [{ name: 'id', value: 'INTEGER', constraint: `PRIMARY KEY GENERATED ALWAYS AS IDENTITY` },
-                                                                                         { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                         { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP(0)' },
                                                                                          { name: 'userid', value: 'INTEGER' },
                                                                                          { name: 'dialog', value: 'JSON' }] }));
   // Second - data_ table
@@ -403,20 +417,22 @@ export class Controller
                                                                                         { name: 'lastversion', value: 'BOOLEAN', constraint: 'DEFAULT TRUE' },
                                                                                         { name: 'mask', value: 'TEXT' },
                                                                                         { name: 'ownerid', value: 'INTEGER' },
-                                                                                        { name: 'owner', value: `VARCHAR(${consts.USERNAMEMAXCHAR})` },
-                                                                                        { name: 'datetime', value: 'TIMESTAMP', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                        { name: 'ownername', value: `VARCHAR(${consts.USERNAMEMAXCHAR})` },
+                                                                                        { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP(0)' },
                                                                                         { name: 'date', value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
-                                                                                        { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                        { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME(0)' },
                                                                                         { name: 'PRIMARY', value: 'KEY(id, version)' }] }));
+  await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: 'btree', fields:[ 'id', { name: 'lastversion', sign: '=', value: 'TRUE' } ] }));
+
   // Third - timescale table metr_                                                                               
   await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}` }));
   await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, fields: [{ name: 'id', value: 'INTEGER' },
-                                                                                         { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP' },
+                                                                                         { name: 'datetime', value: 'TIMESTAMPTZ', constraint: 'DEFAULT CURRENT_TIMESTAMP(0)' },
                                                                                          { name: 'date', value: 'DATE', constraint: 'DEFAULT CURRENT_DATE' },
-                                                                                         { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME' },
+                                                                                         { name: 'time', value: 'TIME', constraint: 'DEFAULT CURRENT_TIME(0)' },
                                                                                          { name: 'value', value: 'FLOAT' }] }));
   await transaction.query(...qm.Make({ method: 'CREATE', table: `metr_${odid}`, hypertable: 'datetime' })); // Create hyper table with dimension 'datetime'
-  await transaction.query(...qm.Make({ method: 'WRITE', table: `metr_${odid}`, hypertable: 'id' })); // Add hyper table dimension 'id'
+  await transaction.query(...qm.Make({ method: 'SELECT', table: `metr_${odid}`, hypertable: 'id' })); // Add hyper table dimension 'id'
   // Create custom user data table <meta_N> in a addition to <data_N>/<metr_N> to insert any non application random data
   await transaction.query(...qm.Make({ method: 'CREATE', table: `meta_${odid}` }));
  }
@@ -478,14 +494,14 @@ export class Controller
        // Create/change element appropriate data_N table columns
        for (const eid in newodprops.elements)
         if (!oldodprops || !(eid in oldodprops.elements)) await this.ManageColumns(odid, eid, newodprops.elements[eid].type, newodprops.elements[eid].index === 'None' ? undefined : newodprops.elements[eid].index, transaction); // Element is in new instance only, so create its column and index if needed
-         else if (oldodprops?.elements[eid] && oldodprops.elements[eid].index !== newodprops.elements[eid].index) await this.ManageColumns(odid, eid, undefined, newodprops.elements[id].index, transaction); // Element does exist in both instances, so just check index change
+         else if (oldodprops?.elements[eid] && oldodprops.elements[eid].index !== newodprops.elements[eid].index) await this.ManageColumns(odid, eid, undefined, newodprops.elements[eid].index, transaction); // Element does exist in both instances, so just check index change
 
        // Drop element appropriate data_N table columns
        if (oldodprops) for (const eid in oldodprops.elements)
           if (!(eid in newodprops.elements)) this.ManageColumns(odid, eid, 'DROP', oldodprops.elements[id].index === 'None' ? undefined : 'None', transaction); // Element is not in new instance, so need to drop its column/index
 
        // Save new OD instance configuration dialog to head table
-       await transaction.query(...qm.Make({ method: 'WRITE', table: `head_${odid}`, fields: [{ name: 'userid', value: session.userid }, { name: 'dialog', value: JSON.stringify(dialog), escape: true }] }));
+       await transaction.query(...qm.Make({ method: 'INSERT', table: `head_${odid}`, fields: [{ name: 'userid', value: session.userid }, { name: 'dialog', value: JSON.stringify(dialog), escape: true }] }));
        await transaction.query(...qm.Make({ method: 'COMMIT' }));
        this.ods[odid] = newodprops;
        this.SendODOVListToClients(odid); // Refresh OD tree with its vews and folders to all wss clients
@@ -520,7 +536,8 @@ export class Controller
   if (indexaction)
      {
       if (indexaction === 'None') await transaction.query(...qm.Make({ method: 'DROP', table: `data_${odid}`, index: '', fields: `${consts.ELEMENTCOLUMNPREFIX}${eid}` }));
-       else await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: indexaction.includes('hash') ? 'hash' : 'btree', fields: { name: `${consts.ELEMENTCOLUMNPREFIX}${eid}`, value: indexaction.includes('UNIQUE') ? 'UNIQUE' : '' } }));
+       else await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: indexaction.includes('hash') ? 'hash' : 'btree', fields: [{ name: `${consts.ELEMENTCOLUMNPREFIX}${eid}`, value: indexaction.includes('UNIQUE') ? 'UNIQUE' : '' }, ...(indexaction.includes('UNIQUE') ? [{ name: 'lastversion', sign: '=', value: 'true' }] : [])] }));
+       // Old version: else await transaction.query(...qm.Make({ method: 'CREATE', table: `data_${odid}`, index: indexaction.includes('hash') ? 'hash' : 'btree', fields: { name: `${consts.ELEMENTCOLUMNPREFIX}${eid}`, value: indexaction.includes('UNIQUE') ? 'UNIQUE' : '' } }));
      }
 
   if (columnaction === 'DROP')
@@ -546,7 +563,6 @@ export class Controller
       const msg = { type: sessionremoving ? 'SIDEBARDELETE' : 'SIDEBARSET', data: { odid: id, path: odprops.od.name, ov: {} } }; // Create message for OD 'id' with its path (e.data) and views defined below
       if (!sessionremoving) for (const ovid in odprops.views) if (odprops.views[ovid].general.name) msg.data.ov[ovid] = odprops.views[ovid].general.name.split('\n');
       if (session === sessionremoving) msg.warning = { content: `Object Database (id '${id}') is successfully removed!`, title: 'Info' };
-      console.log('hui', msg);
       session.socket.send(JSON.stringify(msg));
      }
  }
@@ -648,12 +664,10 @@ export class Controller
  }
   
  // Function returns true rule object or undefined
- async CheckRules(msg, session, replacements)
+ async CheckRules(msg, replacements)
  {
   let transaction, query;
-  const odid = msg.data.odid;
-  const ovid = msg.data.ovid;
-  const database = this.ods[odid];
+  const database = this.ods[msg.data.odid];
 
   try {
        for (const key in database.rules) // Go through all rule profiles
@@ -666,15 +680,7 @@ export class Controller
                 await transaction.query(...qm.Make({ method: 'BEGIN', role: `rwuserodid${msg.data.odid}` }));
                }
             try {
-                 if (/\$\{.*\}/.test(query)) // Does rule query contain any macro?
-                    {
-                     if (!Object.keys(replacements).length) // Current macros contain none?
-                        {
-                         const systemmacros = macro.DefineSystemMacros(session, msg, { type: msg.type }); // For empty <replacements> define system macros (just once)
-                         Object.assign(replacements, systemmacros, database.od.odreplacements, session.ods[odid].ovs[ovid].replacements); // Also for empty <replacements> collect all other OV/OD macros (just once also)
-                        }
-                     query = await macro.MacrosReplace(query, replacements); // and do replacements for <query>
-                    }
+                 query = await macro.MacrosReplace(query, replacements); // and do replacements for <query>
                  query = await transaction.query(...qm.Make({ query: query }, { rowMode: 'array' })); // Execute rule query
                  if (rule.action === 'Pass') continue; // Todo0 - log message for 'Pass' action if log is set. Client message for 'Pass' action is ignored
                  if (query?.rows?.[0]?.[0]) return rule; // Return rule for true query
@@ -696,9 +702,18 @@ export class Controller
  // Function searchs incoming event name <msg.type> among element event groups with events in
  GetEventProfile(msg)
  {
-  const eventgrouplist = this.ods[msg.data.odid]?.elements[msg.data.eid]?.event; // Get event group name list for specified OD and eid
+  if (!this.ods[msg.data?.odid]?.elements) return;
+  if (msg.type === 'DELETEOBJECT' && !msg.data.eid)
+     {
+      let eventprofile;
+      for (const eid in this.ods[msg.data.odid].elements)
+          if ((msg.data.eid = eid) && (eventprofile = this.GetEventProfile(msg))) return eventprofile;
+      return;
+     }
+
+  const eventgrouplist = this.ods[msg.data.odid].elements[msg.data.eid]?.event; // Get event group name list for specified OD and eid
   if (!eventgrouplist) return;
-  for (const line in eventgrouplist.split('\n'))
+  for (const line of eventgrouplist.split('\n'))
       {
        let [eventgroup, eventname] = line.split('/', 2); // Split line specified in OD element profile 'event' textarea
        if (!(eventgroup = this.ups[consts.PRIMARYKEYSTARTVALUE].eventgroups[eventgroup.trim()])) continue; // Check if element event-group name does exist in SUPERUSER event group list
@@ -712,7 +727,12 @@ export class Controller
  // Input args: msg.data.odid, msg.data.ovid, msg.data.oid, msg.data.eid, msg.data.eprop, session.userid, session.username, session.ods
  async ElementHandlerExec(msg, session)
  {
-  let transaction, odid = msg.data.odid, ovid = msg.data.ovid;
+  let result, transaction, odid = msg.data.odid, ovid = msg.data.ovid;
+  const database = this.ods[odid];
+  if (!database) return;
+  const view = database.views[ovid];
+  if (!view) return;
+
   try {
        // Phase 1 - check user auth and client event name correctness. And OD id with OV id exist and interactive
        if (!session.auth || !this.ups[session.userid]) throw new Error(`Authentication required, please log in!`);
@@ -737,165 +757,248 @@ export class Controller
       
        // Phase 4 - Check if the element event exists and is enabled (for all client events except 'ADDOBJECT' and 'DELETEOBJECT')
        let eventprofile;
-       if (msg.type !== 'ADDOBJECT' && msg.type !== 'DELETEOBJECT' && !(eventprofile = GetEventProfile(msg))) return;
+       if (msg.type !== 'ADDOBJECT' && msg.type !== 'DELETEOBJECT' && !(eventprofile = this.GetEventProfile(msg))) return;
 
        // Phase 5 - Check if object id, the event is on, does exist (for all client events except 'ADDOBJECT'). Check actual object existence after handler exec also
-       if (msg.type !== 'ADDOBJECT')
+       const replacements = macro.DefineSystemMacros(session, msg.data, { type: msg.type }); // Define actual macros, first system ones
+       Object.assign(replacements, database.od.odreplacements, session.ods[odid].ovs[ovid].replacements); // then other
+       if (msg.type !== 'ADDOBJECT' && msg.type !== 'DELETEOBJECT')
           {
-           let res = await this.pool.query(...qm.Make({ method: 'EXISTS', query: session.ods[odid].ovs[ovid].query, fields: [ { name: 'id', sign: '=', value: msg.data.oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
-           if (!res?.rows[0]?.exists) throw new Error(`Actual object (id '${msg.data.oid}') doesn't exist in the current OV!`);
+           result = await this.pool.query(...qm.Make({ method: 'EXISTS', query: await macro.MacrosReplace(view.selection.query, replacements), fields: [ { name: 'id', sign: '=', value: msg.data.oid }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
+           if (!result?.rows[0]?.exists) throw new Error(`Actual object (id '${msg.data.oid}') doesn't exist in the current OV!`);
           }
 
        // Phase 6 - Rule check. Every rule has message, query, action and log props. Check every rule query on successful result to apply rule action with message logged
-       const replacements = {};
-       let rule = await this.CheckRules(msg, session, replacements);
-       if (rule) // The rule <rule> result is true, so perform rule action
-          {
-           rule.message = await macro.MacrosReplace(rule.message, replacements); // Old version check any macro presence before <MacroReplace> function call: if (/\$\{.*\}/.test(rule.message)). It's not needed - <MacroReplace> function checks the presence by its self via indexOf('${'). The only reason of macro presence chek before <MacroReplace> call is no need to prepare macro value replacements
-           if (rule.action === 'Reject')
-              if (rule.warning) throw new Error(`Rule '${rule.key}' reject: ` + rule.message);
-                 else return;
-          }
-          
+       let rule = await this.CheckRules(msg, replacements);
+       if (rule && rule.action === 'Reject') // The rule <rule> result is true, so perform rule action
+          if (rule.warning) throw new Error(`Rule '${rule.key}' reject: ` + await macro.MacrosReplace(rule.message, replacements)); else return; // Todo0 - do macro replacement with ${RULEKEY} and ${RULEQUERY}, so prefix `Rule '${rule.key}' reject: ` is not needed
+
+       // Phase 7 - Handler exec
+       const eids = [];
        switch (msg.type)
               {
-               case 'ADDOBJECT_':
-                    const columns = [];
-                    for (const eid in this.ods[odid].elements)
+               case 'ADDOBJECT':
+                    for (const eid in this.ods[odid].elements) // Go through all eids to call ADDOBJECT handler for
                         {
-                         let json = '';
-                         msg.data.eid = eid;
-                         if (!(eventprofile = this.GetEventProfile(msg))) continue;
-                         if (!eventprofile.output.Ignore && !eventprofile.output.Debug)
+                         try {
+                              msg.data.eid = eid; // Set msg data 'eid' for an actual macros
+                              if (!(eventprofile = this.GetEventProfile(msg)) || eventprofile.output.Ignore || eventprofile.output.Debug) continue; // For ADDOBJECT event exist and not checked Ignore/Debug handler actions
+                              replacements.EVENTDATA = msg.data[eid] ? msg.data[eid] : '';
+                              replacements.EID = eid;
+                              replacements.ELEMENT = macro.DefineComplexMacro(replacements, ['EID']);
+                              result = await this.GetHandlerResult(eventprofile, replacements); // Exec appropriate event handler
+                              if (result !== undefined) eids.push(Object.assign(result, { id: eid, name: consts.ELEMENTCOLUMNPREFIX + eid, escape: true })); // Old version: if (result !== undefined) eids[eid] = result;
+                             }
+                         catch(error)
+                             {
+                              funcs.Log(`Event '${msg.type}' handler execution error: ${error.stack}`);
+                             }
+                        }
+                    result = await this.NewObjectInstance(eids, replacements, view)
+                    if (result) throw new Error(`Creating new object error: ${result}`);
+                    break;
+               case 'DELETEOBJECT':
+                    const objectstodelete = Object.keys(msg.data).filter(key => /^\d+$/.test(key) && key[0] !== '0'); // Create object ids to delete
+                    if (consts.MAXOBJECTSTODELETE && objectstodelete.length > consts.MAXOBJECTSTODELETE) throw new Error(`Deleting of more than ${consts.MAXOBJECTSTODELETE} objects per operation is restricted!`);
+                    replacements.OID = JSON.stringify(objectstodelete);
+                    this.GetHandlerResult(this.GetEventProfile(msg), replacements); // Search event profile for DELETEOBJECT event (1st found element with that event defined is used) and exec appropriate event handler
+                    result = await this.NewObjectInstance(objectstodelete, replacements, view)
+                    if (result) throw new Error(`Deleting object error: ${result}`);
+                    break;
+               case 'ONTIMER':
+                    break;
+               default:
+                    result = await this.GetHandlerResult(eventprofile, replacements); // Exec appropriate event handler
+                    if (result === undefined) break; // Ignore undefined result
+
+                    // SET events
+                    if (consts.HANDLERSETEVENTS.includes(result.type))
+                       {
+                        if (['MUTERESET', 'RESET'].includes(result.type)) // Compare new element data with old element data for RESET event
+                           {
+                            let elementdata = await transaction.query(...qm.Make({ method: 'SELECT', table: replacements.DBDATATBLNAME, fields: [ consts.ELEMENTCOLUMNPREFIX + replacements.EID, { name: 'id', sign: '=', value: replacements.OID }, { name: 'lastversion', sign: '=', value: 'true' } ] }, { rowMode: 'array' })); // Get old element data to compare
+                            if (result.value === elementdata?.rows[0]?.[0]) break; // and do nothing for no data change (RESET event create object new version for changed element data only)
+                           } 
+                        eids.push(Object.assign(result, { id: replacements.EID, name: consts.ELEMENTCOLUMNPREFIX + replacements.EID, escape: ['SUBSET', 'MUTESUBSET'].includes(result.type) ? 'OR' : true }));
+                        const originatedeid = replacements.EID;
+                        msg.type = replacements.EVENTNAME = 'ONCHANGE';
+                        replacements.EVENTDATA = macro.DefineComplexMacro(replacements, ['EID', 'EPROP', 'EVENTDATA']);
+                        delete replacements.EPROP;
+                        for (const eid in this.ods[odid].elements) if (eid !== originatedeid) // Go through all eids (exept originated) to call handler for ONCHANGE event
                             {
                              try {
-                                  json = await this.GetHandlerResult(eventprofile, Object.assign(replacements, { EVENTDATA: msg.data[eid] ? msg.data[eid] : '', EID: eid }));
-                                  json = Object.parse(json);
-                                  if (json === undefined) json = '';
-                                  if (typeof json === 'number' && isNaN(json)) json = String(json);
-                                  if (eventprofile.output.Wrap) json = { type: Set, data: json };
-                                  if (eventprofile.output.Debug) {} // Todo0 - Convert handler result to DIALOG event here
-
-                                  if (!('type' in json)) throw new Error(`Handler returned incorrect json: 'type' property is absent!`);
-                                  if (!consts.EVENTSONOBJECTADD.includes(json.type)) throw new Error(`Handler returned incorrect json: unknown 'type' property '${json.type}'! Expected event types: '${consts.EVENTSONOBJECTADD.join("', '")}'`);
-                                  if (!('data' in json)) throw new Error(`Handler returned incorrect json: 'data' property is absent!`);
-                                  json = json.data;
+                                  replacements.EID = msg.data.eid = eid; // Set msg data 'eid' for an actual macros
+                                  if (!(eventprofile = this.GetEventProfile(msg))) continue; // For ONCHANGE event exist check rule below for every element
+                                  rule = await this.CheckRules(msg, replacements);
+                                  if (rule && rule.action === 'Reject') continue; // The rule <rule> result is true, so perform rule action
+                                  result = await this.GetHandlerResult(eventprofile, replacements); // Exec appropriate event handler
+                                  if (result !== undefined) eids.push(Object.assign(result, { id: replacements.EID, name: consts.ELEMENTCOLUMNPREFIX + eid, escape: ['SUBSET', 'MUTESUBSET'].includes(result.type) ? 'OR' : true }));
                                  }
                              catch(error)
                                  {
-                                  json = '';
+                                  funcs.Log(`Event '${msg.type}' handler execution error: ${error.stack}`);
                                  }
                             }
-                         columns.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json, escape: true });
-                        }
-                    await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: columns }));
-                    break;
-               case 'ADDOBJECT': //
-                    const fields = [];
-                    for (const eid in this.ods[odid].elements)
-                        {
-                         if (typeof this.modules?.system?.Userset !== 'function') continue;
-                         //let json = await this.modules.system.Userset(eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
-                         let json = await this.modules.system.Userset('ADDOBJECT', eid, msg.data[eid] ? msg.data[eid] : '', session.username); // Parse handler output for JSON/plaintext for the data to be set in a new object
-                         //(eventname, eid, eventdata, userfrom, userto)
-                         try { json = JSON.parse(json); }
-                         catch { continue; }
-                         if (json.type !== 'SET') continue;
-                         if (json.data && typeof json.data === 'object') json.data = JSON.stringify(json.data);
-                         if (typeof json.data !== 'string') continue;
-                         fields.push({ name: consts.ELEMENTCOLUMNPREFIX + eid, value: json.data, escape: true });
-                        }
-                    await this.pool.query(...qm.Make({ method: 'WRITE', table: `data_${odid}`, fields: fields }));
-                    break;
-               case 'KEYF2OLD':
-                    if (msg.eid === '7' && msg.data.value === '0')
-                    break;
+                        result = await this.NewObjectInstance(eids, replacements, view)
+                        if (result) throw new Error(`Changing object error: ${result}`);
+                        break;
+                       }
               }
       }
   catch (error)
       {
+       if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
        funcs.Log(`Handler execution error: ${error.stack}`);
-       if (session) session.socket.send(JSON.stringify({ type: 'NULL', data: { odid: odid, ovid: ovid }, warning: { content: error.message, title: 'Error' } }));
+       if (session) session.socket.send(JSON.stringify({ type: 'NULL', data: { odid: odid, ovid: ovid, childid: msg.data.childid }, warning: { content: error.message, title: 'Error' } }));
        return;
+      }
+  finally
+      {
+       if (transaction) transaction.release();
+      }
+ }
+
+ // Function creates new object instance for object create/delete/change with <ids> as a fields ({ type:, id: eid, name: consts.ELEMENTCOLUMNPREFIX + eid, escape: true, value: }) for create/change object and as object ids for delete object
+ async NewObjectInstance(ids, replacements, view)
+ {
+  let result, transaction;
+  if (replacements.EVENTNAME !== 'ADDOBJECT' && !ids.length) return; // Object change/delete operation has no data? return;
+
+  try {
+       // Create transaction for non-ADDOBJECT event
+       if (replacements.EVENTNAME !== 'ADDOBJECT') transaction = await this.pool.connect();
+       if (replacements.EVENTNAME !== 'ADDOBJECT') await transaction.query(...qm.Make({ method: 'BEGIN' }));
+
+       // Lock rows specified by event
+       if (replacements.EVENTNAME === 'DELETEOBJECT') result = await transaction.query(...qm.Make({ method: 'SELECT', query: await macro.MacrosReplace(view.selection.query, replacements), lock: 'UPDATE', fields: [ 'id',              { name: 'id', sign: '=', escape: 'ANY', value: ids }, { name: 'lastversion', sign: '=', value: 'true' } ] }));
+       if (replacements.EVENTNAME === 'ONCHANGE')     result = await transaction.query(...qm.Make({ method: 'SELECT', table: replacements.DBDATATBLNAME,                                    lock: 'UPDATE', fields: [ 'version', 'mask', { name: 'id', sign: '=', value: replacements.OID },   { name: 'lastversion', sign: '=', value: 'true' } ] }));
+       if (replacements.EVENTNAME !== 'ADDOBJECT' && !result?.rows?.[0]) throw new Error(`Failed to lock some rows on object ${replacements.EVENTNAME === 'ONCHANGE' ? 'change' : 'delete'} operation!`); // Row lock failed
+
+       // 
+       if (replacements.EVENTNAME === 'ADDOBJECT')
+          {
+           for (const column of ids) if (typeof column.value !== 'string') column.value = typeof column.value === 'object' && column.value ? JSON.stringify(column.value) : String(column.value); // Modify column value for non string type
+           ids.push({ name: 'mask', value: Object.keys(this.ods[replacements.ODID].elements).join(',') }, { name: 'ownerid', value: replacements.USERID }, { name: 'ownername', value: replacements.USERNAME, escape: true });
+           await this.pool.query(...qm.Make({ method: 'INSERT', table: replacements.DBDATATBLNAME, fields: ids }));
+          }
+
+       //
+       if (replacements.EVENTNAME === 'ONCHANGE')
+          {
+           let { version, mask } = result.rows[0]; // The 'mask' column is a comma-separated list of element IDs that were modified in this version of the object. For the first version of the object, this column contains all IDs separated by commas.
+           const newmask = [], modifiedeids = ids, unmodifiedeids = [], modifiedeidsprevversion = mask.split(','), unmodifiedeidsprevversion = []; // Define current (new) and previous version modified/unmodified element IDS below
+           for (const column of modifiedeids) newmask.push(column.id); // Generate new object version comma-separated modified ids called 'mask' (it will be joined with comma char to be stored in db)
+           for (const id of Object.keys(this.ods[replacements.ODID].elements))
+               {
+                if (!newmask.includes(id)) unmodifiedeids.push({ name: consts.ELEMENTCOLUMNPREFIX + id, value: consts.ELEMENTCOLUMNPREFIX + id }); // Generate fields to extract from prev object version at INSERT operation for query maker
+                if (!modifiedeidsprevversion.includes(id)) unmodifiedeidsprevversion.push({ name: consts.ELEMENTCOLUMNPREFIX + id, value: null }); // Generate fields to be set to NULL in prev object version at UPDATE operation for query maker
+               }
+           for (const column of modifiedeids) if (typeof column.value !== 'string') column.value = typeof column.value === 'object' && column.value ? JSON.stringify(column.value) : String(column.value); // Modify column value for non string type
+
+           // Set last object version column 'lastversion' to false
+           await transaction.query(...qm.Make({ method: 'UPDATE', table: `data_${odid}`, fields: [{ name: 'lastversion', value: 'false' }, { name: 'id', sign: '=', value: replacements.OID }, { name: 'lastversion', sign: '=', value: 'true' }] }));
+           // Set current (new) version
+           modifiedeids.push({ name: 'id', value: replacements.OID }, { name: 'version', value: version + 1 }, { name: 'lastversion', value: 'true' }, { name: 'mask', value: newmask.join(',') }, { name: 'ownerid', value: replacements.USERID }, { name: 'ownername', value: replacements.USERNAME, escape: true }); // Add service element column values to modified ones
+           modifiedeids.push(...unmodifiedeids, { name: 'id', sign: '=', value: replacements.OID }, { name: 'version', sign: '=', value: version }); // Unmodified columns is copied from previous object version
+           await transaction.query(...qm.Make({ method: 'INSERT', table: `data_${odid}`, fields: modifiedeids }));
+           // Set last object version unmodified columns to NULL
+           unmodifiedeidsprevversion.push({ name: 'id', sign: '=', value: replacements.OID }, { name: 'version', sign: '=', value: version });
+           await transaction.query(...qm.Make({ method: 'UPDATE', table: `data_${odid}`, fields: unmodifiedeidsprevversion }));
+          }
+
+       //
+       if (replacements.EVENTNAME === 'DELETEOBJECT') for (const {id} of result.rows) // get locked objectids
+          {
+           await transaction.query(...qm.Make({ method: 'UPDATE', table: `data_${odid}`, fields: [{ name: 'lastversion', value: 'false' }, { name: 'id', sign: '=', value: id }, { name: 'lastversion', sign: '=', value: 'true' }] }));
+           await transaction.query(...qm.Make({ method: 'INSERT', table: `data_${odid}`, fields: [{ name: 'id', value: id }, { name: 'version', value: 0 }, { name: 'lastversion', value: 'false' }, { name: 'mask', value: '' }, { name: 'ownerid', value: replacements.USERID }, { name: 'ownername', value: replacements.USERNAME, escape: true }] }));
+          }
+
+       // Commit
+       if (transaction) return await transaction.query(...qm.Make({ method: 'COMMIT' })) || true;
+      }  
+  catch (error)
+      {
+       if (transaction) await transaction.query(...qm.Make({ method: 'ROLLBACK' }));
+       funcs.Log(`Handler execution error: ${error.message}`);
+       return error.message;
+      }
+  finally
+      {
+       if (transaction) transaction.release();
       }
  }
 
  // Function executes event profile handler only and returns the result of execution
  async GetHandlerResult(eventprofile, replacements)
  {
+  if (!eventprofile) return;
+  let result;
+  if (replacements.EVENTNAME === 'DELETEOBJECT') eventprofile.output.Ignore = true;
+
   switch (eventprofile.handlertype)
          {
-          case 'Fixed output':
-               return eventprofile.output.Ignore ? undefined : await macro.MacrosReplace(eventprofile.handlerdata, replacements, this); // // Ignore action for fixed output makes no sence, so undefined is returned. Otherwise do replacements for handler data and return it
-          case 'Command line':
+          case 'Fixed output': // Expected types: string only
+               if (eventprofile.output.Ignore) return; // Ignore action for fixed output makes no sence, so just return
+               result = await macro.MacrosReplace(eventprofile.handlerdata, replacements, this); // Do replacements for handler data
+               return this.CheckHandlerResult(result, replacements, eventprofile);
+          case 'Command line': // Expected types: string or undefined
           case 'Shell command line':
                // Todo0 - later 
                return;
-          default: // 'Module function'
-               let callback = this.modules, cmd, args;
-               const pos = eventprofile.handlerdata.indexOf('\n');
-               if (pos === -1) // Retreive handler command (1st line) and args (all lines below) from handlerdata text area
+          default: // 'Module function' handler, expected types: undefined, string or not null object (other types are allowed also, but correct for 'wrap' action only)
+               let callback = this.modules, cmd = await macro.MacrosReplace(eventprofile.handlerdata, replacements, this), args = []; // Parse handler data to module name and empty args list
+               if (cmd.includes('\n')) // For multiple-line module name treat 2nd line and all others as an arguments (one by line)
                   {
-                   cmd = eventprofile.handlerdata; // Handler data is a single line, so set command <cmd> to that 1st line
-                   args = []; // with empty arg list
+                   args = cmd.split('\n').slice(1);
+                   cmd = cmd.substring(0, cmd.indexOf('\n'));
                   }
-                else
-                  {
-                   cmd = eventprofile.handlerdata.substring(0, pos); // Otherwise set <cmd> to the 1st line also (note that macro replacing is not perfomed on cmd string)
-                   args = (await macro.MacrosReplace(eventprofile.handlerdata.substring(pos), replacements, this)).split('\n'); // and estimated lines to <cmd> 'macro replaced' args
-                  }
-               for (const name of cmd.split('.')) if (!(name = name.trim()) || !(callback = callback[name.trim()])) throw new Error(`Unknown module function '${cmd}'!`); // Go to module function name (shouldn't be empty)
+               for (let name of cmd.split('.')) if (!(name = name.trim()) || !(callback = callback[name])) throw new Error(`Unknown module function '${cmd}'!`); // Go to module function name (shouldn't be empty)
                if (typeof callback !== 'function') throw new Error(`Unknown module function '${cmd}'!`); // Retrieved function is not a function?
                if (callback.constructor?.name !== 'AsyncFunction') throw new Error(`Expected an async, but received a synchronous module function '${cmd}'!`); // or retrieved function is not async one?
-               if (eventprofile.output.Ignore) // Just call <callback> function in ignore mode and return with no result
-                  {  
-                   callback(...args);
-                   return;
-                  }
-               const result = await callback(...args); // No ignore option, so wait handler result
-               if ((typeof result === 'number' && isNaN(result)) || result === null) result = String(result); // This function goal is to return native module function result, so adjust that result some types to string. All JS types: number (NaN), bigint, string, boolean, object (null, {}, [], function), undefined, symbol, function
-               if (['symbol', 'function'].includes(typeof result)) throw new Error(`Module function '${cmd}' returned unacceptable data type '${typeof result}'! Expected types: object, undefined, number, bigint, boolean or string`);
-               return result;
+               if (eventprofile.output.Ignore && callback(...args)) return;
+               result = await callback(...args); // No ignore option, so wait handler result. This function goal is to return native module function result. All JS types: number (NaN), bigint, string, boolean, object (null, {}, [], function), undefined, symbol, function
+               return this.CheckHandlerResult(result, replacements, eventprofile);
          } 
+ }
+
+ // Function checks handler result
+ CheckHandlerResult(result, replacements, eventprofile)
+ {
+  if (result === undefined && !eventprofile.output.Wrap) return; // Return undefined result as it is for 'no-wrap' option
+  if (typeof result === 'object' && result) // For 'object' type result leave untouched or wrap it
+     {
+      if (eventprofile.output.Wrap) result = { type: 'SET', data: result }; // Todo0 - add wrap event to event profiler with all handler events plus 'None'
+     }
+   else // Otherwise - wrap it converting to the string or parse it to object
+     {
+      if (eventprofile.output.Wrap) result = { type: 'SET', data: String(result) };
+       else result = JSON.parse(result);
+     }
+ 
+  if (typeof result !== 'object' || !result) throw new Error(`Event '${replacements.EVENTNAME}' handler returned unacceptable type of data '${result === null ? 'null' : typeof result}'!`); // Throw an exception for result that can't be parsed
+  if (!('type' in result)) throw new Error(`Handler incorrect result: 'type' property is undefined!`);
+  const allowedevents = consts.CLIENTEVENTSSETONLY.includes(replacements.EVENTNAME) ? consts.HANDLERSETEVENTS : consts.HANDLEREVENTS;
+  if (!allowedevents.includes(result.type)) throw new Error(`Handler incorrect result: unknown type property '${result.type}'! Expected values: ${allowedevents.join(', ')}`);
+  if (!('data' in result) && consts.HANDLEREVENTSWITHDATA.includes(result.type)) throw new Error(`Handler incorrect result: 'data' property is absent!`);
+  if ('data' in result && typeof result.data !== 'string') if (typeof result.data !== 'object' || !result.data) result.data = String(result.data);
+  return 'data' in result ? { type: result.type, value: result.data } : { type: result.type };
  }
 }
 
+// Todo0 - look to all php code for todo
 // Todo0 - all OD, user, GUI customization and event profiler dialog settings workable
 // Todo0 - Change pass or user delete - force user logout, and natively restrict root user delete
-// Todo0 - Handler-call element policy on backend - user double clicked on any object element is unable generate another double click event on other (or same) object element
-// Todo0 - what about edit after edit command, for a example edited text is passed to controller (confirm event) and edit command occurs as a response to confirm event?
-// Todo0 - Incoming client/handler events check:
-//      1. User permissions check
-//      2. View permissions check
-//      3. Non disabled event existing check for the element
-//      4. Selection/layout check, here object id existence check:
-//           SELECT EXISTS (
-//               SELECT 1 
-//               FROM (
-//                     -- Вставьте сюда ВЕСЬ ваш сложный запрос БЕЗ изменений
-//                     SELECT * FROM data1 WHERE <ваши_условия>
-//                    ) AS subquery WHERE id = 1 and lastversion=true);
-//      5. Rule check
-//      6. Event handler exec for callable elements (interactive)
-//         Every object element has a list of event profile names one by line. No any profile - element is non interactive and cannot react on user events (such as keyboard/maouse/paste/schedule and others) to call its event handlers. 
-//         At any client/server side element event occur - incoming event is checked on all event groups until the match. Once the match is found - the specified event with its handler is called to process event and its data. 
-//         Every event may have 'disabled' handler type to set explicitly no call-handler (may be usefull to cancel through-profiles event search with no action)
-//         Command line handler data are not single line, but multiple. Controller runs first line handler, while other ones may be used as a comments
-//         Negative queue value (the scheduler sleep for) in msec on crontab line
 // Todo0 - Start event in OV layout is any client event whth no event data (that is no where to place). Emulataion of 'select all objects and then delete them', 'charts', 'regexp search' (emulates ctrl+shift+f at OV open) is deprecated
 // Todo0 - object elements values, set in layout, shouldn't be changed/refreshed at controller SET and other events
 // Todo0 - any single text line with Enter and then Backspace pressed should be stored the way it is before pressing Enter with Backspace, but it is stored original line + '\n'. Correct it!
+// Todo0 - OV with 1 sec lifetime and macro dialog just warning msg - this case OV becomes an info notification, so after macro dialog close ov is closed also due to estimated timer
+// Todo0 - For SHCEDULER event warning msg goes to the log
 
-// Todo0 - all view changes comes to client side with odid/ovid with object id and its element id/prop.
-//         Controller passes all changed data to all clients that has this view opened, so that clients apply all changes right now (not forgetting to check oid presense, cause of possible random or non-actual selection).
-//         To other clients controller just sends modification notifications for all oid/eid changed, so client side may display 'new notification' in a sidebar against the sent view
-//          - client inited the change
-//          - client that has this OV open
-//          - client that has not OV open but in sidebar
-//          - client that has no this OV in sidebar
-// Todo0 - shoud OD/OV versions should be stored and where, nahui?
+// Todo0 - any object change/add/delete generates OBJECTCHANGE msg with data prop of eventid-query-layout-odid-ovid-[oid-eid-prop] to all clients
+//         client side originated OV id and OD id:      for not open OV increase hint, otherwise for existed oid/eid and query/layout match - send OBJECTGET msg to the controller to get OBJECTSET message of eventid-odid-ovid-oid-eid/prop row changed data (not forgetting of controller-side check of query/layout match and readable OV), no data in OBJECTSET - increase hint, data is in OBJECTSET - decrease hint
+//         client side not-originated OV id but OD id:  for open OV and eid/oid existence - increase hint
+//         Handler-call element policy on backend - user double clicked on any object element is unable generate another double click event on other (or same) object element: { sessionid-odid-oid-eid-eprop:, ovid:, timestamp:, ttl: }
 
-// Todo0 - release all event chain from handler to the conrtoller and then to client side with 'MUTE' add to all SET events
 // Todo0 - all table cells have their allowed real html tags, plus custom tags <stream> (to display video streams) and <tsdb> (to draw graphs from tsdb). How should tag <tsdb> be refreshed? Via scheduled OV refresh or another way?
 //         Every user defined element (eid1, eid2..) has its external data - files (documents, audio, video, image..), so app data represents 3D model: 1st dimension - objects, 2nd - objects elements, 3rd - element JSON props and files
 //		   Configurate element external data (files) via handler commands for cameras (timeshift, source, qulity), for tsdb (duration, unit of measure[sec, mbits, ...]), for file upload/download (for example GALLERY handler event shows all object element files for default, otherwise - foto/audio/video. Image properties (like resolution) should be displayed and left/right arrows control at the right top view block. Smooth image changing also?)

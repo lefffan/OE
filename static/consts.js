@@ -1,12 +1,13 @@
 import * as funcs from './funcs.js';
 
-export const SYSTEMELEMENTNAMES     = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', owner: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
+export const SYSTEMELEMENTNAMES     = { id : 'Object identificator', version: 'Object store version', lastversion: 'Flag indicates the object last instance', mask: 'Object modified elements bit mask', ownerid: 'User id the object was created by', ownername: 'User name the object was created by', datetime: 'Date and time this object version was created at', date: 'The date this object version was created at', time: 'The time this object version was created at' };
 export const SUPERUSER              = 'root';
 export const BUTTONOK               = JSON.stringify({ type: 'button', data: '  OK  ', style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: bold 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a' });
 export const BUTTONCANCEL           = JSON.stringify({ type: 'button', data: 'CANCEL', style: `border: 1px solid rgb(227,125,87); color: rgb(227,125,87); background-color: transparent; font: bold 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;` });
 export const BUTTONAPPLY            = JSON.stringify({ type: 'button', data: 'APPLY',  style: `border: 1px solid rgb(0, 124, 187); color: rgb(0, 124, 187); background-color: transparent; font: bold 14px Metropolis, 'Avenir Next', 'Helvetica Neue', Arial, sans-serif;`, flag: 'a*' });
 export const MODALBOXPROPS          = JSON.stringify({ animation: 'rise', position: 'CENTER', overlay: 'MODAL', attributes: { class: 'dialogbox selectnone' } });
 export const RANDOMSTRINGCHARS      = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+export const RANDOMSTRINGID         = funcs.GenerateRandomString(128);
 export const CELLMINWIDTH           = 25;
 export const CELLMINHEIGHT          = 25;
 export const EDITABLE               = 'plaintext-only';
@@ -23,7 +24,7 @@ export const OPTIONISCLONABLE				= '+'; // Var is used in dialog.js, const.js, f
 export const OPTIONISREMOVABLE			= '-'; // Var is used in dialog.js, const.js, func.js
 export const OPTIONSDIVIDER					= '/'; // Var is used in dialog.js, const.js 
 export const FIELDSDIVIDER					= '~'; // Var is used in dialog.js, const.js, func.js
-export const WARNINGDIALOG          = JSON.stringify({ title: { type: 'title', data: 'Warning' }, msg: { type: 'table' }, ok: JSON.parse(BUTTONOK) });
+export const WARNINGDIALOG          = JSON.stringify({ title: { type: 'title', data: 'Warning' }, msg: { type: 'table' }, ok: JSON.parse(BUTTONCANCEL) });
 export const SYSTEMSTATICMACROS     = { USERNAME: 'username', USERID: 'userid', OD: 'od', OV: 'ov', ODID: 'odid', OVID: 'ovid', OID: 'oid', EID: 'eid', EPROP: 'eprop', ELEMENT: null, EVENTNAME: 'type', EVENTDATA: 'value', RANDOM: null, DATE: null, TIME: null, DATETIME: null, NULL: null, DBDATATBLNAME: null, ELEMENTCOLUMNPREFIX: null };
 export const SYSTEMDYNAMICMACROS    = { LAYOUT: null };
 export const ALLOWEDINNERTAGSSTRING = 'div, span, pre, br, b'; // Should table tags (table, tbody, tr, td, thead, tfoot, caption, col, colgroup) be added?
@@ -31,20 +32,23 @@ export const ALLOWEDINNERTAGSREGEX  = new RegExp(`${ALLOWEDINNERTAGSSTRING.split
 export const INNERENCODEMAP         = [['&', '<', '>', "'", '"'], ['&amp;', '&lt;', '&gt;', '&#39;', '&quot;']];
 export const MOUSEEVENTS            = ['DOUBLECLICK'];
 export const MISCEVENTS             = ['ADDOBJECT', 'DELETEOBJECT', 'CONFIRMEDIT', 'CONFIRMDIALOG', 'PASTE'];
-export const CALLBACKEVENTS         = ['ONEVENT', 'ONTIMER'];
+export const CALLBACKEVENTS         = ['ONCHANGE', 'ONTIMER'];
 export const USERNAMEMAXCHAR        = 255;
 export const USERPASSMINLENGTH      = 4;
 export const NATIVEKEYBOARDEVENTS   = ['KeyA', 'KeyB', 'KeyC', 'KeyD', 'KeyE', 'KeyF', 'KeyG', 'KeyH', 'KeyI', 'KeyJ', 'KeyK', 'KeyL', 'KeyM', 'KeyN', 'KeyO', 'KeyP', 'KeyQ', 'KeyR', 'KeyS', 'KeyT', 'KeyU', 'KeyV', 'KeyW', 'KeyX', 'KeyY', 'KeyZ', 'Digit0', 'Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'F1',    'F2',    'F3',    'F4',    'F5',    'F6',    'F7',    'F8',    'F9',    'F10',    'F11',    'F12',    'Space',    'Delete',    'BracketLeft',    'BracketRight'];
 export const KEYBOARDEVENTS         = ['KEYA', 'KEYB', 'KEYC', 'KEYD', 'KEYE', 'KEYF', 'KEYG', 'KEYH', 'KEYI', 'KEYJ', 'KEYK', 'KEYL', 'KEYM', 'KEYN', 'KEYO', 'KEYP', 'KEYQ', 'KEYR', 'KEYS', 'KEYT', 'KEYU', 'KEYV', 'KEYW', 'KEYX', 'KEYY', 'KEYZ', 'KEY0',   'KEY1',   'KEY2',   'KEY3',   'KEY4',   'KEY5',   'KEY6',   'KEY7',   'KEY8',   'KEY9',   'KEYF1', 'KEYF2', 'KEYF3', 'KEYF4', 'KEYF5', 'KEYF6', 'KEYF7', 'KEYF8', 'KEYF9', 'KEYF10', 'KEYF11', 'KEYF12', 'KEYSpace', 'KEYDelete', 'KEYBracketLeft', 'KEYBracketRight', 'KEYPRESS'];
-export const CONTROLLEREVENTS       = ['EMULATE', 'EDIT', 'DIALOG', 'SET', 'WRITE', 'PUT', 'ADJUST', 'RESET', 'UPDATE', 'PUSH', 'COLLECT', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'];
 export const CLIENTEVENTS           = [...KEYBOARDEVENTS, ...MOUSEEVENTS, ...MISCEVENTS, ...CALLBACKEVENTS];
+export const CLIENTEVENTSSETONLY    = ['ADDOBJECT', ...CALLBACKEVENTS];
+export const HANDLEREVENTS          = ['EMULATE', 'EDIT', 'DIALOG', 'SET', 'MUTESET', 'SUBSET', 'MUTESUBSET', 'RESET', 'MUTERESET', 'COLLECT', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'];
+export const HANDLERSETEVENTS       = ['SET', 'MUTESET', 'SUBSET', 'MUTESUBSET', 'RESET', 'MUTERESET'];
+export const HANDLEREVENTSWITHDATA  = ['EMULATE', 'DIALOG', 'SET', 'MUTESET', 'SUBSET', 'MUTESUBSET', 'RESET', 'MUTERESET', 'COLLECT', 'COPY', 'NEWPAGE'];
+export const MAXOBJECTSTODELETE     = 128;
 export const WRITETOFILEFUNC        = Symbol('WRITETOFILEFUNC');
 export const LOGFILENAME            = 'tabels.log';
 export const LOGTOSTDOUT            = 0b001;
 export const LOGTOSTDERR            = 0b010;
 export const LOGTOFILE              = 0b100;
 export const MSGDELIMITER           = '--------------------------------\n';
-export const EVENTSONOBJECTADD      = ['SET', 'WRITE', 'PUT', 'ADJUST', 'RESET'];
 const DIALOGBOXMACROSSTYLE          = { SIDE_MARGIN: '10px', ELEMENT_MARGIN: '10px', HEADER_MARGIN: '5px', TITLE_PADDING: '5px', BUTTON_PADDING: '10px', FONT: 'Lato, Helvetica' };
 export const CUSTOMIZATIONS         =
 {
@@ -104,7 +108,7 @@ export const CUSTOMIZATIONS         =
                      // dialog box select option selected
                      ".selected": { "background-color": "rgb(211, 222, 192);", "color": "#fff;" },
                      // Profile selection additional style
-                     ".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "4px;" },
+                     ".profileselectionstyle": { "font": `bold .8em ${DIALOGBOXMACROSSTYLE.FONT};`, "border-radius": "6px;", "color": "#59C;" },
                      //------------------------------------------------------------
                      // dialog box radio
                      "input[type=radio]": { "background-color": "transparent;", "border": "1px solid #777;", "font": ".8em/1 sans-serif;", "margin": `3px 5px 6px ${DIALOGBOXMACROSSTYLE.ELEMENT_MARGIN};`, "border-radius": "20%;", "width": "1.2em;", "height": "1.2em;" },
@@ -242,22 +246,33 @@ const VIEWPAD = {
                  Selection: {
                            template: { type: 'radio', head: `Template~Select object view template for the form the OV data is displayed. 'Table' template displays objects with its elements in a form of a table. Template 'Tree' displays the tree of objects acting as a nodes connected with each other via 'link' element property (for JSON type elements only). And 'Map' template places objects on geographic map based on their elements with 'geo' property (for JSON type elements only)`, data: 'Table~!/Tree/Map', flag: '*' },
                            layout: { type: 'textarea', head: `Layout~As template defines the form objects are displayed, layout defines what elements should be displayed and how for the selected template above. Element layout is a JSON list and should contain at least one valid JSON to display any data at all, see appropriate help section for details`, data: '' },
-                           query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = 1' },
+                           query: { type: 'textarea', head: 'Query~Columns/expressions to select from OD (see FROM statement below). Built automatically from element layout. See appropriate help section for details', data: '', flag: '+SELECT id,eid1,edi2 FROM <data_N> WHERE lastversion = true' },
                            linkname: { type: 'text', head: 'Link~Object selection link name', data: '' }, }, 
                  Macros: {
                            call: { type: 'checkbox', data: 'Call dialog', head: `Macro definition dialog~This OV macros for 'Selection' layout/query and OD 'Rule' message/query fields may be (re)defined by the user manually via dialog that is called at client side before OV open. Checked 'Call dialog' option calls client side dialog, unchecked - doesn't, but all macro values in dialog structure below are applied anyway. Trimmed text area below is empty - dialog structure for all mentioned macros in 'View selection' and 'OD Rule' are created automatically. Dialog structure interface element property name is a macro name, input field content - macro value (for 'textarea', 'text', 'password', 'select', 'radio' and 'checkbox' interface element types only). Dialog structure defined macros are applied regardless of 'Call dialog' option. Dialog structure should contain input fields only, dialog title with 'OK'/'CANCEL' buttons are added automatically. Client side dialog call may be used not for macro definitions, but for info/warning message display before OV open. Macro 'SOMEMACROS' definition dialog example: { "SOMEMACROS": { "type": "text", "head": "Input macro SOMEMACROS value", "data": "" } }` },
                            dialog: { type: 'textarea', head: '', data: '', flag: '*' }, }, 
                  Appearance: {
-                           init: { type: 'radio', head: 'Window init~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Browser new tab' },
-                           position: { type: 'radio', data: 'Sidebar fit/Cascade~!/Random', head: 'Initial window position~Select view window position at the opening' },
-                           size: { type: 'radio', head: 'Initial window size', data: 'Auto~!/Full screen/Fixed', flag: '' },
-                           width: { type: 'text', head: 'Comma separated width and height in pixels', data: '', expr: '/Auto~!|Full screen~!/c', flag: '*' },
-                           control: { type: 'checkbox', head: 'Control', data: 'Resize~!/Full screen~!/Escape/Close icon\n~!/Always on top/Modal', flag: '*' },
+                           init: { type: 'select', head: 'Window initialization~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Always on Top/Modal/New tab' },
+                           position: { type: 'select', data: 'Sidebar fit/Cascade~!/Center', head: 'Window initial position~Select view window position at the opening' },
+                           size: { type: 'text', head: "Window initial size~Space separated width and height in pixels/percent. Incorrect/empty value - window is content fit, value '100% 100%' - window is full screen", data: '', flag: '' },
+                           control: { type: 'checkbox', head: 'Window control', data: 'Resize~!/Full screen button~!/Full screen double click~!/Minimize button/Status info\n~!', flag: '*' },
+                           action: { type: 'select', head: 'Actions', data: { 'Open in a new window': { autoopen: { type: 'checkbox', head: `Open OV in a new window on event`, data: 'New data/Data delete/Data change', flag: '*' } },
+                                                                              'Close': { close: { type: 'checkbox', head: `Close OV window on event~Third option timer in seconds starts at window init and automatically close the window. Zero/empty/error value - no action. No 'close btn' and 'escape key' options checked regardless of timer value - escape key is used anyway to avoid dead lock`, data: 'Escape key/Close button~!/Timer' }, timer: { type: 'text', head: '', data: '', expr: '/^((?!Timer~!).)*$/close', flag: '*' } },
+                                                                              'Bring to top': { bringtotop: { type: 'checkbox', head: 'Bring to top OV window on event', data: 'New data/Data delete/Data change', flag: '*' } },
+                                                                              'Refresh': { refresh: { type: 'checkbox', head: `Refresh OV data on event`, data: 'New data/Data delete/Timer' }, timer: { type: 'text', head: '', data: '', expr: '/^((?!Timer~!).)*$/refresh', flag: '*' } },
+                                                                             } } },
+                 /*Appearance: {
+                           init: { type: 'radio', head: 'Window initialization~OV opens in a current window, new window or in a browser new tab (read-only mode)', data: 'Current window~!/New window/Always on Top/Modal/New tab' },
+                           position: { type: 'radio', data: 'Sidebar fit/Cascade~!/Center', head: 'Window initial position~Select view window position at the opening' },
+                           size: { type: 'text', head: "Window initial size~Space separated width and height in pixels/percent. Incorrect/empty value - window is content fit, value '100% 100%' - window is full screen", data: '', flag: '' },
+                           control: { type: 'checkbox', head: 'Window control', data: 'Resize~!/Full screen button~!/Full screen double click~!/Minimize button/Status info\n~!', flag: '' },
                            bringtotop: { type: 'checkbox', head: 'Bring to top on event', data: 'New data/Data delete/Data change' },
                            autoopen: { type: 'checkbox', head: `Auto open in a new window on event`, data: 'New data/Data delete/Data change' },
                            refresh: { type: 'checkbox', head: `OV full refresh on event`, data: 'New data/Data delete/Timer' },
-                           timer: { type: 'text', data: '', expr: '/^((?!Timer~!).)*$/h', flag: '*' },
-                           lifetime: { type: 'text', head: 'Lifetime~OV window lifetime (in seconds) after which the window will be closed automatically. Zero/empty/error value - no action', data: '', flag: '' }, }, 
+                           timer1: { type: 'text', head: '', data: '', expr: '/^((?!Timer~!).)*$/refresh' },
+                           close: { type: 'checkbox', head: `Close OV on event~Third option timer in seconds starts at window init and automatically close the window. Zero/empty/error value - no action. No 'close btn' and 'escape key' options checked regardless of timer value - escape key is used anyway to avoid dead lock`, data: 'Escape key/Close button/Timer' },
+                           timer2: { type: 'text', head: '', data: '', expr: '/^((?!Timer~!).)*$/close' } }, 
+                           */
                  Permissions: {
                            read: { type: 'textarea', head: `Restrict read access for next users/groups`, data: '' },
                            write: { type: 'textarea', head: `Restrict write access for next users/groups`, data: '', flag: '*' },
@@ -299,14 +314,14 @@ const enewprofiles = { 'username~*': { name: 'Username', description: 'User name
                     'customization~*': { name: 'Customization', description: 'User customization', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' },
                     'event groups~*': { name: 'Event groups', description: 'Event groups', type: 'JSON', index: 'None~!/btree/UNIQUE btree/hash', event: 'SYSTEM' } };
 const vnewprofiles = { 'All~*': { settings: { data: { General: { name: 'All users', description: 'All users list' }, 
-                                                      Selection: { layout: USERODLAYOUT, query: `SELECT id,ownerid,owner,datetime,lastversion,${ELEMENTCOLUMNPREFIX}1,${ELEMENTCOLUMNPREFIX}2,${ELEMENTCOLUMNPREFIX}6\nFROM data_1` } } } } };
+                                                      Selection: { layout: USERODLAYOUT, query: `SELECT id,ownerid,ownername,datetime,lastversion,${ELEMENTCOLUMNPREFIX}1,${ELEMENTCOLUMNPREFIX}2,${ELEMENTCOLUMNPREFIX}6\nFROM data_1\nWHERE lastversion = true` } } } } };
 for (const profilename in enewprofiles)
     {
      elements[profilename] = JSON.parse(elementprofileTemplate);
      for (const e in enewprofiles[profilename])
          {
           elements[profilename][e].data = enewprofiles[profilename][e];
-          if (e === 'type') elements[profilename][e].expr = '/^/'; // Make element type (column type in DB) readonly
+          if (e === 'type' || e === 'index') elements[profilename][e].expr = '/^/'; // Make element 'type' and 'index' readonly
          }
     }                                                     
 for (const profilename in vnewprofiles)
@@ -325,12 +340,12 @@ for (const profilename in vnewprofiles)
 /*********************************************************************************************************/
 const newevent = JSON.stringify({ events: { type: 'select', head: 'Select event type', data: CLIENTEVENTS.join(OPTIONSDIVIDER) },
                            modifier: { type: 'checkbox', head: 'Select event modifier keys~For mouse and keyboard (except KEYPRESS) events only. Note that some events (Ctrl+KeyA, Ctrl+KeyC, KeyF1 and others) are reserved by client app (browser) for its default behaviour, so may never occur', data: 'Ctrl/Alt/Shift', expr: `/${[...CALLBACKEVENTS, ...MISCEVENTS, 'KEYPRESS'].join('~\!|')}~!/events` },
-                           attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEVENT~\!|ONTIMER~\!)).*$/events' },
+                           attr: { type: 'text', head: 'Event attribute~For ONEVENT and ONTIMER events only', data: '', flag: '*', expr: '/^(?!.*(ONEtttttttttVENT~\!|ONTIMER~\!)).*$/events' },
                            handlertype: { type: 'select', head: 'Handler type', data: 'Disabled~!/Fixed output/Command line/Shell command line/Module function' },
                            handlerdata: { type: 'textarea', head: 'Handler data', data: '', expr: '/Disabled~!/handlertype' },
                            timeout: { type: 'text', head: `Handler timeout~Timeout, in seconds, for the controller to wait the handler to response. For incorrect/undefined string a default value of 30 sec is used. The setting is applied for 'Command line' and 'Eval' handler types only`, data: '30', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
                            retry: { type: 'text', head: `Retries~Handler restart attempts on timeout. For incorrect/undefined string a zero value (0 retries) is used: the handler is not restarted after timeout. The setting is applied for 'Command line' or 'Eval' handler types only`, data: '0', flag: '', expr: '/^(?!.*Shell command line~\!)(?!.*Command line~\!)/handlertype' },
-                           output: { type: 'checkbox', head: 'Handler result action', data: `Wrap/Debug/Ignore`, expr: '/Disabled~!/handlertype' }, // specfied action for handler any stdout or stderr is applied. Checked 'Ignore' option ignores handler output doing nothing regardless of other option checked. Checked 'Debug' displays clientside info msg with handler output data. No Ignore/Debug options set - handler output data of itself or converted to SET cmd output data for 'Wrap' checked - is applied
+                           output: { type: 'checkbox', head: 'Action on handler result', data: `Wrap/Debug/Ignore`, expr: '/Disabled~!/handlertype' }, // specfied action for handler any stdout or stderr is applied. Checked 'Ignore' option ignores handler output doing nothing regardless of other option checked. Checked 'Debug' displays clientside info msg with handler output data. No Ignore/Debug options set - handler output data of itself or converted to SET cmd output data for 'Wrap' checked - is applied
                          });
 const neweventgroup = { evsel: { type: 'select', head: 'Select event profile for event group above', data: { 'New event~+': JSON.parse(newevent) }, flag: '*' } };
 //////////////////////////////    
@@ -340,7 +355,13 @@ delete USERSET.modifier;
 delete USERSET.attr;
 USERSET.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
 USERSET.handlerdata.data = 'system.Userset\n${EVENTNAME}\n${EID}\n${EVENTDATA}\n${USERNAME}\n${"ename":"' + ELEMENTCOLUMNPREFIX + '1"}';
-const system = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'ADDOBJECT~+': USERSET, 'DOUBLECLICK~+': JSON.parse(JSON.stringify(USERSET)), 'KEYF2~+': JSON.parse(JSON.stringify(USERSET)), 'CONFIRMDIALOG~+': JSON.parse(JSON.stringify(USERSET)) }, flag: '*' } };
+const USEREDIT = JSON.parse(newevent);
+delete USEREDIT.events;
+delete USEREDIT.modifier;
+delete USEREDIT.attr;
+USEREDIT.handlertype.data = 'Disabled/Fixed output/Command line/Shell command line/Module function~!';
+USEREDIT.handlerdata.data = 'system.Userset\n${EVENTNAME}\n${EID}\n${}\n${USERNAME}\n${"ename":"' + ELEMENTCOLUMNPREFIX + '1"}';
+const system = { evsel: { type: 'select', head: 'Select event profile', data: { 'New event~+': JSON.parse(newevent), 'ADDOBJECT~+': USERSET, 'CONFIRMDIALOG~+': JSON.parse(JSON.stringify(USERSET)), 'DOUBLECLICK~+': USEREDIT, 'KEYF2~+': JSON.parse(JSON.stringify(USEREDIT)) }, flag: '*' } };
 //////////////////////////////    
 const DATASET = JSON.parse(newevent);
 delete DATASET.events;

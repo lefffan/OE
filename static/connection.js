@@ -117,10 +117,10 @@ export class Connection extends Interface
                if (event.data?.dialog) new DialogBox(event.data.dialog, this, Object.assign(JSON.parse(consts.MODALBOXPROPS), { flag: Interface.MODALBROTHERKILLSME, callback: { type: 'SETDATABASE', data: { odid: event.data.odid } } }));
                break;
 	     case 'CONFIRMDIALOG':
-               switch (event.source.props.callback?.type)
+               switch (event.source.props.callback.type)
                       {
                        case 'SETDATABASE':
-                            this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.callback?.data.odid } }); // Send new OD dialog data to controller via WS
+                            this.WebsocketSend({ type: 'SETDATABASE', data: { dialog: event.source.data, odid: event.source.props.callback.data.odid } }); // Send new OD dialog data to controller via WS
                             break;
 	                  case 'LOGIN':                                                         // Login dialog returned 'LOGIN' event with user/pass
                             LOGINDIALOG.username.data = event.source.data.username.data;     // Keep username in login dialog data to use it as a placeholder for next logins
@@ -136,13 +136,13 @@ export class Connection extends Interface
                return { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: -1 }, destination: null };
           default:
                if (consts.CLIENTEVENTS.includes(event.type)) return this.WebsocketSend(event); // Dispatch all client (browser) events to the controller
-               if (event.type === 'SETVIEW' || consts.CONTROLLEREVENTS.includes(event.type)) // Dispatch OV specific events to the child box with id <childid>
+               if (event.type === 'SETVIEW' || consts.HANDLEREVENTS.includes(event.type)) // Dispatch OV specific events to the child box with id <childid>
                   {
                    const view = event.destination = this.childs[event.data.childid];
                    if (!view || view.data.odid !== event.data.odid || view.data.ovid !== event.data.ovid) // The child with <childid>, the event is addressed to, doesn't exist, so ignore all events except 'SETVIEW' - set specified OV status to offline
                       return event.type === 'SETVIEW' ? { type: 'SIDEBARVIEWSTATUS', data: { odid: event.data.odid, ovid: event.data.ovid, status: undefined, childid: undefined }, destination: null } : undefined;
-                   this.DisplayWarning(event, view); // Otherwise display warning msg if exist. Next contoller events may come with 'warning' property: 'EDIT', 'DIALOG', 'SET', 'WRITE', 'PUT', 'ADJUST', 'RESET', 'UPDATE', 'UPLOAD', 'DOWNLOAD', 'UNLOAD', 'GALLERY', 'NULL', 'COPY', 'NEWPAGE'
-                   return event; // and dispatch <event> to the specified via <childid> one
+                   this.DisplayWarning(event, view); // Otherwise display warning msg if exist
+                   return event.type === 'NULL' ? undefined : event; // and dispatch <event> to the specified via <childid> one
                   }
 	    }
  }
@@ -218,33 +218,33 @@ export class Connection extends Interface
 
 /* OV ADDOBJECT|DELETEOBJECT events
    +--------+                                                                                            +------------+                                   +---------+                                     
-   |        | ADDOBJECT:LOCAL[<cellmetadata>,eid1,eid2..] -> ADDOBJECT:WS[ --||-- ] ->                   |            |                                   |         |                
-   |        | DELETEOBJECT:LOCAL[<cellmetadata>,oid1,oid2..] -> DELETEOBJECT:WS[ --||-- ] ->             |            |                                   |         |                
+   |        | ADDOBJECT:LOCAL[odid,ovid,childid,eid1,eid2..] -> ADDOBJECT:WS[ --||-- ] ->                |            |                                   |         |                
+   |        | DELETEOBJECT:LOCAL[odid,ovid,childid,oid1,oid2..] -> DELETEOBJECT:WS[ --||-- ] ->          |            |                                   |         |                
    | Client |                                											     | Controller |                                   | Handler |                
    |        |                        		    		                                                  |            |                                   |         |                
    |        |                        		    		                                                  |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
-/* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data is <cellmetadata> (odid,ovid[,oid,eid,eprop]) plus 'value' property: for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other events - modifier keys value
+/* OV keyboard|mouse|PASTE|CONFIRMEDIT|CONFIRMDIALOG events. Event data is <cellmetadata> (odid,ovid[,oid,eid,eprop]) plus 'value' property: for KEYPRESS - pressed key character, for PASTE|CONFIRMEDIT|CONFIRMDIALOG - event specific content, for other keyboard/mouse events - modifier keys value
    +--------+                                                                                            +------------+                                   +---------+                                     
-   |        | KEYF2:LOCAL[<cellmetadata>,value] -> KEYF2:WS[<cellmetadata>,value] ->                     |            |                                   |         |                
+   |        | <EVENT>:LOCAL[<cellmetadata>,value] -> <EVENT>:WS[<cellmetadata>,value] ->                 |            |                                   |         |                
    | Client |                                                     <- NULL:WS[content,title,odid,ovid]    | Controller |                                   | Handler |                
    |        |                        		    		                                                  |            |                                   |         |                
    |        |                        		    		                                                  |            |                                   |         |                
    +--------+                                                                                            +------------+                                   +---------+                                     
 */
 
-/* Controller initiated ONEVENT|ONTIMER events, ONEVENT args: eventname, ovid[empty - current object, otherwise - all ovid objects]; ONTIMER args: cron_line, user[filled automatically], ovid, queue['<0' ms handler delay; '0' onlyonce; '>0' simultaneous handler number]
+/* Controller initiated ONCHANGE event is passed to all object elements in case of any element data is changed; ONTIMER event args: cron_line, user[filled automatically], ovid, queue['<0' ms handler delay; '0' incorrect/empty/zero queue - handler is executed only once; '0' simultaneous handler number, digit one means one by one handler exec]
    +--------+       +------------+                                                                             +---------+                                     
-   |        | 	     |            | ONEVENT:LOCAL[odid,ovid,oid,eid,data] - >                                   |         |                
+   |        | 	     |            | ONCHANGE:LOCAL[odid,ovid,oid,eid,data] ->                                   |         |                
    | Client |       | Controller |                                                                             | Handler |                
    |        |       |            |                                                                             |         |
    |        |       |            |                                                                             |         |                
    +--------+       +------------+                                                                             +---------+                                     
 */
 
-/* Handler events: EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW); EDIT; DIALOG; [MUTE]SET|[MUTE]WRITE|[MUTE]PUT|[MUTE]ADJUST; [MUTE]RESET(delete all and set); [MUTE]UPDATE(set if obj change); PUSH|COLLECT(tsdb); UPLOAD; DOWNLOAD; UNLOAD; GALLERY; NULL; COPY(buffer); NEWPAGE(url)
+/* Handler events: EMULATE(ADDOBJECT,DELETEOBJECT,SETVIEW); EDIT(content, preset, charlimit, linelimit, whitelist, blacklist); DIALOG; [MUTE]SET; [MUTE]SUBSET(set json prop); [MUTE]RESET(set if obj change); COLLECT(tsdb); UPLOAD; DOWNLOAD; UNLOAD; GALLERY; NULL; COPY(buffer); NEWPAGE(url)
    +--------+       +------------+                                                                             +---------+                                     
    |        | 	     |            |                                                                             |         |                
    | Client |       | Controller |                                                                             | Handler |                
